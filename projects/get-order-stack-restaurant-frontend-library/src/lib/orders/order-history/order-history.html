@@ -1,0 +1,160 @@
+<div class="order-history">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="h4 mb-0">Order History</h2>
+  </div>
+
+  <!-- Status Filter -->
+  <div class="status-filter mb-4">
+    <div class="d-flex flex-wrap gap-2">
+      @for (option of statusOptions; track option.value) {
+        <button
+          type="button"
+          class="btn btn-sm"
+          [class.btn-primary]="statusFilter() === option.value"
+          [class.btn-outline-light]="statusFilter() !== option.value"
+          (click)="setStatusFilter(option.value)"
+        >
+          {{ option.label }}
+        </button>
+      }
+    </div>
+  </div>
+
+  @if (error()) {
+    <get-order-stack-error-display
+      [message]="error()!"
+      [retryable]="true"
+      (retry)="retry()"
+    />
+  }
+
+  @if (isLoading()) {
+    <div class="d-flex justify-content-center p-5">
+      <get-order-stack-loading-spinner message="Loading orders..." />
+    </div>
+  } @else {
+    <div class="orders-list">
+      @for (order of filteredOrders(); track order.id) {
+        <div class="order-card card mb-2" (click)="selectOrder(order)">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+              <div>
+                <h5 class="mb-1">Order #{{ getOrderNumber(order) }}</h5>
+                <small class="text-muted">
+                  {{ order.createdAt | date:'short' }}
+                </small>
+              </div>
+              <get-order-stack-status-badge [status]="order.status" />
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center">
+              <div class="order-meta small text-muted">
+                <span class="me-3">{{ order.orderType }}</span>
+                @if (order.customer?.name) {
+                  <span>{{ order.customer?.name }}</span>
+                }
+              </div>
+              <span class="order-total fw-bold">{{ order.total | currency }}</span>
+            </div>
+          </div>
+        </div>
+      } @empty {
+        <div class="empty-state text-center p-5">
+          <p class="text-muted mb-0">
+            @if (statusFilter() !== 'all') {
+              No orders with this status
+            } @else {
+              No orders yet
+            }
+          </p>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- Order Detail Modal -->
+  @if (selectedOrder()) {
+    <div class="modal-overlay" (click)="closeOrderDetail()">
+      <div class="modal-content card" (click)="$event.stopPropagation()">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h4 class="mb-0">Order #{{ getOrderNumber(selectedOrder()!) }}</h4>
+          <button type="button" class="btn-close btn-close-white" (click)="closeOrderDetail()"></button>
+        </div>
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <get-order-stack-status-badge [status]="selectedOrder()!.status" />
+            <span class="text-muted">{{ selectedOrder()!.createdAt | date:'medium' }}</span>
+          </div>
+
+          <!-- Customer Info -->
+          <div class="section mb-3">
+            <h6>Order Details</h6>
+            <p class="mb-1"><strong>Type:</strong> {{ selectedOrder()!.orderType }}</p>
+            @if (selectedOrder()!.customer?.name) {
+              <p class="mb-1"><strong>Customer:</strong> {{ selectedOrder()!.customer?.name }}</p>
+            }
+            @if (selectedOrder()!.customer?.phone) {
+              <p class="mb-1"><strong>Phone:</strong> {{ selectedOrder()!.customer?.phone }}</p>
+            }
+            @if (selectedOrder()!.tableId) {
+              <p class="mb-1"><strong>Table:</strong> {{ selectedOrder()!.tableId }}</p>
+            }
+          </div>
+
+          <!-- Order Items -->
+          <div class="section mb-3">
+            <h6>Items</h6>
+            @for (item of selectedOrder()!.items; track item.id) {
+              <div class="order-item d-flex justify-content-between mb-2">
+                <div>
+                  <span class="fw-bold">{{ item.quantity }}x</span>
+                  {{ item.name }}
+                  @if (item.modifiers && item.modifiers.length > 0) {
+                    <div class="modifiers small text-muted ps-3">
+                      @for (mod of item.modifiers; track mod.id) {
+                        <span class="d-block">+ {{ mod.name }}</span>
+                      }
+                    </div>
+                  }
+                </div>
+                <span>{{ item.totalPrice | currency }}</span>
+              </div>
+            }
+          </div>
+
+          <!-- Special Instructions -->
+          @if (selectedOrder()!.specialInstructions) {
+            <div class="section mb-3">
+              <h6>Special Instructions</h6>
+              <p class="mb-0">{{ selectedOrder()!.specialInstructions }}</p>
+            </div>
+          }
+
+          <!-- Totals -->
+          <div class="section">
+            <hr />
+            <div class="d-flex justify-content-between mb-1">
+              <span>Subtotal</span>
+              <span>{{ selectedOrder()!.subtotal | currency }}</span>
+            </div>
+            <div class="d-flex justify-content-between mb-1 text-muted small">
+              <span>Tax</span>
+              <span>{{ selectedOrder()!.tax | currency }}</span>
+            </div>
+            @if (selectedOrder()!.tip && selectedOrder()!.tip! > 0) {
+              <div class="d-flex justify-content-between mb-1 text-muted small">
+                <span>Tip</span>
+                <span>{{ selectedOrder()!.tip | currency }}</span>
+              </div>
+            }
+            <hr />
+            <div class="d-flex justify-content-between fw-bold">
+              <span>Total</span>
+              <span class="total">{{ selectedOrder()!.total | currency }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+</div>

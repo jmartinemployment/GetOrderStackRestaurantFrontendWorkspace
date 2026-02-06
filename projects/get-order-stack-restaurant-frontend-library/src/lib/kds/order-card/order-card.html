@@ -1,0 +1,65 @@
+<div class="order-card card" [class.urgent]="isUrgent()">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <div class="d-flex align-items-center gap-2">
+      <span class="order-number fw-bold">#{{ order().orderNumber }}</span>
+      <span class="badge" [class]="orderTypeClass()">{{ orderTypeLabel() }}</span>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+      <span class="elapsed-time" [class.text-danger]="isUrgent()">
+        {{ elapsedMinutes() }}m
+      </span>
+      <get-order-stack-status-badge [status]="order().status" />
+    </div>
+  </div>
+
+  <div class="card-body">
+    @if (order().tableId) {
+      <div class="table-info mb-2">
+        <small class="text-muted">Table:</small>
+        <span class="fw-bold ms-1">{{ order().tableId }}</span>
+      </div>
+    }
+
+    <ul class="order-items list-unstyled mb-0">
+      @for (item of order().items; track item.id) {
+        <li class="order-item d-flex justify-content-between">
+          <div>
+            <span class="quantity badge bg-secondary me-2">{{ item.quantity }}x</span>
+            <span class="item-name">{{ item.name }}</span>
+            @if (item.modifiers.length > 0) {
+              <div class="modifiers ms-4">
+                @for (mod of item.modifiers; track mod.id) {
+                  <small class="text-muted d-block">+ {{ mod.name }}</small>
+                }
+              </div>
+            }
+            @if (item.specialInstructions) {
+              <div class="special-instructions ms-4">
+                <small class="text-warning fst-italic">{{ item.specialInstructions }}</small>
+              </div>
+            }
+          </div>
+        </li>
+      }
+    </ul>
+
+    @if (order().specialInstructions) {
+      <div class="order-instructions mt-3 p-2 bg-warning-subtle rounded">
+        <small class="fw-bold">Note:</small>
+        <p class="mb-0 small">{{ order().specialInstructions }}</p>
+      </div>
+    }
+  </div>
+
+  @if (nextAction()) {
+    <div class="card-footer">
+      <button
+        type="button"
+        class="btn btn-primary w-100 bump-button"
+        (click)="onBump()"
+      >
+        {{ nextAction()!.label }}
+      </button>
+    </div>
+  }
+</div>

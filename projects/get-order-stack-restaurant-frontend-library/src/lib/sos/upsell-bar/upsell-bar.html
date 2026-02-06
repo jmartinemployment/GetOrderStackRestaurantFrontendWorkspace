@@ -1,0 +1,19 @@
+@if (!isEmpty() && suggestions().length > 0) {
+  <div class="upsell-bar">
+    <h6 class="upsell-title mb-2">{{ title() }}</h6>
+    <div class="upsell-items d-flex gap-2 overflow-auto pb-2">
+      @for (item of suggestions(); track item.id) {
+        <div class="upsell-item card" (click)="addItem(item)">
+          @if (item.image) {
+            <img [src]="item.image" [alt]="item.name" width="80" height="60" class="card-img-top" />
+          }
+          <div class="card-body p-2">
+            <p class="card-title small mb-1">{{ item.name }}</p>
+            <span class="price small">{{ item.price | currency }}</span>
+          </div>
+          <button type="button" class="add-btn">+</button>
+        </div>
+      }
+    </div>
+  </div>
+}

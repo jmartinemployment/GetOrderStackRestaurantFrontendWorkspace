@@ -1,0 +1,130 @@
+<div class="receipt-printer">
+  @if (showPrintButton()) {
+    <div class="print-controls mb-3 d-print-none">
+      <button
+        type="button"
+        class="btn btn-primary"
+        (click)="print()"
+        [disabled]="isPrinting()"
+      >
+        @if (isPrinting()) {
+          <span class="spinner-border spinner-border-sm me-2"></span>
+          Printing...
+        } @else {
+          Print Receipt
+        }
+      </button>
+    </div>
+  }
+
+  <div class="receipt">
+    <!-- Header -->
+    <div class="receipt-header text-center mb-3">
+      <h4 class="restaurant-name mb-1">{{ restaurantName() }}</h4>
+      @if (restaurantAddress()) {
+        <p class="mb-0 small">{{ restaurantAddress() }}</p>
+      }
+      @if (restaurantPhone()) {
+        <p class="mb-0 small">{{ restaurantPhone() }}</p>
+      }
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Order Info -->
+    <div class="order-info mb-3">
+      <div class="d-flex justify-content-between">
+        <span>Order #{{ getOrderNumber() }}</span>
+        <span>{{ order().orderType | titlecase }}</span>
+      </div>
+      <div class="text-muted small">
+        {{ getFormattedDate(order().createdAt) }}
+      </div>
+      @if (order().customer?.name) {
+        <div class="mt-1">
+          <strong>Customer:</strong> {{ order().customer?.name }}
+        </div>
+      }
+      @if (order().tableId) {
+        <div>
+          <strong>Table:</strong> {{ order().tableId }}
+        </div>
+      }
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Items -->
+    <div class="receipt-items mb-3">
+      @for (item of order().items; track item.id) {
+        <div class="receipt-item mb-2">
+          <div class="d-flex justify-content-between">
+            <span>
+              <strong>{{ item.quantity }}x</strong> {{ item.name }}
+            </span>
+            <span>{{ item.totalPrice | currency }}</span>
+          </div>
+          @if (item.modifiers && item.modifiers.length > 0) {
+            <div class="item-modifiers ps-3 small text-muted">
+              @for (mod of item.modifiers; track mod.id) {
+                <div class="d-flex justify-content-between">
+                  <span>+ {{ mod.name }}</span>
+                  @if (mod.priceAdjustment > 0) {
+                    <span>{{ mod.priceAdjustment | currency }}</span>
+                  }
+                </div>
+              }
+            </div>
+          }
+          @if (item.specialInstructions) {
+            <div class="item-note small text-muted fst-italic ps-3">
+              Note: {{ item.specialInstructions }}
+            </div>
+          }
+        </div>
+      }
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Totals -->
+    <div class="receipt-totals mb-3">
+      <div class="d-flex justify-content-between">
+        <span>Subtotal</span>
+        <span>{{ order().subtotal | currency }}</span>
+      </div>
+      <div class="d-flex justify-content-between text-muted">
+        <span>Tax</span>
+        <span>{{ order().tax | currency }}</span>
+      </div>
+      @if (order().tip && order().tip! > 0) {
+        <div class="d-flex justify-content-between text-muted">
+          <span>Tip</span>
+          <span>{{ order().tip | currency }}</span>
+        </div>
+      }
+      <div class="divider my-2"></div>
+      <div class="d-flex justify-content-between total">
+        <strong>Total</strong>
+        <strong>{{ order().total | currency }}</strong>
+      </div>
+    </div>
+
+    <!-- Special Instructions -->
+    @if (order().specialInstructions) {
+      <div class="divider"></div>
+      <div class="receipt-notes mb-3">
+        <strong>Notes:</strong>
+        <p class="mb-0">{{ order().specialInstructions }}</p>
+      </div>
+    }
+
+    <div class="divider"></div>
+
+    <!-- Footer -->
+    <div class="receipt-footer text-center mt-3">
+      <p class="mb-1">Thank you for your order!</p>
+      <p class="small text-muted mb-0">Powered by GetOrderStack</p>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,36 @@
+<div class="notifications-container">
+  @for (notification of notifications(); track notification.id) {
+    <div
+      class="notification toast show"
+      [class.notification-success]="notification.type === 'success'"
+      [class.notification-info]="notification.type === 'info'"
+      [class.notification-warning]="notification.type === 'warning'"
+    >
+      <div class="toast-header">
+        <strong class="me-auto">
+          @switch (notification.type) {
+            @case ('success') {
+              <span class="status-icon">✓</span>
+            }
+            @case ('warning') {
+              <span class="status-icon">!</span>
+            }
+            @default {
+              <span class="status-icon">i</span>
+            }
+          }
+          Order Update
+        </strong>
+        <small class="text-muted">Just now</small>
+        <button
+          type="button"
+          class="btn-close btn-close-white"
+          (click)="dismissNotification(notification.id)"
+        ></button>
+      </div>
+      <div class="toast-body">
+        {{ notification.message }}
+      </div>
+    </div>
+  }
+</div>

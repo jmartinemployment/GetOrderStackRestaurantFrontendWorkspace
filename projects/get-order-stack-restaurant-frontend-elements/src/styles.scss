@@ -1,0 +1,17 @@
+/* CSS Variables */
+:root {
+  --midnight-black: #03020D;
+  --deep-lake: #1D3273;
+  --hermes: #203B8C;
+  --lapis-lazuli: #3632A6;
+  --medium-slate-blue: #7E5EF2;
+  --cerulean-periwinkle: #5CB9F2;
+  --pale-turquoise: #A7F2F2;
+}
+
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background-color: var(--midnight-black);
+}

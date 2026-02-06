@@ -4,6 +4,12 @@
   "compileOnSave": false,
   "compilerOptions": {
     "strict": true,
+    "baseUrl": ".",
+    "paths": {
+      "get-order-stack-restaurant-frontend-library": [
+        "projects/get-order-stack-restaurant-frontend-library/src/public-api.ts"
+      ]
+    },
     "noImplicitOverride": true,
     "noPropertyAccessFromIndexSignature": true,
     "noImplicitReturns": true,
@@ -21,5 +27,16 @@
     "strictInputAccessModifiers": true,
     "strictTemplates": true
   },
-  "files": []
+  "files": [],
+  "references": [
+    {
+      "path": "./projects/get-order-stack-restaurant-frontend-library/tsconfig.lib.json"
+    },
+    {
+      "path": "./projects/get-order-stack-restaurant-frontend-library/tsconfig.spec.json"
+    },
+    {
+      "path": "./projects/get-order-stack-restaurant-frontend-elements/tsconfig.app.json"
+    }
+  ]
 }

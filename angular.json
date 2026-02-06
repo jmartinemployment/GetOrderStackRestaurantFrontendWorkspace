@@ -6,5 +6,119 @@
   },
   "newProjectRoot": "projects",
   "projects": {
+    "get-order-stack-restaurant-frontend-library": {
+      "projectType": "library",
+      "root": "projects/get-order-stack-restaurant-frontend-library",
+      "sourceRoot": "projects/get-order-stack-restaurant-frontend-library/src",
+      "prefix": "get-order-stack",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:ng-packagr",
+          "configurations": {
+            "production": {
+              "tsConfig": "projects/get-order-stack-restaurant-frontend-library/tsconfig.lib.prod.json"
+            },
+            "development": {
+              "tsConfig": "projects/get-order-stack-restaurant-frontend-library/tsconfig.lib.json"
+            }
+          },
+          "defaultConfiguration": "production"
+        },
+        "test": {
+          "builder": "@angular/build:unit-test",
+          "options": {
+            "tsConfig": "projects/get-order-stack-restaurant-frontend-library/tsconfig.spec.json"
+          }
+        }
+      }
+    },
+    "get-order-stack-restaurant-frontend-elements": {
+      "projectType": "application",
+      "schematics": {
+        "@schematics/angular:component": {
+          "style": "scss",
+          "skipTests": true
+        },
+        "@schematics/angular:class": {
+          "skipTests": true
+        },
+        "@schematics/angular:directive": {
+          "skipTests": true
+        },
+        "@schematics/angular:guard": {
+          "skipTests": true
+        },
+        "@schematics/angular:interceptor": {
+          "skipTests": true
+        },
+        "@schematics/angular:pipe": {
+          "skipTests": true
+        },
+        "@schematics/angular:resolver": {
+          "skipTests": true
+        },
+        "@schematics/angular:service": {
+          "skipTests": true
+        }
+      },
+      "root": "projects/get-order-stack-restaurant-frontend-elements",
+      "sourceRoot": "projects/get-order-stack-restaurant-frontend-elements/src",
+      "prefix": "app",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:application",
+          "options": {
+            "browser": "projects/get-order-stack-restaurant-frontend-elements/src/main.ts",
+            "tsConfig": "projects/get-order-stack-restaurant-frontend-elements/tsconfig.app.json",
+            "inlineStyleLanguage": "scss",
+            "assets": [
+              {
+                "glob": "**/*",
+                "input": "projects/get-order-stack-restaurant-frontend-elements/public"
+              }
+            ],
+            "styles": [
+              "node_modules/bootstrap/dist/css/bootstrap.min.css",
+              "projects/get-order-stack-restaurant-frontend-elements/src/styles.scss"
+            ]
+          },
+          "configurations": {
+            "production": {
+              "budgets": [
+                {
+                  "type": "initial",
+                  "maximumWarning": "1MB",
+                  "maximumError": "2MB"
+                },
+                {
+                  "type": "anyComponentStyle",
+                  "maximumWarning": "4kB",
+                  "maximumError": "8kB"
+                }
+              ],
+              "outputHashing": "none"
+            },
+            "development": {
+              "optimization": false,
+              "extractLicenses": false,
+              "sourceMap": true
+            }
+          },
+          "defaultConfiguration": "production"
+        },
+        "serve": {
+          "builder": "@angular/build:dev-server",
+          "configurations": {
+            "production": {
+              "buildTarget": "get-order-stack-restaurant-frontend-elements:build:production"
+            },
+            "development": {
+              "buildTarget": "get-order-stack-restaurant-frontend-elements:build:development"
+            }
+          },
+          "defaultConfiguration": "development"
+        }
+      }
+    }
   }
 }

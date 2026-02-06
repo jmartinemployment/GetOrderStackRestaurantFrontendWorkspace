@@ -1,0 +1,144 @@
+<div class="pending-orders">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="h4 mb-0">Pending Orders</h2>
+    <div class="order-counts d-flex gap-3">
+      <span class="badge-count pending">
+        <span class="count">{{ orderCounts().pending }}</span>
+        <span class="label">New</span>
+      </span>
+      <span class="badge-count confirmed">
+        <span class="count">{{ orderCounts().confirmed }}</span>
+        <span class="label">Confirmed</span>
+      </span>
+      <span class="badge-count preparing">
+        <span class="count">{{ orderCounts().preparing }}</span>
+        <span class="label">Cooking</span>
+      </span>
+      <span class="badge-count ready">
+        <span class="count">{{ orderCounts().ready }}</span>
+        <span class="label">Ready</span>
+      </span>
+    </div>
+  </div>
+
+  @if (error()) {
+    <get-order-stack-error-display
+      [message]="error()!"
+      [retryable]="true"
+      (retry)="retry()"
+    />
+  }
+
+  @if (isLoading()) {
+    <div class="d-flex justify-content-center p-5">
+      <get-order-stack-loading-spinner message="Loading orders..." />
+    </div>
+  } @else {
+    <div class="orders-grid">
+      @for (order of pendingOrders(); track order.id) {
+        <div class="order-card card" [class]="'status-' + order.status">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <div>
+              <h5 class="mb-0">#{{ getOrderNumber(order) }}</h5>
+              <small class="time-ago">{{ getTimeSinceOrder(order) }}</small>
+            </div>
+            <get-order-stack-status-badge [status]="order.status" />
+          </div>
+
+          <div class="card-body">
+            <div class="order-meta mb-2">
+              <span class="badge bg-secondary me-2">{{ order.orderType }}</span>
+              @if (order.tableId) {
+                <span class="badge bg-info">Table {{ order.tableId }}</span>
+              }
+              @if (order.customer?.name) {
+                <span class="customer-name ms-2">{{ order.customer?.name }}</span>
+              }
+            </div>
+
+            <div class="order-items">
+              @for (item of order.items; track item.id) {
+                <div class="order-item">
+                  <span class="quantity">{{ item.quantity }}x</span>
+                  <span class="name">{{ item.name }}</span>
+                  @if (item.modifiers && item.modifiers.length > 0) {
+                    <div class="modifiers">
+                      @for (mod of item.modifiers; track mod.id) {
+                        <small class="modifier">+ {{ mod.name }}</small>
+                      }
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+
+            @if (order.specialInstructions) {
+              <div class="special-instructions mt-2">
+                <small class="text-warning">{{ order.specialInstructions }}</small>
+              </div>
+            }
+
+            <div class="order-total mt-2 text-end">
+              <strong>{{ order.total | currency }}</strong>
+            </div>
+          </div>
+
+          <div class="card-footer">
+            <div class="d-flex gap-2">
+              @switch (order.status) {
+                @case ('pending') {
+                  <button
+                    type="button"
+                    class="btn btn-success btn-sm flex-fill"
+                    (click)="confirmOrder(order)"
+                  >
+                    Confirm
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-outline-danger btn-sm"
+                    (click)="cancelOrder(order)"
+                  >
+                    Cancel
+                  </button>
+                }
+                @case ('confirmed') {
+                  <button
+                    type="button"
+                    class="btn btn-primary btn-sm flex-fill"
+                    (click)="startPreparing(order)"
+                  >
+                    Start Cooking
+                  </button>
+                }
+                @case ('preparing') {
+                  <button
+                    type="button"
+                    class="btn btn-success btn-sm flex-fill"
+                    (click)="markReady(order)"
+                  >
+                    Mark Ready
+                  </button>
+                }
+                @case ('ready') {
+                  <button
+                    type="button"
+                    class="btn btn-primary btn-sm flex-fill"
+                    (click)="completeOrder(order)"
+                  >
+                    Complete / Picked Up
+                  </button>
+                }
+              }
+            </div>
+          </div>
+        </div>
+      } @empty {
+        <div class="empty-state text-center p-5">
+          <p class="text-muted mb-0">No pending orders</p>
+          <p class="text-muted small">Orders will appear here when placed</p>
+        </div>
+      }
+    </div>
+  }
+</div>

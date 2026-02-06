@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>GetOrderStack Elements — Local Test</title>
+  <base href="/">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+    }
+    .bundle-status { padding: 1rem; background: #f8f9fa; border-radius: 8px; margin: 1rem; font-family: monospace; font-size: 0.85rem; }
+    .bundle-status .registered { color: green; }
+    .bundle-status .missing { color: red; }
+  </style>
+</head>
+<body>
+
+  <!-- Registration Status -->
+  <div class="bundle-status" id="bundle-status">
+    <strong>Bundle Status:</strong> checking...
+  </div>
+
+  <div id="app-container"></div>
+
+  <script>
+    let currentView = null;
+
+    function renderView() {
+      const container = document.getElementById('app-container');
+      const token = localStorage.getItem('auth_token');
+      const restaurantId = localStorage.getItem('selected_restaurant_id');
+
+      let newView;
+      if (!token) {
+        newView = 'login';
+      } else if (!restaurantId) {
+        newView = 'restaurant';
+      } else {
+        newView = 'terminal';
+      }
+
+      if (newView !== currentView) {
+        currentView = newView;
+
+        if (newView === 'login') {
+          container.innerHTML = '<get-order-stack-login></get-order-stack-login>';
+        } else if (newView === 'restaurant') {
+          container.innerHTML = '<get-order-stack-restaurant-select></get-order-stack-restaurant-select>';
+        } else {
+          container.innerHTML = '<get-order-stack-sos-terminal></get-order-stack-sos-terminal>';
+        }
+      }
+    }
+
+    customElements.whenDefined('get-order-stack-login').then(() => {
+      renderView();
+      setInterval(renderView, 500);
+    });
+
+    // Bundle status checker
+    setTimeout(() => {
+      const elements = [
+        'get-order-stack-login', 'get-order-stack-restaurant-select',
+        'get-order-stack-sos-terminal', 'get-order-stack-kds-display',
+      ];
+
+      let html = '';
+      let registered = 0;
+
+      for (const tag of elements) {
+        const exists = !!customElements.get(tag);
+        if (exists) registered++;
+        html += `<span class="${exists ? 'registered' : 'missing'}">${exists ? '&#10003;' : '&#10007;'} ${tag}</span><br>`;
+      }
+
+      html = `<strong>Bundle Status: ${registered}/${elements.length} registered</strong><br>` + html;
+      document.getElementById('bundle-status').innerHTML = html;
+    }, 3000);
+  </script>
+
+</body>
+</html>

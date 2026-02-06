@@ -1,0 +1,14 @@
+:host {
+  display: block;
+}
+
+.loading-spinner-container {
+  padding: 1rem;
+}
+
+.spinner-border {
+  &:not(.spinner-border-sm) {
+    width: 2rem;
+    height: 2rem;
+  }
+}

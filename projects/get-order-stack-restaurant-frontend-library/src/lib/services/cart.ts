@@ -1,0 +1,214 @@
+import { Injectable, inject, signal, computed } from '@angular/core';
+import { Cart, CartItem } from '../models/cart.model';
+import { MenuItem, Modifier } from '../models/menu.model';
+import { OrderType, CustomerInfo } from '../models/order.model';
+import { SocketService } from './socket';
+
+@Injectable({
+  providedIn: 'root',
+})
+export class CartService {
+  private readonly socketService = inject(SocketService);
+  private readonly defaultTaxRate = 0.0825;
+
+  // Private writable signals
+  private readonly _items = signal<CartItem[]>([]);
+  private readonly _orderType = signal<OrderType>('pickup');
+  private readonly _customer = signal<CustomerInfo | undefined>(undefined);
+  private readonly _tableId = signal<string | undefined>(undefined);
+  private readonly _specialInstructions = signal<string | undefined>(undefined);
+  private readonly _tip = signal<number>(0);
+  private readonly _isOpen = signal(false);
+
+  // Public readonly signals
+  readonly items = this._items.asReadonly();
+  readonly orderType = this._orderType.asReadonly();
+  readonly customer = this._customer.asReadonly();
+  readonly tableId = this._tableId.asReadonly();
+  readonly specialInstructions = this._specialInstructions.asReadonly();
+  readonly tip = this._tip.asReadonly();
+  readonly isOpen = this._isOpen.asReadonly();
+
+  // Computed signals
+  readonly itemCount = computed(() =>
+    this._items().reduce((sum, item) => sum + item.quantity, 0)
+  );
+
+  readonly subtotal = computed(() =>
+    this._items().reduce((sum, item) => sum + item.totalPrice, 0)
+  );
+
+  readonly tax = computed(() =>
+    Math.round(this.subtotal() * this.defaultTaxRate * 100) / 100
+  );
+
+  readonly total = computed(() =>
+    Math.round((this.subtotal() + this.tax() + this._tip()) * 100) / 100
+  );
+
+  readonly isEmpty = computed(() => this._items().length === 0);
+
+  readonly cart = computed<Cart>(() => ({
+    items: this._items(),
+    orderType: this._orderType(),
+    customer: this._customer(),
+    tableId: this._tableId(),
+    specialInstructions: this._specialInstructions(),
+    subtotal: this.subtotal(),
+    tax: this.tax(),
+    tip: this._tip(),
+    total: this.total(),
+  }));
+
+  open(): void {
+    this._isOpen.set(true);
+  }
+
+  close(): void {
+    this._isOpen.set(false);
+  }
+
+  toggle(): void {
+    this._isOpen.update(open => !open);
+  }
+
+  addItem(
+    menuItem: MenuItem,
+    quantity = 1,
+    selectedModifiers: Modifier[] = [],
+    specialInstructions?: string
+  ): void {
+    const modifierTotal = selectedModifiers.reduce(
+      (sum, mod) => sum + mod.priceAdjustment,
+      0
+    );
+    const unitPrice = Number(menuItem.price) + modifierTotal;
+    const totalPrice = unitPrice * quantity;
+
+    const newItem: CartItem = {
+      id: crypto.randomUUID(),
+      menuItem,
+      quantity,
+      selectedModifiers,
+      specialInstructions,
+      unitPrice,
+      totalPrice,
+    };
+
+    this._items.update(items => [...items, newItem]);
+  }
+
+  removeItem(itemId: string): void {
+    this._items.update(items => items.filter(item => item.id !== itemId));
+  }
+
+  updateQuantity(itemId: string, quantity: number): void {
+    if (quantity <= 0) {
+      this.removeItem(itemId);
+      return;
+    }
+
+    this._items.update(items =>
+      items.map(item => {
+        if (item.id === itemId) {
+          return {
+            ...item,
+            quantity,
+            totalPrice: item.unitPrice * quantity,
+          };
+        }
+        return item;
+      })
+    );
+  }
+
+  incrementQuantity(itemId: string): void {
+    const item = this._items().find(i => i.id === itemId);
+    if (item) {
+      this.updateQuantity(itemId, item.quantity + 1);
+    }
+  }
+
+  decrementQuantity(itemId: string): void {
+    const item = this._items().find(i => i.id === itemId);
+    if (item) {
+      this.updateQuantity(itemId, item.quantity - 1);
+    }
+  }
+
+  updateItemInstructions(itemId: string, instructions: string): void {
+    this._items.update(items =>
+      items.map(item => {
+        if (item.id === itemId) {
+          return { ...item, specialInstructions: instructions };
+        }
+        return item;
+      })
+    );
+  }
+
+  setOrderType(orderType: OrderType): void {
+    this._orderType.set(orderType);
+    if (orderType !== 'dine-in') {
+      this._tableId.set(undefined);
+    }
+  }
+
+  setCustomer(customer: CustomerInfo): void {
+    this._customer.set(customer);
+  }
+
+  setTableId(tableId: string): void {
+    this._tableId.set(tableId);
+  }
+
+  setSpecialInstructions(instructions: string): void {
+    this._specialInstructions.set(instructions || undefined);
+  }
+
+  setTip(amount: number): void {
+    this._tip.set(Math.max(0, amount));
+  }
+
+  setTipPercentage(percentage: number): void {
+    const tipAmount = Math.round(this.subtotal() * (percentage / 100) * 100) / 100;
+    this._tip.set(tipAmount);
+  }
+
+  clear(): void {
+    this._items.set([]);
+    this._orderType.set('pickup');
+    this._customer.set(undefined);
+    this._tableId.set(undefined);
+    this._specialInstructions.set(undefined);
+    this._tip.set(0);
+    this._isOpen.set(false);
+  }
+
+  getOrderData(): Partial<any> {
+    return {
+      orderType: this._orderType(),
+      customer: this._customer(),
+      tableId: this._tableId(),
+      specialInstructions: this._specialInstructions(),
+      sourceDeviceId: this.socketService.deviceId(),
+      items: this._items().map(item => ({
+        menuItemId: item.menuItem.id,
+        name: item.menuItem.name,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        totalPrice: item.totalPrice,
+        modifiers: item.selectedModifiers.map(mod => ({
+          id: mod.id,
+          name: mod.name,
+          priceAdjustment: mod.priceAdjustment,
+        })),
+        specialInstructions: item.specialInstructions,
+      })),
+      subtotal: this.subtotal(),
+      tax: this.tax(),
+      tip: this._tip(),
+      total: this.total(),
+    };
+  }
+}
