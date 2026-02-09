@@ -311,10 +311,39 @@ Backend ready. Zero backend work. Only frontend components needed.
 
 ### T1-07. Stripe Payment Integration in Checkout
 **Domain:** Payments
+**Status:** IN PROGRESS
 **What:** Connect Stripe checkout to the existing backend. Card input via Stripe Elements, payment confirmation flow, refund capability in order management.
-**Backend:** READY — `POST /orders/:id/payment-intent`, `/payment-status`, `/refund`, webhook handler
+**Backend:** READY — `POST /orders/:id/payment-intent`, `/payment-status`, `/refund`, `/cancel-payment`, webhook handler
 **Frontend:** Install `@stripe/stripe-js`, create `PaymentService`, embed Stripe Elements in `CheckoutModal`, add payment status badges.
 **Impact:** Without this, the system cannot process real transactions. Table stakes for POS.
+
+#### Backend Endpoints (All READY)
+
+| Method | Endpoint | Request | Response |
+|--------|----------|---------|----------|
+| POST | `/restaurant/:id/orders/:orderId/payment-intent` | None | `{ clientSecret, paymentIntentId }` |
+| GET | `/restaurant/:id/orders/:orderId/payment-status` | None | `{ orderId, orderNumber, paymentStatus, paymentMethod, total, stripe: { status, amount, currency } \| null }` |
+| POST | `/restaurant/:id/orders/:orderId/cancel-payment` | None | `{ success, message }` |
+| POST | `/restaurant/:id/orders/:orderId/refund` | `{ amount?: number }` | `{ success, refundId, amount, status }` |
+| POST | `/api/webhooks/stripe` | Stripe webhook payload | `{ received: true }` |
+
+Payment statuses: `pending`, `paid`, `failed`, `cancelled`, `partial_refund`, `refunded`
+
+#### Implementation Plan
+
+| # | File | Action |
+|---|------|--------|
+| 1 | `package.json` | Install `@stripe/stripe-js` |
+| 2 | `models/payment.model.ts` | Create interfaces: `PaymentIntentResponse`, `PaymentStatusResponse`, `RefundResponse`, `PaymentStep` |
+| 3 | `services/payment.ts` | Create `PaymentService` — signal-based, Stripe.js loader, 4 HTTP methods |
+| 4 | `models/order.model.ts` | Add `stripePaymentIntentId` to `Order` |
+| 5 | `checkout-modal.ts` | Add 2-step flow: order → payment via Stripe Payment Element |
+| 6 | `checkout-modal.html` | Payment step UI with Stripe mount, totals, pay/cancel buttons |
+| 7 | `checkout-modal.scss` | Stripe element container styles, payment status badges |
+| 8 | `pending-orders.ts/html` | Payment status badge per order |
+| 9 | `order-history.ts/html` | Payment badge in list + refund button in detail view |
+| 10 | `public-api.ts`, `models/index.ts` | Export PaymentService + payment models |
+| 11 | Build & verify | Zero errors on library + elements |
 
 ### T1-08. Receipt Printing via Star CloudPRNT
 **Domain:** Orders / KDS

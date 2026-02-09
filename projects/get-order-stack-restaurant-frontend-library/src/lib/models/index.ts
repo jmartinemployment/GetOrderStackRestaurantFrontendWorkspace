@@ -4,4 +4,5 @@ export * from './cart.model';
 export * from './inventory.model';
 export * from './menu.model';
 export * from './order.model';
+export * from './payment.model';
 export * from './restaurant.model';

@@ -122,6 +122,11 @@
   border-radius: 0.5rem;
 }
 
+.payment-paid { background-color: #28a745; color: #fff; }
+.payment-pending { background-color: #ffc107; color: #000; }
+.payment-failed { background-color: #dc3545; color: #fff; }
+.payment-refunded { background-color: #6c757d; color: #fff; }
+
 .profit-badge {
   font-size: 0.7rem;
 }

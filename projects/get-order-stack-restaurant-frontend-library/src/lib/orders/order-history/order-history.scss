@@ -89,6 +89,23 @@
   }
 }
 
+.payment-paid { background-color: #28a745; color: #fff; }
+.payment-pending { background-color: #ffc107; color: #000; }
+.payment-failed { background-color: #dc3545; color: #fff; }
+.payment-refunded { background-color: #6c757d; color: #fff; }
+
+.alert-success {
+  background-color: rgba(40, 167, 69, 0.2);
+  border-color: rgba(40, 167, 69, 0.5);
+  color: #28a745;
+}
+
+.alert-danger {
+  background-color: rgba(220, 53, 69, 0.2);
+  border-color: rgba(220, 53, 69, 0.5);
+  color: #ff6b6b;
+}
+
 .profit-badge {
   font-size: 0.7rem;
 }

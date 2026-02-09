@@ -94,6 +94,28 @@ export class PendingOrders implements OnInit {
     return this._profitInsights().get(orderId);
   }
 
+  getPaymentBadgeClass(status: string): string {
+    switch (status) {
+      case 'paid': return 'payment-paid';
+      case 'pending': return 'payment-pending';
+      case 'failed': return 'payment-failed';
+      case 'refunded':
+      case 'partial_refund': return 'payment-refunded';
+      default: return 'payment-pending';
+    }
+  }
+
+  getPaymentLabel(status: string): string {
+    switch (status) {
+      case 'paid': return 'Paid';
+      case 'pending': return 'Unpaid';
+      case 'failed': return 'Failed';
+      case 'refunded': return 'Refunded';
+      case 'partial_refund': return 'Partial Refund';
+      default: return status;
+    }
+  }
+
   retry(): void {
     this.orderService.loadOrders();
   }

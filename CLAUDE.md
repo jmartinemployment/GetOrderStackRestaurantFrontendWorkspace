@@ -117,6 +117,7 @@ Internal (not registered as custom elements):
 | `AnalyticsService` | AI upsell, menu engineering, sales reports | Signals, debounced fetch, `firstValueFrom()` |
 | `AuthService` | Authentication, session, restaurant selection | Signals, localStorage persistence |
 | `InventoryService` | Inventory CRUD, stock actions, AI predictions, reports | Signals, 10 HTTP methods, `firstValueFrom()` |
+| `PaymentService` | Stripe Elements, payment intents, refunds | Stripe.js, signals, `firstValueFrom()` |
 | `MenuService` | Menu CRUD, AI cost estimation, language support (en/es) | `firstValueFrom()`, HttpClient |
 | `CartService` | Shopping cart state, tax/tip calculation | Signals, 8.25% default tax |
 | `OrderService` | Order management, profit insights | `firstValueFrom()`, HttpClient |
@@ -354,6 +355,28 @@ See **[plan.md](./plan.md)** for the comprehensive AI feature roadmap (22 featur
 - Modified: `elements/src/main.ts` — registered `get-order-stack-inventory-dashboard` (now 9 custom elements total)
 - Build: Library + Elements compile with zero errors (711 kB main.js, style budget warning at 6.01 kB vs 4 kB — under 8 kB error threshold)
 - Tier 1 remaining: T1-07 (Stripe Payments)
+
+**[February 9, 2026] (Session 5):**
+- Implemented: T1-07 — Stripe Payment Integration in Checkout
+- Installed: `@stripe/stripe-js` npm package
+- Created: `lib/models/payment.model.ts` — `PaymentIntentResponse`, `PaymentStatusResponse`, `RefundResponse`, `PaymentStep` interfaces
+- Created: `lib/services/payment.ts` — `PaymentService` with Stripe.js loader, `createPaymentIntent()`, `mountPaymentElement()`, `confirmPayment()`, `getPaymentStatus()`, `cancelPayment()`, `requestRefund()`, signal-based state
+- Modified: `environments/environment.ts` + `environment.prod.ts` — added `stripePublishableKey` (placeholder)
+- Modified: `models/order.model.ts` — added `paymentMethod` and `stripePaymentIntentId` to `Order` interface
+- Modified: `checkout-modal.ts` — 2-step flow: cart review → Stripe Payment Element, success/failed states, cancel/retry payment
+- Modified: `checkout-modal.html` — 4-state template (cart/paying/success/failed), Stripe mount point via `#stripeMount` viewChild, order totals summary, payment confirmation buttons
+- Modified: `checkout-modal.scss` — payment summary, Stripe container, success/failed icons, payment badge styles
+- Modified: `pending-orders.ts` + `pending-orders.html` — payment status badge per order in card meta
+- Modified: `pending-orders.scss` — payment badge color classes
+- Modified: `order-history.ts` + `order-history.html` — payment badge in list view, refund button in detail modal with loading/success/error states
+- Modified: `order-history.scss` — payment badge + alert styles
+- Modified: `models/index.ts` — added payment model re-export
+- Modified: `public-api.ts` — added PaymentService export
+- Build: Library + Elements compile with zero errors (740 kB main.js)
+- Stripe appearance: `night` theme with project color variables (--medium-slate-blue, --midnight-black)
+- Backend endpoints used: `/payment-intent`, `/payment-status`, `/cancel-payment`, `/refund` (all already built)
+- Note: `stripePublishableKey` is `pk_test_placeholder` — must be replaced with real key before testing
+- Tier 1 complete: All 7 frontend features implemented (T1-01 through T1-07)
 
 ---
 

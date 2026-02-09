@@ -13,6 +13,8 @@ export interface Order {
   tip: number;
   total: number;
   paymentStatus: PaymentStatus;
+  paymentMethod?: string;
+  stripePaymentIntentId?: string;
   items: OrderItem[];
   customer?: CustomerInfo;
   tableId?: string;

@@ -12,6 +12,7 @@ export * from './lib/models';
 export { AnalyticsService } from './lib/services/analytics';
 export { AuthService } from './lib/services/auth';
 export { InventoryService } from './lib/services/inventory';
+export { PaymentService } from './lib/services/payment';
 export { MenuService } from './lib/services/menu';
 export { CartService } from './lib/services/cart';
 export { OrderService } from './lib/services/order';

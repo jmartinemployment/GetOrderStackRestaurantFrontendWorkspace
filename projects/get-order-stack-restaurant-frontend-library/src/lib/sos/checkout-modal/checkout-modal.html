@@ -4,146 +4,285 @@
   <div class="checkout-modal card" (click)="$event.stopPropagation()">
     <div class="card-header d-flex justify-content-between align-items-center">
       <h4 class="mb-0">
-        Order
-        @if (itemCount() > 0) {
-          <span class="badge bg-primary ms-2">{{ itemCount() }}</span>
+        @switch (paymentStep()) {
+          @case ('cart') {
+            Order
+            @if (itemCount() > 0) {
+              <span class="badge bg-primary ms-2">{{ itemCount() }}</span>
+            }
+          }
+          @case ('paying') { Payment }
+          @case ('success') { Payment Complete }
+          @case ('failed') { Payment Failed }
         }
       </h4>
-      <button type="button" class="btn-close btn-close-white" (click)="close()"></button>
+      @if (paymentStep() !== 'paying') {
+        <button type="button" class="btn-close btn-close-white" (click)="close()"></button>
+      }
     </div>
 
-    <div class="card-body">
-      @if (error()) {
-        <div class="alert alert-danger mb-3">{{ error() }}</div>
-      }
+    <!-- STEP 1: CART REVIEW -->
+    @if (paymentStep() === 'cart') {
+      <div class="card-body">
+        @if (error()) {
+          <div class="alert alert-danger mb-3">{{ error() }}</div>
+        }
 
-      @if (isEmpty()) {
-        <div class="empty-cart text-center py-5">
-          <div class="empty-icon mb-3" style="font-size: 3rem;">🛒</div>
-          <p class="text-muted mb-0">No items yet</p>
-          <p class="text-muted small">Add items from the menu</p>
-        </div>
-      } @else {
-        <!-- Cart Items -->
-        <div class="cart-items mb-3">
-          @for (item of items(); track item.id) {
-            <div class="summary-item py-2 border-bottom">
-              <div class="d-flex align-items-start">
-                <div class="flex-grow-1">
-                  <div class="fw-semibold">{{ item.menuItem.name }}</div>
-                  @if (item.selectedModifiers.length > 0) {
-                    <div class="modifiers small text-muted">
-                      {{ formatModifiers(item.selectedModifiers) }}
-                    </div>
-                  }
-                  @if (item.specialInstructions) {
-                    <div class="special-instructions small text-warning">
-                      {{ item.specialInstructions }}
-                    </div>
-                  }
+        @if (isEmpty()) {
+          <div class="empty-cart text-center py-5">
+            <div class="empty-icon mb-3" style="font-size: 3rem;">🛒</div>
+            <p class="text-muted mb-0">No items yet</p>
+            <p class="text-muted small">Add items from the menu</p>
+          </div>
+        } @else {
+          <!-- Cart Items -->
+          <div class="cart-items mb-3">
+            @for (item of items(); track item.id) {
+              <div class="summary-item py-2 border-bottom">
+                <div class="d-flex align-items-start">
+                  <div class="flex-grow-1">
+                    <div class="fw-semibold">{{ item.menuItem.name }}</div>
+                    @if (item.selectedModifiers.length > 0) {
+                      <div class="modifiers small text-muted">
+                        {{ formatModifiers(item.selectedModifiers) }}
+                      </div>
+                    }
+                    @if (item.specialInstructions) {
+                      <div class="special-instructions small text-warning">
+                        {{ item.specialInstructions }}
+                      </div>
+                    }
+                  </div>
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-link text-danger p-0 ms-2"
+                    (click)="removeItem(item.id)"
+                  >
+                    ✕
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  class="btn btn-sm btn-link text-danger p-0 ms-2"
-                  (click)="removeItem(item.id)"
-                >
-                  ✕
-                </button>
+                <div class="quantity-controls d-flex align-items-center gap-2 mt-2">
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-outline-light"
+                    (click)="decrementQuantity(item.id)"
+                  >
+                    -
+                  </button>
+                  <span class="quantity-display">{{ item.quantity }}</span>
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-outline-light"
+                    (click)="incrementQuantity(item.id)"
+                  >
+                    +
+                  </button>
+                </div>
               </div>
-              <div class="quantity-controls d-flex align-items-center gap-2 mt-2">
-                <button
-                  type="button"
-                  class="btn btn-sm btn-outline-light"
-                  (click)="decrementQuantity(item.id)"
-                >
-                  -
-                </button>
-                <span class="quantity-display">{{ item.quantity }}</span>
-                <button
-                  type="button"
-                  class="btn btn-sm btn-outline-light"
-                  (click)="incrementQuantity(item.id)"
-                >
-                  +
-                </button>
+            }
+          </div>
+
+          <!-- Order Totals -->
+          <div class="order-totals mb-3">
+            <div class="d-flex justify-content-between small">
+              <span class="text-muted">Subtotal</span>
+              <span>{{ subtotal() | currency }}</span>
+            </div>
+            <div class="d-flex justify-content-between small">
+              <span class="text-muted">Tax</span>
+              <span>{{ tax() | currency }}</span>
+            </div>
+            @if (tip() > 0) {
+              <div class="d-flex justify-content-between small">
+                <span class="text-muted">Tip</span>
+                <span>{{ tip() | currency }}</span>
               </div>
+            }
+            <hr class="my-2" />
+            <div class="d-flex justify-content-between fw-bold">
+              <span>Total</span>
+              <span class="total-amount">{{ total() | currency }}</span>
+            </div>
+          </div>
+
+          <!-- Table Number -->
+          <div class="mb-3">
+            <input
+              type="text"
+              class="form-control"
+              placeholder="Table Number *"
+              [value]="tableNumber()"
+              (input)="onTableNumberInput($event)"
+              [disabled]="isSubmitting()"
+            />
+          </div>
+
+          <!-- Clear Cart -->
+          <button
+            type="button"
+            class="btn btn-outline-danger btn-sm w-100 mb-3"
+            (click)="clearCart()"
+          >
+            Clear Order
+          </button>
+        }
+      </div>
+
+      @if (!isEmpty()) {
+        <div class="card-footer">
+          <button
+            type="button"
+            class="btn btn-success btn-lg w-100"
+            [disabled]="isSubmitting() || !tableNumber()"
+            (click)="submitOrder()"
+          >
+            @if (isSubmitting()) {
+              <span class="spinner-border spinner-border-sm me-2"></span>
+              Creating Order...
+            } @else {
+              Place Order & Pay
+            }
+          </button>
+        </div>
+      }
+    }
+
+    <!-- STEP 2: PAYMENT -->
+    @if (paymentStep() === 'paying') {
+      <div class="card-body">
+        @if (paymentError()) {
+          <div class="alert alert-danger mb-3">{{ paymentError() }}</div>
+        }
+
+        <div class="payment-summary mb-3">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="text-muted small">Order</span>
+            <span class="fw-semibold">{{ orderNumber() }}</span>
+          </div>
+          <div class="d-flex justify-content-between align-items-center">
+            <span class="text-muted small">Total</span>
+            <span class="fw-bold total-amount">{{ total() | currency }}</span>
+          </div>
+        </div>
+
+        <!-- Stripe Payment Element Mount Point -->
+        <div class="stripe-container mb-3">
+          <div #stripeMount class="stripe-element"></div>
+          @if (!stripeReady()) {
+            <div class="d-flex justify-content-center p-3">
+              <span class="spinner-border spinner-border-sm me-2"></span>
+              <span class="text-muted small">Loading payment form...</span>
             </div>
           }
         </div>
+      </div>
 
-        <!-- Table Number -->
-        <div class="mb-3">
-          <input
-            type="text"
-            class="form-control"
-            placeholder="Table Number *"
-            [value]="tableNumber()"
-            (input)="onTableNumberInput($event)"
-            [disabled]="isSubmitting()"
-          />
-        </div>
-
-        <!-- Clear Cart -->
+      <div class="card-footer d-flex gap-2">
         <button
           type="button"
-          class="btn btn-outline-danger btn-sm w-100 mb-3"
-          (click)="clearCart()"
+          class="btn btn-outline-light flex-grow-1"
+          [disabled]="isProcessingPayment()"
+          (click)="cancelPayment()"
         >
-          Clear Order
+          Cancel
         </button>
-      }
-    </div>
-
-    @if (profitInsight(); as insight) {
-      <div class="profit-insight-panel card-body border-top">
-        <div class="d-flex justify-content-between align-items-start mb-2">
-          <h6 class="mb-0 profit-title">Profit Insight</h6>
-          <button
-            type="button"
-            class="btn-close btn-close-white btn-sm"
-            (click)="dismissProfitInsight()"
-          ></button>
-        </div>
-        <div class="d-flex flex-wrap gap-3 mb-2">
-          <div>
-            <span class="text-muted small">Cost</span>
-            <div class="fw-bold">{{ insight.totalCost | currency }}</div>
-          </div>
-          <div>
-            <span class="text-muted small">Revenue</span>
-            <div class="fw-bold">{{ insight.totalRevenue | currency }}</div>
-          </div>
-          <div>
-            <span class="text-muted small">Margin</span>
-            <div class="fw-bold" [class.text-success]="insight.profitMargin >= 60" [class.text-warning]="insight.profitMargin >= 40 && insight.profitMargin < 60" [class.text-danger]="insight.profitMargin < 40">
-              {{ insight.profitMargin }}%
-            </div>
-          </div>
-        </div>
-        @if (insight.starItem) {
-          <div class="small mb-1">
-            <span class="text-warning">&#9733;</span> Star Item: <strong>{{ insight.starItem }}</strong>
-          </div>
-        }
-        <p class="small text-muted mb-1">{{ insight.insightText }}</p>
-        <p class="small quick-tip mb-0">{{ insight.quickTip }}</p>
+        <button
+          type="button"
+          class="btn btn-success flex-grow-1"
+          [disabled]="isProcessingPayment() || !stripeReady()"
+          (click)="confirmPayment()"
+        >
+          @if (isProcessingPayment()) {
+            <span class="spinner-border spinner-border-sm me-2"></span>
+            Processing...
+          } @else {
+            Pay {{ total() | currency }}
+          }
+        </button>
       </div>
     }
 
-    @if (!isEmpty()) {
+    <!-- STEP 3: SUCCESS -->
+    @if (paymentStep() === 'success') {
+      <div class="card-body text-center py-4">
+        <div class="success-icon mb-3">&#10003;</div>
+        <h5 class="mb-2">Payment Successful</h5>
+        <p class="text-muted mb-1">Order {{ orderNumber() }}</p>
+        <p class="fw-bold total-amount mb-0">{{ total() | currency }}</p>
+      </div>
+
+      @if (profitInsight(); as insight) {
+        <div class="profit-insight-panel card-body border-top">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <h6 class="mb-0 profit-title">Profit Insight</h6>
+            <button
+              type="button"
+              class="btn-close btn-close-white btn-sm"
+              (click)="dismissProfitInsight()"
+            ></button>
+          </div>
+          <div class="d-flex flex-wrap gap-3 mb-2">
+            <div>
+              <span class="text-muted small">Cost</span>
+              <div class="fw-bold">{{ insight.totalCost | currency }}</div>
+            </div>
+            <div>
+              <span class="text-muted small">Revenue</span>
+              <div class="fw-bold">{{ insight.totalRevenue | currency }}</div>
+            </div>
+            <div>
+              <span class="text-muted small">Margin</span>
+              <div class="fw-bold" [class.text-success]="insight.profitMargin >= 60" [class.text-warning]="insight.profitMargin >= 40 && insight.profitMargin < 60" [class.text-danger]="insight.profitMargin < 40">
+                {{ insight.profitMargin }}%
+              </div>
+            </div>
+          </div>
+          @if (insight.starItem) {
+            <div class="small mb-1">
+              <span class="text-warning">&#9733;</span> Star Item: <strong>{{ insight.starItem }}</strong>
+            </div>
+          }
+          <p class="small text-muted mb-1">{{ insight.insightText }}</p>
+          <p class="small quick-tip mb-0">{{ insight.quickTip }}</p>
+        </div>
+      }
+
       <div class="card-footer">
         <button
           type="button"
-          class="btn btn-success btn-lg w-100"
-          [disabled]="isSubmitting() || !tableNumber()"
-          (click)="submitOrder()"
+          class="btn btn-primary btn-lg w-100"
+          (click)="closeAfterSuccess()"
         >
-          @if (isSubmitting()) {
-            <span class="spinner-border spinner-border-sm me-2"></span>
-            Sending...
-          } @else {
-            Place Order
-          }
+          Done
+        </button>
+      </div>
+    }
+
+    <!-- STEP 4: FAILED -->
+    @if (paymentStep() === 'failed') {
+      <div class="card-body text-center py-4">
+        <div class="failed-icon mb-3">&#10007;</div>
+        <h5 class="mb-2">Payment Failed</h5>
+        @if (paymentError()) {
+          <p class="text-danger small mb-3">{{ paymentError() }}</p>
+        }
+        <p class="text-muted small mb-0">Order {{ orderNumber() }} was created but payment was not completed.</p>
+      </div>
+
+      <div class="card-footer d-flex gap-2">
+        <button
+          type="button"
+          class="btn btn-outline-light flex-grow-1"
+          (click)="cancelPayment()"
+        >
+          Cancel Order
+        </button>
+        <button
+          type="button"
+          class="btn btn-primary flex-grow-1"
+          (click)="retryPayment()"
+        >
+          Retry Payment
         </button>
       </div>
     }

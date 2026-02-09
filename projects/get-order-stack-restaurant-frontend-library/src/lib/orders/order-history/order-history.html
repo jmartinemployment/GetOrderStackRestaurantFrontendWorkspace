@@ -48,8 +48,9 @@
             </div>
 
             <div class="d-flex justify-content-between align-items-center">
-              <div class="order-meta small text-muted">
-                <span class="me-3">{{ order.orderType }}</span>
+              <div class="order-meta small text-muted d-flex align-items-center gap-2">
+                <span>{{ order.orderType }}</span>
+                <span class="badge" [class]="getPaymentBadgeClass(order.paymentStatus)">{{ getPaymentLabel(order.paymentStatus) }}</span>
                 @if (order.customer?.name) {
                   <span>{{ order.customer?.name }}</span>
                 }
@@ -197,6 +198,46 @@
               <span>Total</span>
               <span class="total">{{ selectedOrder()!.total | currency }}</span>
             </div>
+          </div>
+
+          <!-- Payment & Refund -->
+          <div class="section mt-3">
+            <h6>Payment</h6>
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <span class="badge" [class]="getPaymentBadgeClass(selectedOrder()!.paymentStatus)">
+                {{ getPaymentLabel(selectedOrder()!.paymentStatus) }}
+              </span>
+              @if (selectedOrder()!.paymentMethod) {
+                <span class="text-muted small">via {{ selectedOrder()!.paymentMethod }}</span>
+              }
+            </div>
+            @if (refundSuccess()) {
+              <div class="alert alert-success small mb-2">
+                Refund processed successfully.
+                <button type="button" class="btn-close btn-close-white btn-sm float-end" (click)="dismissRefundStatus()"></button>
+              </div>
+            }
+            @if (refundError()) {
+              <div class="alert alert-danger small mb-2">
+                {{ refundError() }}
+                <button type="button" class="btn-close btn-close-white btn-sm float-end" (click)="dismissRefundStatus()"></button>
+              </div>
+            }
+            @if (selectedOrder()!.paymentStatus === 'paid') {
+              <button
+                type="button"
+                class="btn btn-sm btn-outline-danger"
+                [disabled]="isRefunding()"
+                (click)="refundOrder(selectedOrder()!)"
+              >
+                @if (isRefunding()) {
+                  <span class="spinner-border spinner-border-sm me-1"></span>
+                  Processing...
+                } @else {
+                  Refund {{ selectedOrder()!.total | currency }}
+                }
+              </button>
+            }
           </div>
         </div>
       </div>

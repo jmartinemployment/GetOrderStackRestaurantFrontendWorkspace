@@ -1,6 +1,7 @@
 import { Component, inject, signal, computed, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { OrderService } from '../../services/order';
+import { PaymentService } from '../../services/payment';
 import { LoadingSpinner } from '../../shared/loading-spinner/loading-spinner';
 import { ErrorDisplay } from '../../shared/error-display/error-display';
 import { StatusBadge } from '../../kds/status-badge/status-badge';
@@ -15,6 +16,7 @@ import { Order, OrderStatus, ProfitInsight } from '../../models';
 })
 export class OrderHistory implements OnInit {
   private readonly orderService = inject(OrderService);
+  private readonly paymentService = inject(PaymentService);
 
   private readonly _statusFilter = signal<OrderStatus | 'all'>('all');
   private readonly _selectedOrder = signal<Order | null>(null);
@@ -79,6 +81,57 @@ export class OrderHistory implements OnInit {
 
   getInsight(orderId: string): ProfitInsight | undefined {
     return this._profitInsights().get(orderId);
+  }
+
+  private readonly _isRefunding = signal(false);
+  private readonly _refundError = signal<string | null>(null);
+  private readonly _refundSuccess = signal(false);
+
+  readonly isRefunding = this._isRefunding.asReadonly();
+  readonly refundError = this._refundError.asReadonly();
+  readonly refundSuccess = this._refundSuccess.asReadonly();
+
+  getPaymentBadgeClass(status: string): string {
+    switch (status) {
+      case 'paid': return 'payment-paid';
+      case 'pending': return 'payment-pending';
+      case 'failed': return 'payment-failed';
+      case 'refunded':
+      case 'partial_refund': return 'payment-refunded';
+      default: return 'payment-pending';
+    }
+  }
+
+  getPaymentLabel(status: string): string {
+    switch (status) {
+      case 'paid': return 'Paid';
+      case 'pending': return 'Unpaid';
+      case 'failed': return 'Failed';
+      case 'refunded': return 'Refunded';
+      case 'partial_refund': return 'Partial Refund';
+      default: return status;
+    }
+  }
+
+  async refundOrder(order: Order): Promise<void> {
+    this._isRefunding.set(true);
+    this._refundError.set(null);
+    this._refundSuccess.set(false);
+
+    const result = await this.paymentService.requestRefund(order.id);
+
+    this._isRefunding.set(false);
+
+    if (result?.success) {
+      this._refundSuccess.set(true);
+    } else {
+      this._refundError.set(this.paymentService.error() ?? 'Refund failed');
+    }
+  }
+
+  dismissRefundStatus(): void {
+    this._refundError.set(null);
+    this._refundSuccess.set(false);
   }
 
   retry(): void {
