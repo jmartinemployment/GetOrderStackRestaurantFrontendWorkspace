@@ -4,7 +4,7 @@ import { OrderService } from '../../services/order';
 import { LoadingSpinner } from '../../shared/loading-spinner/loading-spinner';
 import { ErrorDisplay } from '../../shared/error-display/error-display';
 import { StatusBadge } from '../../kds/status-badge/status-badge';
-import { Order, OrderStatus } from '../../models';
+import { Order, OrderStatus, ProfitInsight } from '../../models';
 
 @Component({
   selector: 'get-order-stack-order-history',
@@ -18,6 +18,9 @@ export class OrderHistory implements OnInit {
 
   private readonly _statusFilter = signal<OrderStatus | 'all'>('all');
   private readonly _selectedOrder = signal<Order | null>(null);
+
+  private readonly _profitInsights = signal<Map<string, ProfitInsight>>(new Map());
+  readonly profitInsights = this._profitInsights.asReadonly();
 
   readonly statusFilter = this._statusFilter.asReadonly();
   readonly selectedOrder = this._selectedOrder.asReadonly();
@@ -60,6 +63,22 @@ export class OrderHistory implements OnInit {
 
   getOrderNumber(order: Order): string {
     return order.orderNumber || order.id.slice(-4).toUpperCase();
+  }
+
+  async fetchProfitInsight(order: Order): Promise<void> {
+    if (this._profitInsights().has(order.id)) return;
+    const insight = await this.orderService.getProfitInsight(order.id);
+    if (insight) {
+      this._profitInsights.update(map => {
+        const updated = new Map(map);
+        updated.set(order.id, insight);
+        return updated;
+      });
+    }
+  }
+
+  getInsight(orderId: string): ProfitInsight | undefined {
+    return this._profitInsights().get(orderId);
   }
 
   retry(): void {

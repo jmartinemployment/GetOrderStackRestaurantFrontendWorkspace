@@ -1,14 +1,17 @@
 import { Component, inject, output, signal, ChangeDetectionStrategy } from '@angular/core';
+import { CurrencyPipe } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { CartService } from '../../services/cart';
 import { AuthService } from '../../services/auth';
+import { OrderService } from '../../services/order';
 import { SocketService } from '../../services/socket';
-import { Modifier } from '../../models';
+import { Modifier, ProfitInsight } from '../../models';
 import { environment } from '../../environments/environment';
 
 @Component({
   selector: 'get-order-stack-checkout-modal',
+  imports: [CurrencyPipe],
   templateUrl: './checkout-modal.html',
   styleUrl: './checkout-modal.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -17,6 +20,7 @@ export class CheckoutModal {
   private readonly http = inject(HttpClient);
   private readonly cartService = inject(CartService);
   private readonly authService = inject(AuthService);
+  private readonly orderService = inject(OrderService);
   private readonly socketService = inject(SocketService);
   private readonly apiUrl = environment.apiUrl;
 
@@ -25,10 +29,12 @@ export class CheckoutModal {
   private readonly _isSubmitting = signal(false);
   private readonly _error = signal<string | null>(null);
   private readonly _tableNumber = signal('');
+  private readonly _profitInsight = signal<ProfitInsight | null>(null);
 
   readonly isSubmitting = this._isSubmitting.asReadonly();
   readonly error = this._error.asReadonly();
   readonly tableNumber = this._tableNumber.asReadonly();
+  readonly profitInsight = this._profitInsight.asReadonly();
 
   readonly isOpen = this.cartService.isOpen;
   readonly items = this.cartService.items;
@@ -37,6 +43,11 @@ export class CheckoutModal {
 
   close(): void {
     this.cartService.close();
+    this._profitInsight.set(null);
+  }
+
+  dismissProfitInsight(): void {
+    this._profitInsight.set(null);
   }
 
   incrementQuantity(itemId: string): void {
@@ -100,6 +111,10 @@ export class CheckoutModal {
         this._tableNumber.set('');
         this.cartService.clear();
         this.orderPlaced.emit(response.orderNumber || response.id);
+        const insight = await this.orderService.getProfitInsight(response.id);
+        if (insight) {
+          this._profitInsight.set(insight);
+        }
       } else {
         this._error.set('Failed to place order. Please try again.');
       }

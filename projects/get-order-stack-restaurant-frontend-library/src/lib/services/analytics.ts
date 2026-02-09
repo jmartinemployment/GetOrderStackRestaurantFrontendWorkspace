@@ -1,0 +1,118 @@
+import { Injectable, inject, signal } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { firstValueFrom } from 'rxjs';
+import { UpsellSuggestion, MenuEngineeringData, SalesReport } from '../models';
+import { AuthService } from './auth';
+import { environment } from '../environments/environment';
+
+@Injectable({
+  providedIn: 'root',
+})
+export class AnalyticsService {
+  private readonly http = inject(HttpClient);
+  private readonly authService = inject(AuthService);
+  private readonly apiUrl = environment.apiUrl;
+
+  private readonly _upsellSuggestions = signal<UpsellSuggestion[]>([]);
+  private readonly _isLoadingUpsell = signal(false);
+  private readonly _menuEngineering = signal<MenuEngineeringData | null>(null);
+  private readonly _isLoadingEngineering = signal(false);
+  private readonly _engineeringError = signal<string | null>(null);
+  private readonly _salesReport = signal<SalesReport | null>(null);
+  private readonly _isLoadingSales = signal(false);
+  private readonly _salesError = signal<string | null>(null);
+
+  readonly upsellSuggestions = this._upsellSuggestions.asReadonly();
+  readonly isLoadingUpsell = this._isLoadingUpsell.asReadonly();
+  readonly menuEngineering = this._menuEngineering.asReadonly();
+  readonly isLoadingEngineering = this._isLoadingEngineering.asReadonly();
+  readonly engineeringError = this._engineeringError.asReadonly();
+  readonly salesReport = this._salesReport.asReadonly();
+  readonly isLoadingSales = this._isLoadingSales.asReadonly();
+  readonly salesError = this._salesError.asReadonly();
+
+  private debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+  private get restaurantId(): string | null {
+    return this.authService.selectedRestaurantId();
+  }
+
+  fetchUpsellSuggestions(cartItemIds: string[]): void {
+    if (this.debounceTimer) {
+      clearTimeout(this.debounceTimer);
+    }
+
+    this.debounceTimer = setTimeout(() => {
+      this.loadUpsellSuggestions(cartItemIds);
+    }, 500);
+  }
+
+  clearUpsellSuggestions(): void {
+    this._upsellSuggestions.set([]);
+  }
+
+  async loadMenuEngineering(days = 30): Promise<void> {
+    if (!this.restaurantId) return;
+
+    this._isLoadingEngineering.set(true);
+    this._engineeringError.set(null);
+
+    try {
+      const data = await firstValueFrom(
+        this.http.get<MenuEngineeringData>(
+          `${this.apiUrl}/restaurant/${this.restaurantId}/analytics/menu-engineering?days=${days}`
+        )
+      );
+      this._menuEngineering.set(data);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to load menu engineering data';
+      this._engineeringError.set(message);
+    } finally {
+      this._isLoadingEngineering.set(false);
+    }
+  }
+
+  async loadSalesReport(period: 'daily' | 'weekly' = 'daily'): Promise<void> {
+    if (!this.restaurantId) return;
+
+    this._isLoadingSales.set(true);
+    this._salesError.set(null);
+
+    try {
+      const data = await firstValueFrom(
+        this.http.get<SalesReport>(
+          `${this.apiUrl}/restaurant/${this.restaurantId}/analytics/sales/${period}`
+        )
+      );
+      this._salesReport.set(data);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to load sales report';
+      this._salesError.set(message);
+    } finally {
+      this._isLoadingSales.set(false);
+    }
+  }
+
+  private async loadUpsellSuggestions(cartItemIds: string[]): Promise<void> {
+    if (!this.restaurantId || cartItemIds.length === 0) {
+      this._upsellSuggestions.set([]);
+      return;
+    }
+
+    this._isLoadingUpsell.set(true);
+
+    try {
+      const params = cartItemIds.join(',');
+      const suggestions = await firstValueFrom(
+        this.http.get<UpsellSuggestion[]>(
+          `${this.apiUrl}/restaurant/${this.restaurantId}/analytics/upsell-suggestions?cartItems=${params}`
+        )
+      );
+      this._upsellSuggestions.set(suggestions ?? []);
+    } catch {
+      this._upsellSuggestions.set([]);
+    } finally {
+      this._isLoadingUpsell.set(false);
+    }
+  }
+}

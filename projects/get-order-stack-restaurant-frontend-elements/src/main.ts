@@ -7,6 +7,10 @@ import {
   RestaurantSelect,
   SosTerminal,
   KdsDisplay,
+  MenuEngineeringDashboard,
+  SalesDashboard,
+  CategoryManagement,
+  ItemManagement,
 } from 'get-order-stack-restaurant-frontend-library';
 
 (async () => {
@@ -22,6 +26,10 @@ import {
     [RestaurantSelect, 'get-order-stack-restaurant-select'],
     [SosTerminal, 'get-order-stack-sos-terminal'],
     [KdsDisplay, 'get-order-stack-kds-display'],
+    [MenuEngineeringDashboard, 'get-order-stack-menu-engineering'],
+    [SalesDashboard, 'get-order-stack-sales-dashboard'],
+    [CategoryManagement, 'get-order-stack-category-management'],
+    [ItemManagement, 'get-order-stack-item-management'],
   ];
 
   for (const [component, tag] of elements) {

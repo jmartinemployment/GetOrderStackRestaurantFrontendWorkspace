@@ -1,10 +1,10 @@
-import { Component, inject, computed, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject, computed, signal, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { CurrencyPipe } from '@angular/common';
 import { OrderService } from '../../services/order';
 import { LoadingSpinner } from '../../shared/loading-spinner/loading-spinner';
 import { ErrorDisplay } from '../../shared/error-display/error-display';
 import { StatusBadge } from '../../kds/status-badge/status-badge';
-import { Order } from '../../models';
+import { Order, ProfitInsight } from '../../models';
 
 @Component({
   selector: 'get-order-stack-pending-orders',
@@ -19,6 +19,9 @@ export class PendingOrders implements OnInit {
   readonly orders = this.orderService.orders;
   readonly isLoading = this.orderService.isLoading;
   readonly error = this.orderService.error;
+
+  private readonly _profitInsights = signal<Map<string, ProfitInsight>>(new Map());
+  readonly profitInsights = this._profitInsights.asReadonly();
 
   readonly pendingOrders = computed(() =>
     this.orders().filter(order =>
@@ -73,6 +76,22 @@ export class PendingOrders implements OnInit {
     if (!confirm(`Cancel order #${this.getOrderNumber(order)}?`)) return;
 
     await this.orderService.cancelOrder(order.id);
+  }
+
+  async fetchProfitInsight(order: Order): Promise<void> {
+    if (this._profitInsights().has(order.id)) return;
+    const insight = await this.orderService.getProfitInsight(order.id);
+    if (insight) {
+      this._profitInsights.update(map => {
+        const updated = new Map(map);
+        updated.set(order.id, insight);
+        return updated;
+      });
+    }
+  }
+
+  getInsight(orderId: string): ProfitInsight | undefined {
+    return this._profitInsights().get(orderId);
   }
 
   retry(): void {

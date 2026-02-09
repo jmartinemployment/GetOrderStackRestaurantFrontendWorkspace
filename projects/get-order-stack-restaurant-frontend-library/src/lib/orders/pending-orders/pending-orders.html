@@ -78,7 +78,25 @@
               </div>
             }
 
-            <div class="order-total mt-2 text-end">
+            <div class="order-total mt-2 d-flex justify-content-between align-items-center">
+              <div>
+                @if (getInsight(order.id); as insight) {
+                  <span class="profit-badge badge" [class.bg-success]="insight.profitMargin >= 60" [class.bg-warning]="insight.profitMargin >= 40 && insight.profitMargin < 60" [class.bg-danger]="insight.profitMargin < 40">
+                    {{ insight.profitMargin }}% margin
+                  </span>
+                  @if (insight.starItem) {
+                    <span class="badge bg-info ms-1">&#9733; {{ insight.starItem }}</span>
+                  }
+                } @else {
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-outline-info profit-btn"
+                    (click)="fetchProfitInsight(order)"
+                  >
+                    Profit
+                  </button>
+                }
+              </div>
               <strong>{{ order.total | currency }}</strong>
             </div>
           </div>

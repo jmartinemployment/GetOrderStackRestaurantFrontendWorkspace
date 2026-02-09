@@ -1,7 +1,7 @@
 import { Injectable, inject, signal, computed } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
-import { Order, OrderStatus } from '../models';
+import { Order, OrderStatus, ProfitInsight } from '../models';
 import { AuthService } from './auth';
 import { SocketService } from './socket';
 import { environment } from '../environments/environment';
@@ -184,12 +184,12 @@ export class OrderService {
     return this.updateOrderStatus(orderId, 'cancelled');
   }
 
-  async getProfitInsight(orderId: string): Promise<any> {
+  async getProfitInsight(orderId: string): Promise<ProfitInsight | null> {
     if (!this.restaurantId) return null;
 
     try {
       return await firstValueFrom(
-        this.http.get(
+        this.http.get<ProfitInsight>(
           `${this.apiUrl}/restaurant/${this.restaurantId}/orders/${orderId}/profit-insight`
         )
       );

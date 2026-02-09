@@ -60,6 +60,18 @@
     color: var(--cerulean-periwinkle, #5CB9F2);
     font-weight: bold;
   }
+
+  .reason {
+    color: var(--pale-turquoise, #A7F2F2);
+    font-size: 0.65rem;
+    line-height: 1.2;
+    margin-top: 0.25rem;
+    opacity: 0.8;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
 }
 
 .add-btn {

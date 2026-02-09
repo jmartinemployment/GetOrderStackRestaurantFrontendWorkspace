@@ -120,7 +120,11 @@
   <!-- Upsell Bar (only on menu view) -->
   @if (currentView() === 'menu' && cartItemCount() > 0) {
     <div class="upsell-container p-3">
-      <get-order-stack-upsell-bar [suggestions]="upsellSuggestions()" />
+      <get-order-stack-upsell-bar
+        [suggestions]="upsellSuggestions()"
+        [fallbackItems]="fallbackUpsellItems()"
+        [isLoading]="isLoadingUpsell()"
+      />
     </div>
   }
 

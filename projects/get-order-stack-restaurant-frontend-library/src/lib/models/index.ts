@@ -1,3 +1,4 @@
+export * from './analytics.model';
 export * from './auth.model';
 export * from './cart.model';
 export * from './menu.model';

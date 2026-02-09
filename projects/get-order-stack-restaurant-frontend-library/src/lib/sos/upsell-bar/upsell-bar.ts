@@ -1,6 +1,6 @@
 import { Component, inject, input, output, ChangeDetectionStrategy } from '@angular/core';
 import { CurrencyPipe } from '@angular/common';
-import { MenuItem } from '../../models';
+import { MenuItem, UpsellSuggestion } from '../../models';
 import { CartService } from '../../services/cart';
 
 @Component({
@@ -13,8 +13,10 @@ import { CartService } from '../../services/cart';
 export class UpsellBar {
   private readonly cartService = inject(CartService);
 
-  suggestions = input<MenuItem[]>([]);
+  suggestions = input<UpsellSuggestion[]>([]);
+  fallbackItems = input<MenuItem[]>([]);
   title = input<string>('Add to your order?');
+  isLoading = input<boolean>(false);
 
   itemAdded = output<MenuItem>();
 

@@ -94,6 +94,42 @@
       }
     </div>
 
+    @if (profitInsight(); as insight) {
+      <div class="profit-insight-panel card-body border-top">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <h6 class="mb-0 profit-title">Profit Insight</h6>
+          <button
+            type="button"
+            class="btn-close btn-close-white btn-sm"
+            (click)="dismissProfitInsight()"
+          ></button>
+        </div>
+        <div class="d-flex flex-wrap gap-3 mb-2">
+          <div>
+            <span class="text-muted small">Cost</span>
+            <div class="fw-bold">{{ insight.totalCost | currency }}</div>
+          </div>
+          <div>
+            <span class="text-muted small">Revenue</span>
+            <div class="fw-bold">{{ insight.totalRevenue | currency }}</div>
+          </div>
+          <div>
+            <span class="text-muted small">Margin</span>
+            <div class="fw-bold" [class.text-success]="insight.profitMargin >= 60" [class.text-warning]="insight.profitMargin >= 40 && insight.profitMargin < 60" [class.text-danger]="insight.profitMargin < 40">
+              {{ insight.profitMargin }}%
+            </div>
+          </div>
+        </div>
+        @if (insight.starItem) {
+          <div class="small mb-1">
+            <span class="text-warning">&#9733;</span> Star Item: <strong>{{ insight.starItem }}</strong>
+          </div>
+        }
+        <p class="small text-muted mb-1">{{ insight.insightText }}</p>
+        <p class="small quick-tip mb-0">{{ insight.quickTip }}</p>
+      </div>
+    }
+
     @if (!isEmpty()) {
       <div class="card-footer">
         <button

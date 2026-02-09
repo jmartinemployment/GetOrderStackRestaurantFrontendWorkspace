@@ -50,3 +50,13 @@ export interface CustomerInfo {
   phone?: string;
   address?: string;
 }
+
+export interface ProfitInsight {
+  orderId: string;
+  totalCost: number;
+  totalRevenue: number;
+  profitMargin: number;
+  starItem?: string;
+  insightText: string;
+  quickTip: string;
+}

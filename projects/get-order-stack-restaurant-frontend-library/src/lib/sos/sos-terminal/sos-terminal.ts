@@ -7,6 +7,7 @@ import { CategoryManagement } from '../../menu-mgmt/category-management/category
 import { ItemManagement } from '../../menu-mgmt/item-management/item-management';
 import { PendingOrders } from '../../orders/pending-orders/pending-orders';
 import { OrderHistory } from '../../orders/order-history/order-history';
+import { AnalyticsService } from '../../services/analytics';
 import { MenuService } from '../../services/menu';
 import { CartService } from '../../services/cart';
 import { SocketService } from '../../services/socket';
@@ -31,6 +32,7 @@ type SosView = 'menu' | 'menu-mgmt' | 'orders';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SosTerminal implements OnDestroy {
+  private readonly analyticsService = inject(AnalyticsService);
   private readonly menuService = inject(MenuService);
   private readonly cartService = inject(CartService);
   private readonly socketService = inject(SocketService);
@@ -47,7 +49,9 @@ export class SosTerminal implements OnDestroy {
   readonly drawerOpen = this._drawerOpen.asReadonly();
   readonly currentView = this._currentView.asReadonly();
 
-  readonly upsellSuggestions = this.menuService.popularItems;
+  readonly upsellSuggestions = this.analyticsService.upsellSuggestions;
+  readonly isLoadingUpsell = this.analyticsService.isLoadingUpsell;
+  readonly fallbackUpsellItems = this.menuService.popularItems;
   readonly currentLanguage = this.menuService.currentLanguage;
   readonly restaurantLogo = this.authService.selectedRestaurantLogo;
   readonly restaurantName = this.authService.selectedRestaurantName;
@@ -58,6 +62,16 @@ export class SosTerminal implements OnDestroy {
       if (restaurantId && !this._socketConnected()) {
         this._socketConnected.set(true);
         this.socketService.connect(restaurantId);
+      }
+    });
+
+    effect(() => {
+      const items = this.cartService.items();
+      if (items.length > 0) {
+        const cartItemIds = items.map(item => item.menuItem.id);
+        this.analyticsService.fetchUpsellSuggestions(cartItemIds);
+      } else {
+        this.analyticsService.clearUpsellSuggestions();
       }
     });
   }

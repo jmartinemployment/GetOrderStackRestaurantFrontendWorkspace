@@ -54,7 +54,14 @@
                   <span>{{ order.customer?.name }}</span>
                 }
               </div>
-              <span class="order-total fw-bold">{{ order.total | currency }}</span>
+              <div class="d-flex align-items-center gap-2">
+                @if (getInsight(order.id); as insight) {
+                  <span class="profit-badge badge" [class.bg-success]="insight.profitMargin >= 60" [class.bg-warning]="insight.profitMargin >= 40 && insight.profitMargin < 60" [class.bg-danger]="insight.profitMargin < 40">
+                    {{ insight.profitMargin }}%
+                  </span>
+                }
+                <span class="order-total fw-bold">{{ order.total | currency }}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -129,6 +136,44 @@
               <p class="mb-0">{{ selectedOrder()!.specialInstructions }}</p>
             </div>
           }
+
+          <!-- Profit Insight -->
+          <div class="section mb-3">
+            @if (getInsight(selectedOrder()!.id); as insight) {
+              <h6>Profit Insight</h6>
+              <div class="d-flex flex-wrap gap-3 mb-2">
+                <div>
+                  <span class="text-muted small">Cost</span>
+                  <div class="fw-bold">{{ insight.totalCost | currency }}</div>
+                </div>
+                <div>
+                  <span class="text-muted small">Revenue</span>
+                  <div class="fw-bold">{{ insight.totalRevenue | currency }}</div>
+                </div>
+                <div>
+                  <span class="text-muted small">Margin</span>
+                  <div class="fw-bold" [class.text-success]="insight.profitMargin >= 60" [class.text-warning]="insight.profitMargin >= 40 && insight.profitMargin < 60" [class.text-danger]="insight.profitMargin < 40">
+                    {{ insight.profitMargin }}%
+                  </div>
+                </div>
+              </div>
+              @if (insight.starItem) {
+                <div class="small mb-1">
+                  <span class="text-warning">&#9733;</span> Star Item: <strong>{{ insight.starItem }}</strong>
+                </div>
+              }
+              <p class="small text-muted mb-1">{{ insight.insightText }}</p>
+              <p class="small mb-0" style="color: var(--cerulean-periwinkle, #5CB9F2); font-style: italic;">{{ insight.quickTip }}</p>
+            } @else {
+              <button
+                type="button"
+                class="btn btn-sm btn-outline-info"
+                (click)="fetchProfitInsight(selectedOrder()!)"
+              >
+                View Profit Insight
+              </button>
+            }
+          </div>
 
           <!-- Totals -->
           <div class="section">

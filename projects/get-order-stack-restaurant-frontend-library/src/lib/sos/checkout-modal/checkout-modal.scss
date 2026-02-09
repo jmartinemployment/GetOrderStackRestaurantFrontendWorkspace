@@ -194,6 +194,20 @@
   flex-grow: 2;
 }
 
+.profit-insight-panel {
+  background-color: rgba(29, 50, 115, 0.2);
+  border-top-color: var(--deep-lake, #1D3273) !important;
+
+  .profit-title {
+    color: var(--pale-turquoise, #A7F2F2);
+  }
+
+  .quick-tip {
+    color: var(--cerulean-periwinkle, #5CB9F2);
+    font-style: italic;
+  }
+}
+
 .alert-danger {
   background-color: rgba(220, 53, 69, 0.2);
   border-color: rgba(220, 53, 69, 0.5);

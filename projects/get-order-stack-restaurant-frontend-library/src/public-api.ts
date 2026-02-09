@@ -9,6 +9,7 @@ export * from './lib/environments/environment';
 export * from './lib/models';
 
 // Services
+export { AnalyticsService } from './lib/services/analytics';
 export { AuthService } from './lib/services/auth';
 export { MenuService } from './lib/services/menu';
 export { CartService } from './lib/services/cart';
@@ -43,6 +44,10 @@ export { StatusBadge } from './lib/kds/status-badge/status-badge';
 export { PendingOrders } from './lib/orders/pending-orders/pending-orders';
 export { OrderHistory } from './lib/orders/order-history/order-history';
 export { ReceiptPrinter } from './lib/orders/receipt-printer/receipt-printer';
+
+// Analytics components
+export { MenuEngineeringDashboard } from './lib/analytics/menu-engineering-dashboard/menu-engineering-dashboard';
+export { SalesDashboard } from './lib/analytics/sales-dashboard/sales-dashboard';
 
 // Menu Management components
 export { CategoryManagement } from './lib/menu-mgmt/category-management/category-management';

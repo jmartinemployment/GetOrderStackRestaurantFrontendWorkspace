@@ -88,7 +88,7 @@ Get-Order-Stack-Restaurant-Frontend-Workspace/
 
 **All custom element tags follow `get-order-stack-*` naming.** No exceptions.
 
-## Registered Web Components (9)
+## Registered Web Components (8 in main.ts)
 
 | Custom Element Tag | Source Component | Domain |
 |---|---|---|
@@ -96,15 +96,14 @@ Get-Order-Stack-Restaurant-Frontend-Workspace/
 | `get-order-stack-restaurant-select` | `RestaurantSelect` | Auth |
 | `get-order-stack-sos-terminal` | `SosTerminal` | SOS |
 | `get-order-stack-kds-display` | `KdsDisplay` | KDS |
-| `get-order-stack-menu-display` | `MenuDisplay` | SOS |
-| `get-order-stack-menu-item-card` | `MenuItemCard` | SOS |
-| `get-order-stack-checkout-modal` | `CheckoutModal` | SOS |
+| `get-order-stack-menu-engineering` | `MenuEngineeringDashboard` | Analytics |
+| `get-order-stack-sales-dashboard` | `SalesDashboard` | Analytics |
 | `get-order-stack-category-management` | `CategoryManagement` | Menu Mgmt |
 | `get-order-stack-item-management` | `ItemManagement` | Menu Mgmt |
 
 Internal (not registered as custom elements):
 - All `shared/` components — used internally by other components
-- `CartDrawer`, `UpsellBar`, `OrderNotifications` — used internally by `SosTerminal`
+- `MenuDisplay`, `CartDrawer`, `CheckoutModal`, `UpsellBar`, `OrderNotifications`, `MenuItemCard` — used internally by `SosTerminal`
 - `OrderCard`, `StatusBadge` — used internally by `KdsDisplay`
 - `PendingOrders`, `OrderHistory`, `ReceiptPrinter` — used internally by other components
 
@@ -112,10 +111,11 @@ Internal (not registered as custom elements):
 
 | Service | Purpose | Key Pattern |
 |---|---|---|
+| `AnalyticsService` | AI upsell, menu engineering, sales reports | Signals, debounced fetch, `firstValueFrom()` |
 | `AuthService` | Authentication, session, restaurant selection | Signals, localStorage persistence |
-| `MenuService` | Menu CRUD, language support (en/es) | `firstValueFrom()`, HttpClient |
+| `MenuService` | Menu CRUD, AI cost estimation, language support (en/es) | `firstValueFrom()`, HttpClient |
 | `CartService` | Shopping cart state, tax/tip calculation | Signals, 8.25% default tax |
-| `OrderService` | Order management | `firstValueFrom()`, HttpClient |
+| `OrderService` | Order management, profit insights | `firstValueFrom()`, HttpClient |
 | `SocketService` | Real-time WebSocket + polling fallback | socket.io-client, reconnection, heartbeat |
 
 ### WebSocket Events
@@ -304,6 +304,38 @@ See **[plan.md](./plan.md)** for the comprehensive AI feature roadmap (22 featur
 - Modified: `item-management.scss` — styles for `.ai-data`, `.ai-estimation-result`, `.confidence-badge`, `.ai-btn`
 - Build: Both library and elements bundle compile with zero errors
 - Next: T1-01 (AI Upsell Bar), T1-04 (Order Profit Insights), or other Tier 1 features
+
+**[February 9, 2026] (Session 3):**
+- Implemented: T1-04, T1-01, T1-02, T1-03 — four Tier 1 features in one session
+- **T1-04 Order Profit Insights:**
+  - Added `ProfitInsight` interface to `order.model.ts`
+  - Typed `OrderService.getProfitInsight()` return (was `any`)
+  - `CheckoutModal`: fetches profit insight after order submit, shows dismissible panel with cost/revenue/margin/star item/quick tip
+  - `PendingOrders`: per-order "Profit" button that fetches and shows margin badge + star item
+  - `OrderHistory`: profit badge in list view, full profit detail in order detail modal with "View Profit Insight" button
+- **T1-01 AI-Powered Cart-Aware Upsell Bar:**
+  - Created `analytics.model.ts` with `UpsellSuggestion` interface
+  - Created `AnalyticsService` (`services/analytics.ts`) with debounced `fetchUpsellSuggestions()`, `loadMenuEngineering()`, `loadSalesReport()`
+  - Updated `UpsellBar` to accept `UpsellSuggestion[]` with reason text, falls back to static `popularItems`
+  - Updated `SosTerminal` with cart-watching effect that reactively calls AI upsell endpoint on cart changes (500ms debounce)
+- **T1-02 Menu Engineering Dashboard:**
+  - Created `analytics/menu-engineering-dashboard/` (3 files: .ts, .html, .scss)
+  - Quadrant summary cards (Stars/Cash Cows/Puzzles/Dogs) with click-to-filter
+  - Sortable items table (name/margin/popularity) with quadrant badges
+  - AI Recommendations panel with priority-colored insight cards
+  - Day range selector (7/14/30/90 days)
+  - Registered as custom element: `get-order-stack-menu-engineering`
+- **T1-03 Sales Insights Dashboard:**
+  - Created `analytics/sales-dashboard/` (3 files: .ts, .html, .scss)
+  - KPI cards (Revenue/Orders/Avg Order) with comparison arrows
+  - Top Sellers list, Peak Hours bar chart
+  - AI Insights panel with positive/negative/neutral color coding
+  - Daily/Weekly toggle
+  - Registered as custom element: `get-order-stack-sales-dashboard`
+- **Also registered in `main.ts`:** `CategoryManagement`, `ItemManagement` (were documented but not registered)
+- Custom elements now registered: 9 total (Login, RestaurantSelect, SosTerminal, KdsDisplay, MenuEngineering, SalesDashboard, CategoryManagement, ItemManagement, CheckoutModal... wait — CheckoutModal and MenuDisplay are internal via SosTerminal)
+- Build: Both library and elements bundle compile with zero errors/warnings (672 KB main.js)
+- Tier 1 remaining: T1-05 (Inventory Dashboard), T1-07 (Stripe Payments)
 
 ---
 
