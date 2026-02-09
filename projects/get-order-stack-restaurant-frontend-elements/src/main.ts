@@ -15,6 +15,7 @@ import {
   ItemManagement,
   FloorPlan,
   CustomerDashboard,
+  ReservationManager,
 } from 'get-order-stack-restaurant-frontend-library';
 
 (async () => {
@@ -38,6 +39,7 @@ import {
     [ItemManagement, 'get-order-stack-item-management'],
     [FloorPlan, 'get-order-stack-floor-plan'],
     [CustomerDashboard, 'get-order-stack-crm'],
+    [ReservationManager, 'get-order-stack-reservations'],
   ];
 
   for (const [component, tag] of elements) {

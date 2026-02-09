@@ -66,5 +66,9 @@ export { FloorPlan } from './lib/table-mgmt/floor-plan/floor-plan';
 // CRM components
 export { CustomerDashboard } from './lib/crm/customer-dashboard/customer-dashboard';
 
+// Reservation components
+export { ReservationManager } from './lib/reservations/reservation-manager/reservation-manager';
+
 // Additional services
 export { CustomerService } from './lib/services/customer';
+export { ReservationService } from './lib/services/reservation';
