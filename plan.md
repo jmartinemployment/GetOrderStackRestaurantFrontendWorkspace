@@ -361,8 +361,10 @@ Enrich current components. Some backend additions needed.
 
 ### T2-01. Smart KDS with Prep Time Predictions & Station Routing
 **Domain:** KDS
+**Status:** COMPLETE (prep time + rush; station routing deferred to backend work)
 **What:** Show estimated prep time countdown on order cards, color escalation (green/amber/red by time), route items to kitchen stations, add station filter to KDS header, "Rush" button.
 **Backend:** PARTIAL — `prepTimeMinutes` and `Station` model exist. Need prep estimate endpoint.
+**Frontend:** Prep time countdown with color escalation from MenuItem.prepTimeMinutes. Rush priority toggle. KDS stats header (active/overdue/avg wait). Station routing deferred until backend station-category mapping is built.
 **Impact:** Station routing cuts ticket times 15-20%.
 
 ### T2-02. Intelligent 86 System (Auto-86 from Inventory)
@@ -373,8 +375,10 @@ Enrich current components. Some backend additions needed.
 
 ### T2-03. AI-Enhanced Menu Item Cards
 **Domain:** SOS
+**Status:** COMPLETE
 **What:** Replace manual "Popular" checkbox with data-driven badges: "Best Seller" (top 10% by volume), "Chef's Pick" (high margin), "New" (< 14 days). Staff mode shows profit overlay.
-**Backend:** PARTIAL — Need popularity scores endpoint from order data.
+**Backend:** Uses existing menu engineering classification endpoint — no new endpoint needed.
+**Frontend:** MenuItemCard now shows data-driven badges from AnalyticsService menu engineering data: Best Seller (stars), Chef's Pick (cash-cows), Popular (puzzles), New (< 14 days). SosTerminal loads engineering data on init.
 **Impact:** Guided choices toward profitable items. "Popular" badges increase selection 20-30%.
 
 ### T2-04. Smart Order Routing (Multi-Device)

@@ -90,7 +90,7 @@ Get-Order-Stack-Restaurant-Frontend-Workspace/
 
 **All custom element tags follow `get-order-stack-*` naming.** No exceptions.
 
-## Registered Web Components (9 in main.ts)
+## Registered Web Components (10 in main.ts)
 
 | Custom Element Tag | Source Component | Domain |
 |---|---|---|
@@ -103,6 +103,7 @@ Get-Order-Stack-Restaurant-Frontend-Workspace/
 | `get-order-stack-inventory-dashboard` | `InventoryDashboard` | Inventory |
 | `get-order-stack-category-management` | `CategoryManagement` | Menu Mgmt |
 | `get-order-stack-item-management` | `ItemManagement` | Menu Mgmt |
+| `get-order-stack-floor-plan` | `FloorPlan` | Table Mgmt |
 
 Internal (not registered as custom elements):
 - All `shared/` components — used internally by other components
@@ -121,6 +122,7 @@ Internal (not registered as custom elements):
 | `MenuService` | Menu CRUD, AI cost estimation, language support (en/es) | `firstValueFrom()`, HttpClient |
 | `CartService` | Shopping cart state, tax/tip calculation | Signals, 8.25% default tax |
 | `OrderService` | Order management, profit insights | `firstValueFrom()`, HttpClient |
+| `TableService` | Table CRUD, position/status updates | Signals, `firstValueFrom()` |
 | `SocketService` | Real-time WebSocket + polling fallback | socket.io-client, reconnection, heartbeat |
 
 ### WebSocket Events
@@ -377,6 +379,38 @@ See **[plan.md](./plan.md)** for the comprehensive AI feature roadmap (22 featur
 - Backend endpoints used: `/payment-intent`, `/payment-status`, `/cancel-payment`, `/refund` (all already built)
 - Note: `stripePublishableKey` is `pk_test_placeholder` — must be replaced with real key before testing
 - Tier 1 complete: All 7 frontend features implemented (T1-01 through T1-07)
+
+**[February 9, 2026] (Session 6):**
+- Implemented: T2-06 (Table Floor Plan), T2-03 (AI Menu Badges), T2-01 (Smart KDS)
+- **T2-06 Table Management Floor Plan:**
+  - Created `lib/models/table.model.ts` — `RestaurantTable`, `TableFormData`, `TableStatus` interfaces
+  - Created `lib/services/table.ts` — `TableService` with full CRUD: `loadTables()`, `createTable()`, `updateTable()`, `updatePosition()`, `updateStatus()`, `deleteTable()`
+  - Created `lib/table-mgmt/floor-plan/` — 4 files (ts, html, scss, index.ts)
+  - Visual drag-and-drop canvas with pointer events, table nodes color-coded by status (available/occupied/reserved/dirty/maintenance)
+  - List view with sortable table, status dropdown, delete confirm
+  - KPI strip (total tables, seats, available/occupied/reserved counts)
+  - Section filter, unplaced tables panel, add/edit modal, table detail side panel with active orders
+  - Registered as custom element: `get-order-stack-floor-plan`
+- **T2-03 AI-Enhanced Menu Item Cards:**
+  - Added `MenuBadgeType`, `MenuItemBadge` to `analytics.model.ts`
+  - Added `itemBadges` computed signal and `getItemBadge()` method to `AnalyticsService`
+  - Modified `MenuItemCard` — replaced static `isPopular`/`popular` badge with data-driven badge from menu engineering classification
+  - Badge types: Best Seller (stars, gold), Chef's Pick (cash-cows, green), Popular (puzzles, purple), New (< 14 days, blue)
+  - SosTerminal loads menu engineering data on init via new effect
+- **T2-01 Smart KDS with Prep Time Tracking:**
+  - Modified `OrderCard` — added `estimatedPrepMinutes` and `isRushed` inputs, `rushToggle` output
+  - Added prep time progress bar with color escalation: green (<70%), amber (70-100%), red (overdue)
+  - Added remaining time display ("Xm left" / "overdue"), Rush priority button
+  - Modified `KdsDisplay` — injects MenuService, loads menu on init, builds prep time lookup map from MenuItem.prepTimeMinutes
+  - Added `_rushedOrders` signal set, `getEstimatedPrep()`, `isRushed()`, `toggleRush()` methods
+  - KDS header stats: Active orders, Overdue count, Avg wait time
+- Modified: `models/index.ts` — added table model re-export
+- Modified: `public-api.ts` — added TableService, FloorPlan exports
+- Modified: `elements/src/main.ts` — registered `get-order-stack-floor-plan` (now 10 custom elements)
+- Build: 778 kB main.js, zero errors
+- Tier 2 progress: T2-01 DONE, T2-03 DONE, T2-06 DONE. Remaining: T2-02 (Auto-86), T2-04 (Multi-Device Routing), T2-05 (Priority Notifications)
+- Backend repo: `jmartinemployment/Get-Order-Stack-Restaurant-Backend` (https://github.com/jmartinemployment/Get-Order-Stack-Restaurant-Backend.git)
+- Next: T2-02 (Auto-86) or T2-05 (Priority Notifications), then Tier 3
 
 ---
 
