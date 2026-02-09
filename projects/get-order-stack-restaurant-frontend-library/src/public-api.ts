@@ -16,6 +16,7 @@ export { PaymentService } from './lib/services/payment';
 export { MenuService } from './lib/services/menu';
 export { CartService } from './lib/services/cart';
 export { OrderService } from './lib/services/order';
+export { TableService } from './lib/services/table';
 export { SocketService } from './lib/services/socket';
 export type { SocketConnectionStatus, OrderEvent } from './lib/services/socket';
 
@@ -57,3 +58,6 @@ export { InventoryDashboard } from './lib/inventory/inventory-dashboard/inventor
 // Menu Management components
 export { CategoryManagement } from './lib/menu-mgmt/category-management/category-management';
 export { ItemManagement } from './lib/menu-mgmt/item-management/item-management';
+
+// Table Management components
+export { FloorPlan } from './lib/table-mgmt/floor-plan/floor-plan';

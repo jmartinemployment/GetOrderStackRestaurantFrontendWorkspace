@@ -391,8 +391,10 @@ Enrich current components. Some backend additions needed.
 
 ### T2-06. Table Management Floor Plan
 **Domain:** Tables
+**Status:** COMPLETE
 **What:** Visual drag-and-drop floor plan using `posX`/`posY`, color-coded status, click-to-view current order.
 **Backend:** READY — Full CRUD endpoints exist.
+**Frontend:** `FloorPlan` component with drag-and-drop canvas, list view, KPI strip, section filtering, add/edit/delete tables, status management, active order display. `TableService` with full CRUD. Registered as `get-order-stack-floor-plan`.
 **Impact:** Standard for dine-in POS. Hosts need instant table visibility.
 
 ---

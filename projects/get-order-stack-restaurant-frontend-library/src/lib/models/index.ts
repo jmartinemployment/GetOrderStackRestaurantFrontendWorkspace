@@ -6,3 +6,4 @@ export * from './menu.model';
 export * from './order.model';
 export * from './payment.model';
 export * from './restaurant.model';
+export * from './table.model';
