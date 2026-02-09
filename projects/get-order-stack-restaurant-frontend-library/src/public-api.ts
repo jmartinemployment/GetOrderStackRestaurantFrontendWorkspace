@@ -11,6 +11,7 @@ export * from './lib/models';
 // Services
 export { AnalyticsService } from './lib/services/analytics';
 export { AuthService } from './lib/services/auth';
+export { InventoryService } from './lib/services/inventory';
 export { MenuService } from './lib/services/menu';
 export { CartService } from './lib/services/cart';
 export { OrderService } from './lib/services/order';
@@ -48,6 +49,9 @@ export { ReceiptPrinter } from './lib/orders/receipt-printer/receipt-printer';
 // Analytics components
 export { MenuEngineeringDashboard } from './lib/analytics/menu-engineering-dashboard/menu-engineering-dashboard';
 export { SalesDashboard } from './lib/analytics/sales-dashboard/sales-dashboard';
+
+// Inventory components
+export { InventoryDashboard } from './lib/inventory/inventory-dashboard/inventory-dashboard';
 
 // Menu Management components
 export { CategoryManagement } from './lib/menu-mgmt/category-management/category-management';

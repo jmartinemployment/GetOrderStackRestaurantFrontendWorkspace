@@ -9,6 +9,7 @@ import {
   KdsDisplay,
   MenuEngineeringDashboard,
   SalesDashboard,
+  InventoryDashboard,
   CategoryManagement,
   ItemManagement,
 } from 'get-order-stack-restaurant-frontend-library';
@@ -28,6 +29,7 @@ import {
     [KdsDisplay, 'get-order-stack-kds-display'],
     [MenuEngineeringDashboard, 'get-order-stack-menu-engineering'],
     [SalesDashboard, 'get-order-stack-sales-dashboard'],
+    [InventoryDashboard, 'get-order-stack-inventory-dashboard'],
     [CategoryManagement, 'get-order-stack-category-management'],
     [ItemManagement, 'get-order-stack-item-management'],
   ];

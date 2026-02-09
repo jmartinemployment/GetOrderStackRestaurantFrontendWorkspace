@@ -55,6 +55,8 @@ Get-Order-Stack-Restaurant-Frontend-Workspace/
 │   │           │   ├── pending-orders/                # Pending order view
 │   │           │   ├── order-history/                 # Historical orders
 │   │           │   └── receipt-printer/               # Receipt printing
+│   │           ├── inventory/                          # Inventory management
+│   │           │   └── inventory-dashboard/            # Main inventory UI
 │   │           ├── menu-mgmt/                         # Menu management
 │   │           │   ├── category-management/           # Category CRUD
 │   │           │   └── item-management/               # Item CRUD
@@ -88,7 +90,7 @@ Get-Order-Stack-Restaurant-Frontend-Workspace/
 
 **All custom element tags follow `get-order-stack-*` naming.** No exceptions.
 
-## Registered Web Components (8 in main.ts)
+## Registered Web Components (9 in main.ts)
 
 | Custom Element Tag | Source Component | Domain |
 |---|---|---|
@@ -98,6 +100,7 @@ Get-Order-Stack-Restaurant-Frontend-Workspace/
 | `get-order-stack-kds-display` | `KdsDisplay` | KDS |
 | `get-order-stack-menu-engineering` | `MenuEngineeringDashboard` | Analytics |
 | `get-order-stack-sales-dashboard` | `SalesDashboard` | Analytics |
+| `get-order-stack-inventory-dashboard` | `InventoryDashboard` | Inventory |
 | `get-order-stack-category-management` | `CategoryManagement` | Menu Mgmt |
 | `get-order-stack-item-management` | `ItemManagement` | Menu Mgmt |
 
@@ -113,6 +116,7 @@ Internal (not registered as custom elements):
 |---|---|---|
 | `AnalyticsService` | AI upsell, menu engineering, sales reports | Signals, debounced fetch, `firstValueFrom()` |
 | `AuthService` | Authentication, session, restaurant selection | Signals, localStorage persistence |
+| `InventoryService` | Inventory CRUD, stock actions, AI predictions, reports | Signals, 10 HTTP methods, `firstValueFrom()` |
 | `MenuService` | Menu CRUD, AI cost estimation, language support (en/es) | `firstValueFrom()`, HttpClient |
 | `CartService` | Shopping cart state, tax/tip calculation | Signals, 8.25% default tax |
 | `OrderService` | Order management, profit insights | `firstValueFrom()`, HttpClient |
@@ -336,6 +340,20 @@ See **[plan.md](./plan.md)** for the comprehensive AI feature roadmap (22 featur
 - Custom elements now registered: 9 total (Login, RestaurantSelect, SosTerminal, KdsDisplay, MenuEngineering, SalesDashboard, CategoryManagement, ItemManagement, CheckoutModal... wait — CheckoutModal and MenuDisplay are internal via SosTerminal)
 - Build: Both library and elements bundle compile with zero errors/warnings (672 KB main.js)
 - Tier 1 remaining: T1-05 (Inventory Dashboard), T1-07 (Stripe Payments)
+
+**[February 9, 2026] (Session 4):**
+- Implemented: T1-05 — Inventory Management Dashboard
+- Created: `lib/models/inventory.model.ts` — 7 interfaces (`InventoryItem`, `InventoryAlert`, `StockPrediction`, `InventoryReorderItem`, `InventoryReport`) + 2 types (`InventoryTab`, `StockActionType`)
+- Created: `lib/services/inventory.ts` — `InventoryService` with 10 HTTP methods (loadReport, loadItems, loadAlerts, loadPredictions, createItem, updateStock, recordUsage, recordRestock, predictItem, refresh) matching all backend endpoints
+- Created: `lib/inventory/inventory-dashboard/` — 4 files (ts, html, scss, index.ts)
+  - 3 tabs: Overview (KPI cards, alerts, reorder list), Items (search/filter/sort table, stock bars, add form, stock action modal), Predictions (urgency-sorted cards with confidence badges)
+  - Signal-based state management with computed filters/sorting
+  - Bootstrap 5.3.8 dark theme consistent with other dashboards
+- Modified: `models/index.ts` — added inventory model re-export
+- Modified: `public-api.ts` — added InventoryService + InventoryDashboard exports
+- Modified: `elements/src/main.ts` — registered `get-order-stack-inventory-dashboard` (now 9 custom elements total)
+- Build: Library + Elements compile with zero errors (711 kB main.js, style budget warning at 6.01 kB vs 4 kB — under 8 kB error threshold)
+- Tier 1 remaining: T1-07 (Stripe Payments)
 
 ---
 
