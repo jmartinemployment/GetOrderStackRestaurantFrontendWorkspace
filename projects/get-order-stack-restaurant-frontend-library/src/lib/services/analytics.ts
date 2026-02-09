@@ -1,7 +1,7 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { Injectable, inject, signal, computed } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
-import { UpsellSuggestion, MenuEngineeringData, SalesReport } from '../models';
+import { UpsellSuggestion, MenuEngineeringData, SalesReport, MenuItemBadge } from '../models';
 import { AuthService } from './auth';
 import { environment } from '../environments/environment';
 
@@ -30,6 +30,38 @@ export class AnalyticsService {
   readonly salesReport = this._salesReport.asReadonly();
   readonly isLoadingSales = this._isLoadingSales.asReadonly();
   readonly salesError = this._salesError.asReadonly();
+
+  readonly itemBadges = computed<Map<string, MenuItemBadge>>(() => {
+    const data = this._menuEngineering();
+    const badges = new Map<string, MenuItemBadge>();
+    if (!data) return badges;
+
+    for (const item of data.items) {
+      switch (item.classification) {
+        case 'star':
+          badges.set(item.id, { type: 'best-seller', label: 'Best Seller', cssClass: 'badge-best-seller' });
+          break;
+        case 'cash-cow':
+          badges.set(item.id, { type: 'chefs-pick', label: "Chef's Pick", cssClass: 'badge-chefs-pick' });
+          break;
+        case 'puzzle':
+          badges.set(item.id, { type: 'popular', label: 'Popular', cssClass: 'badge-popular' });
+          break;
+      }
+    }
+    return badges;
+  });
+
+  getItemBadge(itemId: string, createdAt?: string): MenuItemBadge | null {
+    if (createdAt) {
+      const created = new Date(createdAt);
+      const daysOld = (Date.now() - created.getTime()) / (1000 * 60 * 60 * 24);
+      if (daysOld < 14) {
+        return { type: 'new', label: 'New', cssClass: 'badge-new' };
+      }
+    }
+    return this.itemBadges().get(itemId) ?? null;
+  }
 
   private debounceTimer: ReturnType<typeof setTimeout> | null = null;
 

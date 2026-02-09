@@ -74,6 +74,14 @@ export class SosTerminal implements OnDestroy {
         this.analyticsService.clearUpsellSuggestions();
       }
     });
+
+    // Load menu engineering data for item badges
+    effect(() => {
+      const restaurantId = this.authService.selectedRestaurantId();
+      if (restaurantId && !this.analyticsService.menuEngineering()) {
+        this.analyticsService.loadMenuEngineering();
+      }
+    });
   }
 
   toggleLanguage(): void {

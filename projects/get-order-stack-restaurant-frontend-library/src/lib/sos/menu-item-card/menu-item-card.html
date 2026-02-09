@@ -9,8 +9,8 @@
       <div class="card-body flex-grow-1">
         <div class="d-flex justify-content-between align-items-start mb-1">
           <h3 class="card-title h6 mb-0">{{ localizedName() }}</h3>
-          @if (itemValue.isPopular || itemValue.popular) {
-            <span class="badge bg-warning text-dark ms-2">Popular</span>
+          @if (badge(); as b) {
+            <span class="badge ms-2" [class]="b.cssClass">{{ b.label }}</span>
           }
         </div>
 

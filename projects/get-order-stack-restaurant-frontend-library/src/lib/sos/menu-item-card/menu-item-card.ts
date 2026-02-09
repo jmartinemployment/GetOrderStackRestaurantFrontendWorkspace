@@ -1,7 +1,8 @@
 import { Component, Input, output, signal, computed, inject, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { CurrencyPipe } from '@angular/common';
-import { MenuItem, Modifier, ModifierGroup } from '../../models';
+import { MenuItem, Modifier, ModifierGroup, MenuItemBadge } from '../../models';
 import { MenuService } from '../../services/menu';
+import { AnalyticsService } from '../../services/analytics';
 
 @Component({
   selector: 'get-order-stack-menu-item-card',
@@ -12,6 +13,7 @@ import { MenuService } from '../../services/menu';
 })
 export class MenuItemCard {
   private readonly menuService = inject(MenuService);
+  private readonly analyticsService = inject(AnalyticsService);
   private readonly cdr = inject(ChangeDetectorRef);
 
   itemValue: MenuItem | undefined;
@@ -32,6 +34,14 @@ export class MenuItemCard {
   readonly quantity = this._quantity.asReadonly();
   readonly specialInstructions = this._specialInstructions.asReadonly();
   readonly currentLanguage = this.menuService.currentLanguage;
+
+  readonly badge = computed<MenuItemBadge | null>(() => {
+    const item = this.itemValue;
+    if (!item) return null;
+    // Trigger reactivity on the engineering data signal
+    this.analyticsService.itemBadges();
+    return this.analyticsService.getItemBadge(item.id, item.createdAt);
+  });
 
   readonly localizedName = computed(() => {
     const item = this.itemValue;

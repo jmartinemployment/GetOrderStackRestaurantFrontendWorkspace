@@ -1,5 +1,13 @@
 import { MenuItem } from './menu.model';
 
+export type MenuBadgeType = 'best-seller' | 'chefs-pick' | 'new' | 'popular' | null;
+
+export interface MenuItemBadge {
+  type: MenuBadgeType;
+  label: string;
+  cssClass: string;
+}
+
 export interface UpsellSuggestion {
   item: MenuItem;
   reason: string;
