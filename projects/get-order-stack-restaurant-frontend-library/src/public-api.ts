@@ -49,6 +49,7 @@ export { OrderHistory } from './lib/orders/order-history/order-history';
 export { ReceiptPrinter } from './lib/orders/receipt-printer/receipt-printer';
 
 // Analytics components
+export { CommandCenter } from './lib/analytics/command-center/command-center';
 export { MenuEngineeringDashboard } from './lib/analytics/menu-engineering-dashboard/menu-engineering-dashboard';
 export { SalesDashboard } from './lib/analytics/sales-dashboard/sales-dashboard';
 

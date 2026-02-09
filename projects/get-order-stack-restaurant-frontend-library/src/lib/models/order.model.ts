@@ -62,3 +62,10 @@ export interface ProfitInsight {
   insightText: string;
   quickTip: string;
 }
+
+export interface RecentProfitSummary {
+  orders: ProfitInsight[];
+  averageMargin: number;
+  totalRevenue: number;
+  totalCost: number;
+}

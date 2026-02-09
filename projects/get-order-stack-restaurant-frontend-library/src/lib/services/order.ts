@@ -1,7 +1,7 @@
 import { Injectable, inject, signal, computed } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
-import { Order, OrderStatus, ProfitInsight } from '../models';
+import { Order, OrderStatus, ProfitInsight, RecentProfitSummary } from '../models';
 import { AuthService } from './auth';
 import { SocketService } from './socket';
 import { environment } from '../environments/environment';
@@ -191,6 +191,20 @@ export class OrderService {
       return await firstValueFrom(
         this.http.get<ProfitInsight>(
           `${this.apiUrl}/restaurant/${this.restaurantId}/orders/${orderId}/profit-insight`
+        )
+      );
+    } catch {
+      return null;
+    }
+  }
+
+  async getRecentProfit(limit = 10): Promise<RecentProfitSummary | null> {
+    if (!this.restaurantId) return null;
+
+    try {
+      return await firstValueFrom(
+        this.http.get<RecentProfitSummary>(
+          `${this.apiUrl}/restaurant/${this.restaurantId}/orders/recent-profit?limit=${limit}`
         )
       );
     } catch {
