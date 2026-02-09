@@ -69,6 +69,10 @@ export { CustomerDashboard } from './lib/crm/customer-dashboard/customer-dashboa
 // Reservation components
 export { ReservationManager } from './lib/reservations/reservation-manager/reservation-manager';
 
+// AI Chat components
+export { ChatAssistant } from './lib/ai-chat/chat-assistant/chat-assistant';
+
 // Additional services
+export { ChatService } from './lib/services/chat';
 export { CustomerService } from './lib/services/customer';
 export { ReservationService } from './lib/services/reservation';

@@ -1,6 +1,7 @@
 export * from './analytics.model';
 export * from './auth.model';
 export * from './cart.model';
+export * from './chat.model';
 export * from './customer.model';
 export * from './inventory.model';
 export * from './menu.model';

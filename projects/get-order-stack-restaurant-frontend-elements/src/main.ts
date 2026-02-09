@@ -16,6 +16,7 @@ import {
   FloorPlan,
   CustomerDashboard,
   ReservationManager,
+  ChatAssistant,
 } from 'get-order-stack-restaurant-frontend-library';
 
 (async () => {
@@ -40,6 +41,7 @@ import {
     [FloorPlan, 'get-order-stack-floor-plan'],
     [CustomerDashboard, 'get-order-stack-crm'],
     [ReservationManager, 'get-order-stack-reservations'],
+    [ChatAssistant, 'get-order-stack-ai-chat'],
   ];
 
   for (const [component, tag] of elements) {
