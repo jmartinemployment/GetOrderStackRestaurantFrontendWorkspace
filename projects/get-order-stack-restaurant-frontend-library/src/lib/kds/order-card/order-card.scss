@@ -12,6 +12,11 @@
     border-color: #dc3545;
     animation: pulse-border 2s infinite;
   }
+
+  &.rushed {
+    border-color: #dc3545;
+    box-shadow: 0 0 8px rgba(220, 53, 69, 0.3);
+  }
 }
 
 @keyframes pulse-border {
@@ -48,6 +53,44 @@
 .elapsed-time {
   font-size: 0.875rem;
   font-weight: 600;
+}
+
+// Prep time colors
+.prep-ok { color: #28a745; }
+.prep-warning { color: #ffc107; }
+.prep-overdue { color: #dc3545; font-weight: 700; }
+
+.prep-eta { font-weight: 600; }
+
+.rush-badge { animation: rush-flash 1s infinite; }
+
+@keyframes rush-flash {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+// Prep time progress bar
+.prep-bar-container {
+  height: 3px;
+  background-color: rgba(29, 50, 115, 0.3);
+
+  .prep-bar {
+    height: 100%;
+    transition: width 0.3s;
+
+    &.prep-ok { background-color: #28a745; }
+    &.prep-warning { background-color: #ffc107; }
+    &.prep-overdue { background-color: #dc3545; }
+  }
+}
+
+.rush-btn {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  font-weight: 700;
+  font-size: 1rem;
+  align-self: center;
 }
 
 .order-items {

@@ -1,16 +1,39 @@
-<div class="order-card card" [class.urgent]="isUrgent()">
+<div class="order-card card" [class.urgent]="isUrgent()" [class.rushed]="isRushed()">
   <div class="card-header d-flex justify-content-between align-items-center">
     <div class="d-flex align-items-center gap-2">
       <span class="order-number fw-bold">#{{ order().orderNumber }}</span>
       <span class="badge" [class]="orderTypeClass()">{{ orderTypeLabel() }}</span>
+      @if (isRushed()) {
+        <span class="badge bg-danger rush-badge">RUSH</span>
+      }
     </div>
     <div class="d-flex align-items-center gap-2">
-      <span class="elapsed-time" [class.text-danger]="isUrgent()">
+      <span class="elapsed-time" [class]="prepColorClass()">
         {{ elapsedMinutes() }}m
       </span>
+      @if (estimatedPrepMinutes() > 0 && remainingMinutes() !== null) {
+        <span class="prep-eta small" [class]="prepColorClass()">
+          @if (remainingMinutes()! > 0) {
+            {{ remainingMinutes() }}m left
+          } @else {
+            overdue
+          }
+        </span>
+      }
       <get-order-stack-status-badge [status]="order().status" />
     </div>
   </div>
+
+  <!-- Prep Time Progress Bar -->
+  @if (estimatedPrepMinutes() > 0) {
+    <div class="prep-bar-container">
+      <div
+        class="prep-bar"
+        [class]="prepColorClass()"
+        [style.width.%]="prepProgress() > 100 ? 100 : prepProgress()"
+      ></div>
+    </div>
+  }
 
   <div class="card-body">
     @if (order().tableId) {
@@ -52,13 +75,23 @@
   </div>
 
   @if (nextAction()) {
-    <div class="card-footer">
+    <div class="card-footer d-flex gap-2">
       <button
         type="button"
-        class="btn btn-primary w-100 bump-button"
+        class="btn btn-primary flex-grow-1 bump-button"
         (click)="onBump()"
       >
         {{ nextAction()!.label }}
+      </button>
+      <button
+        type="button"
+        class="btn btn-sm rush-btn"
+        [class.btn-outline-danger]="!isRushed()"
+        [class.btn-danger]="isRushed()"
+        (click)="onRush()"
+        title="Toggle rush priority"
+      >
+        !
       </button>
     </div>
   }

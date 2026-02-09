@@ -84,6 +84,28 @@
   }
 }
 
+// KDS stats
+.kds-stats {
+  .stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    line-height: 1.1;
+  }
+
+  .stat-value {
+    font-weight: 700;
+    font-size: 1rem;
+    color: #fff;
+  }
+
+  .stat-label {
+    font-size: 0.6rem;
+    color: #999;
+    text-transform: uppercase;
+  }
+}
+
 .empty-state {
   color: var(--bs-secondary-color, #6c757d);
 }

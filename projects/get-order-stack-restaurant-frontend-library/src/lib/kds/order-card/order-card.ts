@@ -11,14 +11,40 @@ import { StatusBadge } from '../status-badge/status-badge';
 })
 export class OrderCard implements OnInit, OnDestroy {
   order = input.required<Order>();
+  estimatedPrepMinutes = input<number>(0);
+  isRushed = input(false);
 
   statusChange = output<{ orderId: string; status: OrderStatus }>();
+  rushToggle = output<string>();
 
   private timerInterval: ReturnType<typeof setInterval> | null = null;
   private readonly _elapsedMinutes = signal(0);
   readonly elapsedMinutes = this._elapsedMinutes.asReadonly();
 
-  readonly isUrgent = computed(() => this._elapsedMinutes() > 10);
+  readonly prepProgress = computed(() => {
+    const est = this.estimatedPrepMinutes();
+    if (est <= 0) return 0;
+    return Math.round((this._elapsedMinutes() / est) * 100);
+  });
+
+  readonly prepColorClass = computed(() => {
+    const progress = this.prepProgress();
+    if (progress >= 100) return 'prep-overdue';
+    if (progress >= 70) return 'prep-warning';
+    return 'prep-ok';
+  });
+
+  readonly remainingMinutes = computed(() => {
+    const est = this.estimatedPrepMinutes();
+    if (est <= 0) return null;
+    return Math.max(0, est - this._elapsedMinutes());
+  });
+
+  readonly isUrgent = computed(() => {
+    const est = this.estimatedPrepMinutes();
+    if (est > 0) return this.prepProgress() >= 100;
+    return this._elapsedMinutes() > 10;
+  });
 
   readonly orderTypeClass = computed(() => {
     switch (this.order().orderType) {
@@ -50,7 +76,7 @@ export class OrderCard implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.updateElapsedTime();
-    this.timerInterval = setInterval(() => this.updateElapsedTime(), 60000);
+    this.timerInterval = setInterval(() => this.updateElapsedTime(), 30000);
   }
 
   ngOnDestroy(): void {
@@ -71,5 +97,9 @@ export class OrderCard implements OnInit, OnDestroy {
     if (action) {
       this.statusChange.emit({ orderId: this.order().id, status: action.status });
     }
+  }
+
+  onRush(): void {
+    this.rushToggle.emit(this.order().id);
   }
 }

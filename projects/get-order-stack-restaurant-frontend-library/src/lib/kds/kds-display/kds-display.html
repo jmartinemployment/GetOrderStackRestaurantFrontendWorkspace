@@ -8,6 +8,21 @@
       }
     </div>
     <div class="d-flex align-items-center gap-3">
+      <!-- KDS Stats -->
+      <div class="kds-stats d-flex gap-3">
+        <span class="stat">
+          <span class="stat-value">{{ activeOrderCount() }}</span>
+          <span class="stat-label">Active</span>
+        </span>
+        <span class="stat">
+          <span class="stat-value" [class.text-danger]="overdueCount() > 0">{{ overdueCount() }}</span>
+          <span class="stat-label">Overdue</span>
+        </span>
+        <span class="stat">
+          <span class="stat-value">{{ avgWaitMinutes() }}m</span>
+          <span class="stat-label">Avg Wait</span>
+        </span>
+      </div>
       <get-order-stack-connection-status />
       <button type="button" class="btn btn-outline-light btn-sm" (click)="refresh()">
         Refresh
@@ -42,7 +57,10 @@
           @for (order of pendingOrders(); track order.id) {
             <get-order-stack-order-card
               [order]="order"
+              [estimatedPrepMinutes]="getEstimatedPrep(order)"
+              [isRushed]="isRushed(order.id)"
               (statusChange)="onStatusChange($event)"
+              (rushToggle)="toggleRush($event)"
             />
           } @empty {
             <div class="empty-state text-center p-4">
@@ -62,7 +80,10 @@
           @for (order of preparingOrders(); track order.id) {
             <get-order-stack-order-card
               [order]="order"
+              [estimatedPrepMinutes]="getEstimatedPrep(order)"
+              [isRushed]="isRushed(order.id)"
               (statusChange)="onStatusChange($event)"
+              (rushToggle)="toggleRush($event)"
             />
           } @empty {
             <div class="empty-state text-center p-4">
@@ -82,7 +103,10 @@
           @for (order of readyOrders(); track order.id) {
             <get-order-stack-order-card
               [order]="order"
+              [estimatedPrepMinutes]="getEstimatedPrep(order)"
+              [isRushed]="isRushed(order.id)"
               (statusChange)="onStatusChange($event)"
+              (rushToggle)="toggleRush($event)"
             />
           } @empty {
             <div class="empty-state text-center p-4">
