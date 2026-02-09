@@ -62,3 +62,9 @@ export { ItemManagement } from './lib/menu-mgmt/item-management/item-management'
 
 // Table Management components
 export { FloorPlan } from './lib/table-mgmt/floor-plan/floor-plan';
+
+// CRM components
+export { CustomerDashboard } from './lib/crm/customer-dashboard/customer-dashboard';
+
+// Additional services
+export { CustomerService } from './lib/services/customer';
