@@ -2,9 +2,37 @@
 <div class="item-management">
   <div class="d-flex justify-content-between align-items-center mb-4">
     <h2 class="h4 mb-0">Menu Items</h2>
-    <button type="button" class="btn btn-primary" (click)="openCreateForm()">
-      + Add Item
-    </button>
+    <div class="d-flex gap-2">
+      <button
+        type="button"
+        class="btn btn-sm btn-outline-info ai-btn"
+        [disabled]="isEstimating() || isGenerating()"
+        (click)="estimateAllCosts()"
+      >
+        @if (isEstimating() === 'all') {
+          <span class="spinner-border spinner-border-sm me-1"></span>
+          Estimating...
+        } @else {
+          AI Estimate All Costs
+        }
+      </button>
+      <button
+        type="button"
+        class="btn btn-sm btn-outline-info ai-btn"
+        [disabled]="isEstimating() || isGenerating()"
+        (click)="generateAllDescriptions()"
+      >
+        @if (isGenerating() === 'all') {
+          <span class="spinner-border spinner-border-sm me-1"></span>
+          Generating...
+        } @else {
+          AI Generate All Descriptions
+        }
+      </button>
+      <button type="button" class="btn btn-primary" (click)="openCreateForm()">
+        + Add Item
+      </button>
+    </div>
   </div>
 
   <!-- Category Filter -->
@@ -33,12 +61,57 @@
     </div>
   </div>
 
-  @if (error()) {
+  @if (localError()) {
     <get-order-stack-error-display
-      [message]="error()!"
+      [message]="localError()!"
       [retryable]="true"
+      (dismissed)="clearLocalError()"
       (retry)="retry()"
     />
+  }
+
+  @if (!crudSupported()) {
+    <div class="alert alert-info small py-2 px-3 mb-3">
+      Edit, delete, and availability toggle are not yet available.
+    </div>
+  }
+
+  @if (lastEstimation(); as estimation) {
+    <div class="ai-estimation-result card mb-3">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <h6 class="mb-0">AI Cost Estimation Result</h6>
+          <button
+            type="button"
+            class="btn-close btn-close-white btn-sm"
+            (click)="dismissEstimation()"
+          ></button>
+        </div>
+        <div class="d-flex flex-wrap gap-3 mb-2">
+          <div>
+            <span class="text-muted small">Est. Cost</span>
+            <div class="fw-bold">{{ estimation.estimatedCost | currency }}</div>
+          </div>
+          <div>
+            <span class="text-muted small">Suggested Price</span>
+            <div class="fw-bold">{{ estimation.suggestedPrice | currency }}</div>
+          </div>
+          <div>
+            <span class="text-muted small">Profit Margin</span>
+            <div class="fw-bold">{{ estimation.profitMargin }}%</div>
+          </div>
+          <div>
+            <span class="text-muted small">Confidence</span>
+            <div>
+              <span class="badge confidence-badge" [class]="getConfidenceBadgeClass(estimation.confidence)">
+                {{ estimation.confidence }}
+              </span>
+            </div>
+          </div>
+        </div>
+        <p class="small text-muted mb-0">{{ estimation.reasoning }}</p>
+      </div>
+    </div>
   }
 
   @if (isLoading()) {
@@ -68,6 +141,25 @@
               <span class="price fw-bold">{{ item.price | currency }}</span>
             </div>
 
+            @if (item.aiEstimatedCost) {
+              <div class="ai-data d-flex flex-wrap gap-2 align-items-center mb-2">
+                <span class="small">
+                  Est. Cost: <strong>{{ item.aiEstimatedCost | currency }}</strong>
+                </span>
+                <span class="small">
+                  Suggested: <strong>{{ item.aiSuggestedPrice | currency }}</strong>
+                </span>
+                <span class="small">
+                  Margin: <strong>{{ item.aiProfitMargin }}%</strong>
+                </span>
+                @if (item.aiConfidence) {
+                  <span class="badge confidence-badge" [class]="getConfidenceBadgeClass(item.aiConfidence)">
+                    {{ item.aiConfidence }}
+                  </span>
+                }
+              </div>
+            }
+
             @if (item.description) {
               <p class="card-text small text-muted mb-2">{{ item.description }}</p>
             }
@@ -86,10 +178,35 @@
               </div>
             }
 
-            <div class="item-actions d-flex gap-2 mt-auto">
+            <div class="item-actions d-flex flex-wrap gap-2 mt-auto">
+              <button
+                type="button"
+                class="btn btn-sm btn-outline-info ai-btn"
+                [disabled]="isEstimating() || isGenerating()"
+                (click)="estimateCost(item)"
+              >
+                @if (isEstimating() === item.id) {
+                  <span class="spinner-border spinner-border-sm me-1"></span>
+                } @else {
+                  AI Cost
+                }
+              </button>
+              <button
+                type="button"
+                class="btn btn-sm btn-outline-info ai-btn"
+                [disabled]="isEstimating() || isGenerating()"
+                (click)="generateDescription(item)"
+              >
+                @if (isGenerating() === item.id) {
+                  <span class="spinner-border spinner-border-sm me-1"></span>
+                } @else {
+                  AI Describe
+                }
+              </button>
               <button
                 type="button"
                 class="btn btn-sm btn-outline-light flex-fill"
+                [disabled]="!crudSupported()"
                 (click)="toggleActive(item)"
               >
                 {{ item.isActive !== false ? 'Mark Unavailable' : 'Mark Available' }}
@@ -97,6 +214,7 @@
               <button
                 type="button"
                 class="btn btn-sm btn-outline-primary"
+                [disabled]="!crudSupported()"
                 (click)="openEditForm(item)"
               >
                 Edit
@@ -104,6 +222,7 @@
               <button
                 type="button"
                 class="btn btn-sm btn-outline-danger"
+                [disabled]="!crudSupported()"
                 (click)="deleteItem(item)"
               >
                 Delete

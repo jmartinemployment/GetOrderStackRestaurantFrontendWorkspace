@@ -277,10 +277,34 @@ All code must use:
 
 This ensures critical context survives compression and new sessions start with full knowledge.
 
+## AI Feature Roadmap
+
+See **[plan.md](./plan.md)** for the comprehensive AI feature roadmap (22 features across 4 tiers). Key points:
+
+- **Tier 1 (7 features):** Backend AI services already built (Claude Sonnet 4) but not surfaced in frontend — cart-aware upselling, menu engineering quadrants, sales insights, order profit display, inventory dashboard, AI cost estimation, Stripe payments
+- **Tier 2 (6 features):** Enhance existing components — smart KDS routing, auto-86 from inventory, data-driven menu badges, table floor plan
+- **Tier 3 (6 features):** New modules to compete with Toast IQ — AI command center, CRM, labor scheduling, online ordering, reservations, AI chat assistant
+- **Tier 4 (5 features):** Differentiators — autonomous monitoring agent, voice ordering, dynamic pricing, waste reduction, sentiment analysis
+
 ### Session Notes
 
-*(Add session notes here as work progresses)*
+**[February 9, 2026] (Session 1):**
+- Created: `plan.md` — full AI feature roadmap with 22 features across 4 tiers
+- Discovery: Backend has 7 AI services (AICostService, MenuEngineeringService, SalesInsightsService, InventoryService, OrderProfitService, TaxService, StripeService) with live API endpoints that frontend never calls
+- Discovery: `OrderService.getProfitInsight()` exists in frontend (line 187) but is never invoked by any component
+- Discovery: Only 4 components registered in `main.ts` (not 9 as documented)
+- Next: Begin Tier 1 implementation — start with T1-01 (AI Upsell Bar), T1-06 (AI Cost Estimation), T1-04 (Order Profit Insights)
+
+**[February 9, 2026] (Session 2):**
+- Implemented: T1-06 — AI Cost Estimation in Item Management (5 files)
+- Modified: `menu.model.ts` — added AI fields to `MenuItem` (`aiEstimatedCost`, `aiSuggestedPrice`, `aiProfitMargin`, `aiConfidence`, `aiLastUpdated`), added `AICostEstimation`, `AICostEstimationResponse`, `AIBatchResponse` interfaces
+- Modified: `services/menu.ts` — added 4 AI methods: `estimateItemCost()`, `generateItemDescription()`, `estimateAllCosts()`, `generateAllDescriptions()`
+- Modified: `item-management.ts` — added AI signals (`isEstimating`, `isGenerating`, `lastEstimation`), 5 AI methods, `getConfidenceBadgeClass()` helper
+- Modified: `item-management.html` — batch AI buttons in header, AI data display per item card (cost/price/margin/confidence), per-item AI Cost/AI Describe buttons, estimation result dismissible panel
+- Modified: `item-management.scss` — styles for `.ai-data`, `.ai-estimation-result`, `.confidence-badge`, `.ai-btn`
+- Build: Both library and elements bundle compile with zero errors
+- Next: T1-01 (AI Upsell Bar), T1-04 (Order Profit Insights), or other Tier 1 features
 
 ---
 
-*Last Updated: February 5, 2026*
+*Last Updated: February 9, 2026*

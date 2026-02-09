@@ -7,12 +7,19 @@
     </button>
   </div>
 
-  @if (error()) {
+  @if (localError()) {
     <get-order-stack-error-display
-      [message]="error()!"
+      [message]="localError()!"
       [retryable]="true"
+      (dismissed)="clearLocalError()"
       (retry)="retry()"
     />
+  }
+
+  @if (!crudSupported()) {
+    <div class="alert alert-info small py-2 px-3 mb-3">
+      Edit, delete, and visibility toggle are not yet available.
+    </div>
   }
 
   @if (isLoading()) {
@@ -39,6 +46,7 @@
               <button
                 type="button"
                 class="btn btn-sm btn-outline-light"
+                [disabled]="!crudSupported()"
                 (click)="toggleActive(category)"
                 [title]="category.isActive ? 'Deactivate' : 'Activate'"
               >
@@ -47,6 +55,7 @@
               <button
                 type="button"
                 class="btn btn-sm btn-outline-primary"
+                [disabled]="!crudSupported()"
                 (click)="openEditForm(category)"
               >
                 Edit
@@ -54,6 +63,7 @@
               <button
                 type="button"
                 class="btn btn-sm btn-outline-danger"
+                [disabled]="!crudSupported()"
                 (click)="deleteCategory(category)"
               >
                 Delete

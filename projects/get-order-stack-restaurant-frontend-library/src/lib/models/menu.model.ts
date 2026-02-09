@@ -39,6 +39,11 @@ export interface MenuItem {
   isPopular?: boolean;
   isActive?: boolean;
   prepTimeMinutes?: number;
+  aiEstimatedCost?: number;
+  aiSuggestedPrice?: number;
+  aiProfitMargin?: number;
+  aiConfidence?: 'high' | 'medium' | 'low';
+  aiLastUpdated?: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -62,6 +67,26 @@ export interface Modifier {
 }
 
 export type DietaryInfo = 'vegetarian' | 'vegan' | 'gluten-free' | 'dairy-free' | 'nut-free' | 'spicy' | 'halal' | 'kosher';
+
+export interface AICostEstimation {
+  estimatedCost: number;
+  suggestedPrice: number;
+  profitMargin: number;
+  confidence: 'high' | 'medium' | 'low';
+  reasoning: string;
+}
+
+export interface AICostEstimationResponse {
+  item: MenuItem;
+  estimation: AICostEstimation;
+}
+
+export interface AIBatchResponse {
+  message: string;
+  itemsProcessed: number;
+  itemsEstimated?: number;
+  itemsGenerated?: number;
+}
 
 export interface GroupedMenu {
   categories: MenuCategory[];

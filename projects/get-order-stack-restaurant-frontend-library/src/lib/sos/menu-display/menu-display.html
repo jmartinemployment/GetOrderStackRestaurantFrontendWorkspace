@@ -49,7 +49,7 @@
               </div>
 
               <div class="menu-items-grid">
-                @for (item of subcategory.items; track item.id) {
+                @for (item of (subcategory.items ?? []); track item.id) {
                   <get-order-stack-menu-item-card
                     [item]="item"
                     (addToCart)="onAddToCart($event)"

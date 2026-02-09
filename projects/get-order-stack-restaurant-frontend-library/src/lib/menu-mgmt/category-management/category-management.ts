@@ -1,4 +1,4 @@
-import { Component, inject, signal, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject, signal, effect, ChangeDetectionStrategy } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MenuService } from '../../services/menu';
 import { AuthService } from '../../services/auth';
@@ -13,9 +13,9 @@ import { MenuCategory } from '../../models';
   styleUrl: './category-management.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class CategoryManagement implements OnInit {
+export class CategoryManagement {
   private readonly fb = inject(FormBuilder);
-  private readonly menuService = inject(MenuService);
+  readonly menuService = inject(MenuService);
   private readonly authService = inject(AuthService);
 
   readonly isAuthenticated = this.authService.isAuthenticated;
@@ -23,14 +23,17 @@ export class CategoryManagement implements OnInit {
   private readonly _editingCategory = signal<MenuCategory | null>(null);
   private readonly _showForm = signal(false);
   private readonly _isSaving = signal(false);
+  private readonly _localError = signal<string | null>(null);
+  private readonly _menuLoaded = signal(false);
 
   readonly editingCategory = this._editingCategory.asReadonly();
   readonly showForm = this._showForm.asReadonly();
   readonly isSaving = this._isSaving.asReadonly();
+  readonly localError = this._localError.asReadonly();
 
   readonly categories = this.menuService.categories;
   readonly isLoading = this.menuService.isLoading;
-  readonly error = this.menuService.error;
+  readonly crudSupported = this.menuService.crudSupported;
 
   readonly categoryForm = this.fb.group({
     name: ['', [Validators.required, Validators.minLength(2)]],
@@ -38,10 +41,14 @@ export class CategoryManagement implements OnInit {
     isActive: [true],
   });
 
-  ngOnInit(): void {
-    if (this.isAuthenticated()) {
-      this.menuService.loadMenu();
-    }
+  constructor() {
+    effect(() => {
+      const restaurantId = this.authService.selectedRestaurantId();
+      if (this.isAuthenticated() && restaurantId && !this._menuLoaded()) {
+        this._menuLoaded.set(true);
+        this.menuService.loadMenu();
+      }
+    });
   }
 
   openCreateForm(): void {
@@ -70,6 +77,7 @@ export class CategoryManagement implements OnInit {
     if (this.categoryForm.invalid || this._isSaving()) return;
 
     this._isSaving.set(true);
+    this._localError.set(null);
 
     try {
       const formValue = this.categoryForm.value;
@@ -80,15 +88,25 @@ export class CategoryManagement implements OnInit {
       };
 
       if (this._editingCategory()) {
-        await this.menuService.updateCategory(
+        const success = await this.menuService.updateCategory(
           this._editingCategory()!.id,
           data
         );
+        if (!success) {
+          this._localError.set(this.menuService.error() ?? 'Failed to update category');
+          return;
+        }
       } else {
-        await this.menuService.createCategory(data);
+        const result = await this.menuService.createCategory(data);
+        if (!result) {
+          this._localError.set(this.menuService.error() ?? 'Failed to create category');
+          return;
+        }
       }
 
       this.closeForm();
+    } catch (err: any) {
+      this._localError.set(err?.message ?? 'An unexpected error occurred');
     } finally {
       this._isSaving.set(false);
     }
@@ -97,17 +115,38 @@ export class CategoryManagement implements OnInit {
   async deleteCategory(category: MenuCategory): Promise<void> {
     if (!confirm(`Are you sure you want to delete "${category.name}"?`)) return;
 
-    await this.menuService.deleteCategory(category.id);
+    this._localError.set(null);
+    try {
+      const success = await this.menuService.deleteCategory(category.id);
+      if (!success) {
+        this._localError.set(this.menuService.error() ?? 'Failed to delete category');
+      }
+    } catch (err: any) {
+      this._localError.set(err?.message ?? 'An unexpected error occurred');
+    }
   }
 
   async toggleActive(category: MenuCategory): Promise<void> {
-    await this.menuService.updateCategory(
-      category.id,
-      { isActive: !category.isActive }
-    );
+    this._localError.set(null);
+    try {
+      const success = await this.menuService.updateCategory(
+        category.id,
+        { isActive: !category.isActive }
+      );
+      if (!success) {
+        this._localError.set(this.menuService.error() ?? 'Failed to update category');
+      }
+    } catch (err: any) {
+      this._localError.set(err?.message ?? 'An unexpected error occurred');
+    }
+  }
+
+  clearLocalError(): void {
+    this._localError.set(null);
   }
 
   retry(): void {
+    this._localError.set(null);
     this.menuService.loadMenu();
   }
 }

@@ -1,7 +1,7 @@
 import { Injectable, inject, signal, computed } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
-import { MenuCategory, MenuItem } from '../models';
+import { MenuCategory, MenuItem, AICostEstimationResponse, AIBatchResponse } from '../models';
 import { AuthService } from './auth';
 import { environment } from '../environments/environment';
 
@@ -19,11 +19,14 @@ export class MenuService {
   private readonly _error = signal<string | null>(null);
   private readonly _currentLanguage = signal<'en' | 'es'>('es');
 
+  private readonly _crudSupported = signal(false);
+
   // Public readonly signals
   readonly categories = this._categories.asReadonly();
   readonly isLoading = this._isLoading.asReadonly();
   readonly error = this._error.asReadonly();
   readonly currentLanguage = this._currentLanguage.asReadonly();
+  readonly crudSupported = this._crudSupported.asReadonly();
 
   // Computed signals
   readonly activeCategories = computed(() =>
@@ -73,7 +76,7 @@ export class MenuService {
           `${this.apiUrl}/restaurant/${this.restaurantId}/menu/grouped?lang=${this._currentLanguage()}`
         )
       );
-      this._categories.set(response || []);
+      this._categories.set(this.normalizeMenuData(response || []));
     } catch (err: any) {
       const message = err?.error?.message ?? 'Failed to load menu';
       this._error.set(message);
@@ -124,6 +127,7 @@ export class MenuService {
           data
         )
       );
+      this._crudSupported.set(true);
       await this.loadMenu();
       return true;
     } catch (err: any) {
@@ -147,6 +151,7 @@ export class MenuService {
           `${this.apiUrl}/restaurant/${this.restaurantId}/menu/categories/${categoryId}`
         )
       );
+      this._crudSupported.set(true);
       await this.loadMenu();
       return true;
     } catch (err: any) {
@@ -195,6 +200,7 @@ export class MenuService {
           data
         )
       );
+      this._crudSupported.set(true);
       await this.loadMenu();
       return true;
     } catch (err: any) {
@@ -218,6 +224,7 @@ export class MenuService {
           `${this.apiUrl}/restaurant/${this.restaurantId}/menu/items/${itemId}`
         )
       );
+      this._crudSupported.set(true);
       await this.loadMenu();
       return true;
     } catch (err: any) {
@@ -229,7 +236,114 @@ export class MenuService {
     }
   }
 
+  async estimateItemCost(itemId: string): Promise<AICostEstimationResponse | null> {
+    if (!this.restaurantId) return null;
+
+    this._isLoading.set(true);
+    this._error.set(null);
+
+    try {
+      const response = await firstValueFrom(
+        this.http.post<AICostEstimationResponse>(
+          `${this.apiUrl}/restaurant/${this.restaurantId}/menu/items/${itemId}/estimate-cost`,
+          {}
+        )
+      );
+      await this.loadMenu();
+      return response;
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to estimate item cost';
+      this._error.set(message);
+      return null;
+    } finally {
+      this._isLoading.set(false);
+    }
+  }
+
+  async generateItemDescription(itemId: string): Promise<MenuItem | null> {
+    if (!this.restaurantId) return null;
+
+    this._isLoading.set(true);
+    this._error.set(null);
+
+    try {
+      const item = await firstValueFrom(
+        this.http.post<MenuItem>(
+          `${this.apiUrl}/restaurant/${this.restaurantId}/menu/items/${itemId}/generate-description`,
+          {}
+        )
+      );
+      await this.loadMenu();
+      return item;
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to generate description';
+      this._error.set(message);
+      return null;
+    } finally {
+      this._isLoading.set(false);
+    }
+  }
+
+  async estimateAllCosts(): Promise<AIBatchResponse | null> {
+    if (!this.restaurantId) return null;
+
+    this._isLoading.set(true);
+    this._error.set(null);
+
+    try {
+      const response = await firstValueFrom(
+        this.http.post<AIBatchResponse>(
+          `${this.apiUrl}/restaurant/${this.restaurantId}/menu/estimate-all-costs`,
+          {}
+        )
+      );
+      await this.loadMenu();
+      return response;
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to estimate costs';
+      this._error.set(message);
+      return null;
+    } finally {
+      this._isLoading.set(false);
+    }
+  }
+
+  async generateAllDescriptions(): Promise<AIBatchResponse | null> {
+    if (!this.restaurantId) return null;
+
+    this._isLoading.set(true);
+    this._error.set(null);
+
+    try {
+      const response = await firstValueFrom(
+        this.http.post<AIBatchResponse>(
+          `${this.apiUrl}/restaurant/${this.restaurantId}/menu/generate-all-descriptions`,
+          {}
+        )
+      );
+      await this.loadMenu();
+      return response;
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to generate descriptions';
+      this._error.set(message);
+      return null;
+    } finally {
+      this._isLoading.set(false);
+    }
+  }
+
   clearError(): void {
     this._error.set(null);
+  }
+
+  private normalizeMenuData(categories: MenuCategory[]): MenuCategory[] {
+    return categories.map(cat => ({
+      ...cat,
+      isActive: cat.isActive ?? true,
+      items: cat.items?.map(item => ({ ...item, isActive: item.isActive ?? true })),
+      subcategories: cat.subcategories
+        ? this.normalizeMenuData(cat.subcategories)
+        : undefined,
+    }));
   }
 }
