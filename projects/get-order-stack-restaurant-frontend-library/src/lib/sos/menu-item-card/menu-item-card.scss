@@ -54,6 +54,18 @@
   }
 }
 
+// 86'd state
+.menu-item-card.eighty-sixed {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+
+  .card-title { text-decoration: line-through; }
+  .price { text-decoration: line-through; }
+}
+
+.badge-86 { background-color: #dc3545; color: #fff; }
+
 // Data-driven badges
 .badge-best-seller { background-color: #ffc107; color: #000; }
 .badge-chefs-pick { background-color: #28a745; color: #fff; }

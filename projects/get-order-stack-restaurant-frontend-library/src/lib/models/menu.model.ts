@@ -38,6 +38,8 @@ export interface MenuItem {
   popular?: boolean;
   isPopular?: boolean;
   isActive?: boolean;
+  eightySixed?: boolean;
+  eightySixReason?: string;
   prepTimeMinutes?: number;
   aiEstimatedCost?: number;
   aiSuggestedPrice?: number;

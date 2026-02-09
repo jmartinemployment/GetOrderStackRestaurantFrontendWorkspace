@@ -1,5 +1,5 @@
 @if (itemValue) {
-  <div class="menu-item-card card" (click)="toggleDetails()">
+  <div class="menu-item-card card" [class.eighty-sixed]="isEightySixed()" (click)="isEightySixed() ? null : toggleDetails()">
     <div class="d-flex">
       @if (itemValue.image) {
         <div class="card-image-wrapper flex-shrink-0">
@@ -9,12 +9,16 @@
       <div class="card-body flex-grow-1">
         <div class="d-flex justify-content-between align-items-start mb-1">
           <h3 class="card-title h6 mb-0">{{ localizedName() }}</h3>
-          @if (badge(); as b) {
+          @if (isEightySixed()) {
+            <span class="badge badge-86 ms-2">86'd</span>
+          } @else if (badge(); as b) {
             <span class="badge ms-2" [class]="b.cssClass">{{ b.label }}</span>
           }
         </div>
 
-        @if (localizedDescription()) {
+        @if (isEightySixed() && itemValue.eightySixReason) {
+          <p class="card-text small mb-2 text-danger">{{ itemValue.eightySixReason }}</p>
+        } @else if (localizedDescription()) {
           <p class="card-text small mb-2" style="color: #FFFFFF;">{{ localizedDescription() }}</p>
         }
 

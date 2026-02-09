@@ -236,6 +236,27 @@ export class MenuService {
     }
   }
 
+  async toggleEightySix(itemId: string, eightySixed: boolean, reason?: string): Promise<boolean> {
+    if (!this.restaurantId) return false;
+
+    this._error.set(null);
+
+    try {
+      await firstValueFrom(
+        this.http.patch(
+          `${this.apiUrl}/restaurant/${this.restaurantId}/menu/items/${itemId}/86`,
+          { eightySixed, reason: eightySixed ? reason : undefined }
+        )
+      );
+      await this.loadMenu();
+      return true;
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to update 86 status';
+      this._error.set(message);
+      return false;
+    }
+  }
+
   async estimateItemCost(itemId: string): Promise<AICostEstimationResponse | null> {
     if (!this.restaurantId) return null;
 

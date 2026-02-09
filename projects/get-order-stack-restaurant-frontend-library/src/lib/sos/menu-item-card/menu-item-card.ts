@@ -35,6 +35,8 @@ export class MenuItemCard {
   readonly specialInstructions = this._specialInstructions.asReadonly();
   readonly currentLanguage = this.menuService.currentLanguage;
 
+  readonly isEightySixed = computed(() => this.itemValue?.eightySixed === true);
+
   readonly badge = computed<MenuItemBadge | null>(() => {
     const item = this.itemValue;
     if (!item) return null;

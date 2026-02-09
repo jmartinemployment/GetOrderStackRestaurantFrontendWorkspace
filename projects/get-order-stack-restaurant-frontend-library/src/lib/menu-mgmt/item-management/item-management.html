@@ -121,7 +121,7 @@
   } @else {
     <div class="items-grid">
       @for (item of filteredItems(); track item.id) {
-        <div class="item-card card" [class.unavailable]="item.isActive === false">
+        <div class="item-card card" [class.unavailable]="item.isActive === false" [class.eighty-sixed]="item.eightySixed">
           @if (item.image) {
             <img [src]="item.image" [alt]="item.name" width="200" height="150" class="card-img-top" />
           }
@@ -130,7 +130,9 @@
               <div>
                 <h5 class="card-title mb-1">
                   {{ item.name }}
-                  @if (item.popular || item.isPopular) {
+                  @if (item.eightySixed) {
+                    <span class="badge bg-danger ms-1">86'd</span>
+                  } @else if (item.popular || item.isPopular) {
                     <span class="badge bg-warning text-dark ms-1">Popular</span>
                   }
                 </h5>
@@ -172,13 +174,26 @@
               </div>
             }
 
-            @if (item.isActive === false) {
+            @if (item.eightySixed) {
+              <div class="alert alert-danger py-1 px-2 small mb-2">
+                86'd{{ item.eightySixReason ? ': ' + item.eightySixReason : '' }}
+              </div>
+            } @else if (item.isActive === false) {
               <div class="alert alert-warning py-1 px-2 small mb-2">
                 Currently unavailable
               </div>
             }
 
             <div class="item-actions d-flex flex-wrap gap-2 mt-auto">
+              <button
+                type="button"
+                class="btn btn-sm"
+                [class.btn-danger]="!item.eightySixed"
+                [class.btn-outline-success]="item.eightySixed"
+                (click)="toggleEightySix(item)"
+              >
+                {{ item.eightySixed ? 'Un-86' : '86 Item' }}
+              </button>
               <button
                 type="button"
                 class="btn btn-sm btn-outline-info ai-btn"

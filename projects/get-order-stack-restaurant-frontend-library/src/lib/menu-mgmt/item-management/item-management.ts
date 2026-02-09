@@ -192,6 +192,20 @@ export class ItemManagement {
     }
   }
 
+  async toggleEightySix(item: MenuItem): Promise<void> {
+    this._localError.set(null);
+    const newState = !item.eightySixed;
+    const reason = newState ? 'Out of stock' : undefined;
+    try {
+      const success = await this.menuService.toggleEightySix(item.id, newState, reason);
+      if (!success) {
+        this._localError.set(this.menuService.error() ?? 'Failed to update 86 status');
+      }
+    } catch (err: unknown) {
+      this._localError.set(err instanceof Error ? err.message : 'Failed to update 86 status');
+    }
+  }
+
   getCategoryName(categoryId: string): string {
     const category = this.categories().find(c => c.id === categoryId);
     return category?.name || 'Unknown';
