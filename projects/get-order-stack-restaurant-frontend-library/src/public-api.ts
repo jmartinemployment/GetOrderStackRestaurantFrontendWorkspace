@@ -69,6 +69,9 @@ export { CustomerDashboard } from './lib/crm/customer-dashboard/customer-dashboa
 // Reservation components
 export { ReservationManager } from './lib/reservations/reservation-manager/reservation-manager';
 
+// Online Ordering components
+export { OnlineOrderPortal } from './lib/online-ordering/online-order-portal';
+
 // AI Chat components
 export { ChatAssistant } from './lib/ai-chat/chat-assistant/chat-assistant';
 

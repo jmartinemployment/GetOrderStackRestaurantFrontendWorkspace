@@ -1,0 +1,292 @@
+@if (isAuthenticated()) {
+<div class="online-portal">
+  <!-- Header -->
+  <div class="portal-header">
+    <div class="d-flex justify-content-between align-items-center">
+      <h1 class="portal-title">Order Online</h1>
+      @if (step() !== 'confirm') {
+        <button type="button" class="cart-btn" (click)="goToCart()" [disabled]="cartItemCount() === 0">
+          Cart
+          @if (cartItemCount() > 0) {
+            <span class="cart-count">{{ cartItemCount() }}</span>
+          }
+        </button>
+      }
+    </div>
+
+    <!-- Step Indicator -->
+    @if (!orderConfirmed()) {
+      <div class="steps d-flex gap-1 mt-2">
+        <div class="step-dot" [class.active]="step() === 'menu'" (click)="setStep('menu')"></div>
+        <div class="step-dot" [class.active]="step() === 'cart'"></div>
+        <div class="step-dot" [class.active]="step() === 'info'"></div>
+      </div>
+    }
+  </div>
+
+  @if (error()) {
+    <div class="alert alert-danger mx-3 mt-2">
+      {{ error() }}
+    </div>
+  }
+
+  @if (isLoading()) {
+    <div class="d-flex justify-content-center p-5">
+      <get-order-stack-loading-spinner message="Loading menu..." />
+    </div>
+  } @else {
+    <!-- MENU STEP -->
+    @if (step() === 'menu') {
+      <!-- Search -->
+      <div class="px-3 pt-3">
+        <input
+          type="text"
+          class="form-control search-input"
+          placeholder="Search menu..."
+          [value]="searchTerm()"
+          (input)="onSearch($event)"
+        />
+      </div>
+
+      <!-- Category Pills -->
+      <div class="category-pills">
+        <button
+          type="button"
+          class="pill"
+          [class.active]="!selectedCategory()"
+          (click)="selectCategory(null)"
+        >All</button>
+        @for (cat of categories(); track cat.id) {
+          <button
+            type="button"
+            class="pill"
+            [class.active]="selectedCategory() === cat.id"
+            (click)="selectCategory(cat.id)"
+          >{{ cat.name }}</button>
+        }
+      </div>
+
+      <!-- Menu Items -->
+      <div class="menu-list">
+        @for (item of filteredItems(); track item.id) {
+          <div class="menu-item">
+            <div class="item-info">
+              <div class="item-name">{{ item.name }}</div>
+              @if (item.description) {
+                <div class="item-desc">{{ item.description }}</div>
+              }
+              <div class="item-price">{{ item.price | currency }}</div>
+              @if (item.dietary && item.dietary.length > 0) {
+                <div class="item-dietary">
+                  @for (d of item.dietary; track d) {
+                    <span class="dietary-tag">{{ d }}</span>
+                  }
+                </div>
+              }
+            </div>
+            <div class="item-action">
+              @if (getItemQuantity(item.id) > 0) {
+                <div class="qty-control">
+                  <button type="button" class="qty-btn" (click)="decrementItem(item.id)">-</button>
+                  <span class="qty-value">{{ getItemQuantity(item.id) }}</span>
+                  <button type="button" class="qty-btn" (click)="incrementItem(item.id)">+</button>
+                </div>
+              } @else {
+                <button type="button" class="add-btn" (click)="addToCart(item)">Add</button>
+              }
+            </div>
+          </div>
+        } @empty {
+          <div class="text-center p-4">
+            <p class="text-muted">No items found</p>
+          </div>
+        }
+      </div>
+
+      <!-- Floating Cart Bar -->
+      @if (cartItemCount() > 0) {
+        <div class="floating-cart" (click)="goToCart()">
+          <span>View Cart ({{ cartItemCount() }} items)</span>
+          <span class="fw-bold">{{ cartTotal() | currency }}</span>
+        </div>
+      }
+    }
+
+    <!-- CART STEP -->
+    @if (step() === 'cart') {
+      <div class="cart-view">
+        <div class="px-3 pt-3 d-flex justify-content-between align-items-center mb-3">
+          <button type="button" class="btn btn-sm btn-outline-light" (click)="setStep('menu')">Back to Menu</button>
+          <h3 class="h5 mb-0">Your Cart</h3>
+        </div>
+
+        @if (cartItemCount() === 0) {
+          <div class="text-center p-5">
+            <p class="text-muted">Your cart is empty</p>
+            <button type="button" class="btn btn-primary btn-sm" (click)="setStep('menu')">Browse Menu</button>
+          </div>
+        } @else {
+          <div class="cart-items">
+            @for (item of cartItems(); track item.id) {
+              <div class="cart-item">
+                <div class="cart-item-info">
+                  <span class="cart-item-name">{{ item.menuItem.name }}</span>
+                  <span class="cart-item-price">{{ item.totalPrice | currency }}</span>
+                </div>
+                <div class="cart-item-controls">
+                  <div class="qty-control">
+                    <button type="button" class="qty-btn" (click)="decrementItem(item.menuItem.id)">-</button>
+                    <span class="qty-value">{{ item.quantity }}</span>
+                    <button type="button" class="qty-btn" (click)="incrementItem(item.menuItem.id)">+</button>
+                  </div>
+                  <button type="button" class="remove-btn" (click)="removeFromCart(item.id)">Remove</button>
+                </div>
+              </div>
+            }
+          </div>
+
+          <div class="cart-summary">
+            <div class="summary-row">
+              <span>Subtotal</span>
+              <span>{{ cartSubtotal() | currency }}</span>
+            </div>
+            <div class="summary-row">
+              <span>Tax</span>
+              <span>{{ cartTax() | currency }}</span>
+            </div>
+            <div class="summary-row total">
+              <span>Total</span>
+              <span>{{ cartTotal() | currency }}</span>
+            </div>
+          </div>
+
+          <div class="px-3 pb-3">
+            <button type="button" class="btn btn-primary w-100" (click)="goToInfo()">
+              Continue to Checkout
+            </button>
+          </div>
+        }
+      </div>
+    }
+
+    <!-- INFO STEP -->
+    @if (step() === 'info') {
+      <div class="info-view px-3 pt-3">
+        <button type="button" class="btn btn-sm btn-outline-light mb-3" (click)="setStep('cart')">Back to Cart</button>
+
+        <!-- Order Type -->
+        <div class="mb-3">
+          <label class="form-label">Order Type</label>
+          <div class="order-type-toggle d-flex gap-2">
+            <button
+              type="button"
+              class="btn flex-fill"
+              [class.btn-primary]="orderType() === 'pickup'"
+              [class.btn-outline-light]="orderType() !== 'pickup'"
+              (click)="setOrderType('pickup')"
+            >Pickup</button>
+            <button
+              type="button"
+              class="btn flex-fill"
+              [class.btn-primary]="orderType() === 'delivery'"
+              [class.btn-outline-light]="orderType() !== 'delivery'"
+              (click)="setOrderType('delivery')"
+            >Delivery</button>
+            <button
+              type="button"
+              class="btn flex-fill"
+              [class.btn-primary]="orderType() === 'dine-in'"
+              [class.btn-outline-light]="orderType() !== 'dine-in'"
+              (click)="setOrderType('dine-in')"
+            >Dine-In</button>
+          </div>
+        </div>
+
+        <!-- Customer Info -->
+        <div class="mb-3">
+          <label class="form-label">Name *</label>
+          <input type="text" class="form-control" [value]="customerName()" (input)="onFieldInput('name', $event)" placeholder="Your name" />
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Phone *</label>
+          <input type="tel" class="form-control" [value]="customerPhone()" (input)="onFieldInput('phone', $event)" placeholder="(555) 123-4567" />
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Email</label>
+          <input type="email" class="form-control" [value]="customerEmail()" (input)="onFieldInput('email', $event)" placeholder="you@email.com" />
+        </div>
+
+        @if (orderType() === 'delivery') {
+          <div class="mb-3">
+            <label class="form-label">Delivery Address *</label>
+            <input type="text" class="form-control" [value]="deliveryAddress()" (input)="onFieldInput('address', $event)" placeholder="123 Main St, City, State" />
+          </div>
+        }
+
+        <div class="mb-3">
+          <label class="form-label">Special Instructions</label>
+          <textarea class="form-control" rows="2" [value]="specialInstructions()" (input)="onFieldInput('instructions', $event)" placeholder="Any special requests..."></textarea>
+        </div>
+
+        <!-- Order Summary -->
+        <div class="order-summary mb-3">
+          <h5>Order Summary</h5>
+          @for (item of cartItems(); track item.id) {
+            <div class="d-flex justify-content-between small mb-1">
+              <span>{{ item.quantity }}x {{ item.menuItem.name }}</span>
+              <span>{{ item.totalPrice | currency }}</span>
+            </div>
+          }
+          <hr />
+          <div class="d-flex justify-content-between fw-bold">
+            <span>Total</span>
+            <span>{{ cartTotal() | currency }}</span>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          class="btn btn-primary w-100 mb-3"
+          [disabled]="!canSubmit() || isSubmitting()"
+          (click)="submitOrder()"
+        >
+          @if (isSubmitting()) {
+            <span class="spinner-border spinner-border-sm me-2"></span>
+            Placing Order...
+          } @else {
+            Place Order - {{ cartTotal() | currency }}
+          }
+        </button>
+      </div>
+    }
+
+    <!-- CONFIRM STEP -->
+    @if (step() === 'confirm' && orderConfirmed()) {
+      <div class="confirm-view text-center px-3 pt-5">
+        <div class="confirm-icon mb-3">&#10003;</div>
+        <h3>Order Confirmed!</h3>
+        <p class="text-muted">Order #{{ orderNumber() }}</p>
+        <p>
+          @if (orderType() === 'pickup') {
+            We'll have your order ready for pickup soon.
+          } @else if (orderType() === 'delivery') {
+            Your order is on its way!
+          } @else {
+            Your order has been placed. Please take a seat.
+          }
+        </p>
+        <button type="button" class="btn btn-primary mt-3" (click)="startNewOrder()">
+          Order Again
+        </button>
+      </div>
+    }
+  }
+</div>
+} @else {
+<div class="auth-required d-flex align-items-center justify-content-center p-5">
+  <div class="text-center">
+    <h3 class="text-warning mb-3">Authentication Required</h3>
+    <p class="text-light">Please log in to place online orders.</p>
+  </div>
+</div>
+}

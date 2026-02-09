@@ -17,6 +17,7 @@ import {
   CustomerDashboard,
   ReservationManager,
   ChatAssistant,
+  OnlineOrderPortal,
 } from 'get-order-stack-restaurant-frontend-library';
 
 (async () => {
@@ -42,6 +43,7 @@ import {
     [CustomerDashboard, 'get-order-stack-crm'],
     [ReservationManager, 'get-order-stack-reservations'],
     [ChatAssistant, 'get-order-stack-ai-chat'],
+    [OnlineOrderPortal, 'get-order-stack-online-ordering'],
   ];
 
   for (const [component, tag] of elements) {
