@@ -28,44 +28,7 @@ export class DynamicPricing {
   readonly categories = this.menuService.categories;
 
   private readonly _activeTab = signal<PricingTab>('rules');
-  private readonly _rules = signal<PricingRule[]>([
-    {
-      id: 'hh-1',
-      name: 'Happy Hour',
-      type: 'happy_hour',
-      multiplier: 0.8,
-      startTime: '15:00',
-      endTime: '18:00',
-      daysOfWeek: ['mon', 'tue', 'wed', 'thu', 'fri'],
-      categoryIds: [],
-      itemIds: [],
-      active: true,
-    },
-    {
-      id: 'surge-1',
-      name: 'Weekend Dinner Surge',
-      type: 'surge',
-      multiplier: 1.15,
-      startTime: '18:00',
-      endTime: '21:00',
-      daysOfWeek: ['fri', 'sat'],
-      categoryIds: [],
-      itemIds: [],
-      active: false,
-    },
-    {
-      id: 'off-1',
-      name: 'Early Bird Discount',
-      type: 'off_peak',
-      multiplier: 0.85,
-      startTime: '11:00',
-      endTime: '12:00',
-      daysOfWeek: ['mon', 'tue', 'wed', 'thu', 'fri'],
-      categoryIds: [],
-      itemIds: [],
-      active: true,
-    },
-  ]);
+  private readonly _rules = signal<PricingRule[]>([]);
   private readonly _showForm = signal(false);
   private readonly _editingRuleId = signal<string | null>(null);
 
@@ -77,12 +40,7 @@ export class DynamicPricing {
   private readonly _formEndTime = signal('18:00');
   private readonly _formDays = signal<DayOfWeek[]>([...ALL_DAYS]);
 
-  private readonly _recommendations = signal<PricingRecommendation[]>([
-    { type: 'happy_hour', suggestion: 'Extend happy hour to 4pm-7pm on Wednesdays', reason: 'Wednesday afternoons show 35% lower traffic than other weekdays', estimatedImpact: '+12% Wednesday revenue', confidence: 'high' },
-    { type: 'off_peak', suggestion: 'Add 10% lunch discount for Mondays', reason: 'Monday lunch has the lowest order volume of the week', estimatedImpact: '+8% Monday lunch orders', confidence: 'medium' },
-    { type: 'surge', suggestion: 'Consider 10% premium pricing on Saturday evenings', reason: 'Saturday dinner demand consistently exceeds capacity', estimatedImpact: '+15% Saturday evening revenue', confidence: 'high' },
-    { type: 'seasonal', suggestion: 'Launch summer drink specials (20% off cold beverages)', reason: 'Beverage sales spike 40% in June-August', estimatedImpact: '+25% summer beverage revenue', confidence: 'medium' },
-  ]);
+  private readonly _recommendations = signal<PricingRecommendation[]>([]);
 
   readonly activeTab = this._activeTab.asReadonly();
   readonly rules = this._rules.asReadonly();
@@ -142,11 +100,36 @@ export class DynamicPricing {
   );
 
   constructor() {
+    // Load menu when authenticated
     effect(() => {
       if (this.isAuthenticated() && this.authService.selectedRestaurantId()) {
         this.menuService.loadMenu();
+        this.loadRulesFromStorage();
       }
     });
+
+    // Persist rules to localStorage on change
+    effect(() => {
+      const rules = this._rules();
+      const rid = this.authService.selectedRestaurantId();
+      if (rid) {
+        localStorage.setItem(`pricing_rules_${rid}`, JSON.stringify(rules));
+      }
+    });
+  }
+
+  private loadRulesFromStorage(): void {
+    const rid = this.authService.selectedRestaurantId();
+    if (!rid) return;
+    const stored = localStorage.getItem(`pricing_rules_${rid}`);
+    if (stored) {
+      try {
+        const rules = JSON.parse(stored) as PricingRule[];
+        this._rules.set(rules);
+      } catch {
+        // Corrupted data — start fresh
+      }
+    }
   }
 
   setTab(tab: PricingTab): void {

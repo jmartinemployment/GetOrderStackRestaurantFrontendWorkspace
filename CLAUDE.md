@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-This workspace contains Angular Elements (Web Components) for the Get-Order-Stack restaurant ordering system. The built bundle is loaded on the WordPress site geekatyourspot.com as a demo project alongside other independent Web Component bundles.
+This workspace contains Angular Elements (Web Components) for the Get-Order-Stack restaurant ordering system — a production product for **getorderstack.com**. The built bundle is loaded on the WordPress site geekatyourspot.com alongside other independent Web Component bundles.
 
 **Deployment:** Built bundle is copied into the Geek-At-Your-Spot dist directory, then FTP uploaded to WordPress. This is a git repository.
 
@@ -160,7 +160,7 @@ cp dist/get-order-stack-restaurant-frontend-elements/browser/{main.js,styles.css
 
 ### WordPress Integration
 
-The bundle is conditionally loaded on demo pages via `functions.php` in the Geek-At-Your-Spot workspace. Uses `is_page($array)` with all OrderStack page slugs:
+The bundle is conditionally loaded on OrderStack pages via `functions.php` in the Geek-At-Your-Spot workspace. Uses `is_page($array)` with all OrderStack page slugs:
 
 ```php
 $orderstack_pages = array(
@@ -266,13 +266,20 @@ This applies even when the component is used internally as an Angular component 
 
 API URL: `https://get-order-stack-restaurant-backend.onrender.com/api`
 Socket URL: `https://get-order-stack-restaurant-backend.onrender.com`
-Test Restaurant ID: `f2cfe8dd-48f3-4596-ab1e-22a28b23ad38`
+Development Restaurant ID: `f2cfe8dd-48f3-4596-ab1e-22a28b23ad38` (production uses slug-based resolution via `GET /restaurant/slug/:slug`)
 
 ### Key API Endpoints
 
 - Auth: `/api/auth/login`, `/api/auth/logout`, `/api/auth/me`
 - Menu: `/api/restaurant/{id}/menu/grouped`, `/api/restaurant/{id}/menu/categories`, `/api/restaurant/{id}/menu/items`
 - Language support: `?lang=en|es`
+
+## Configuration Required
+
+| Setting | File | Status |
+|---------|------|--------|
+| Stripe publishable key | `environments/environment.ts` + `environment.prod.ts` | `pk_test_placeholder` — must be replaced with real key from Stripe dashboard |
+| Restaurant slug | WordPress `page-orderstack-online-ordering.php` | Add `restaurant-slug="taipa"` attribute to `<get-order-stack-online-ordering>` tag |
 
 ## Common Issues
 
@@ -299,7 +306,7 @@ Test Restaurant ID: `f2cfe8dd-48f3-4596-ab1e-22a28b23ad38`
 |---------|----------|---------|
 | Geek-At-Your-Spot | `/Users/jam/development/geek-at-your-spot-workspace` | WordPress site that loads this bundle |
 | Get-Order-Stack Backend | `/Users/jam/development/Get-Order-Stack-Restaurant-Backend` | Express API backend |
-| ACORD PCS CRM | `/Users/jam/development/acord-pcs-crm/frontend/acord-pcs-crm` | CRM application (separate demo bundle) |
+| ACORD PCS CRM | `/Users/jam/development/acord-pcs-crm/frontend/acord-pcs-crm` | CRM application (separate bundle) |
 
 ## MANDATORY: Inclusion Requirements
 
@@ -541,6 +548,20 @@ See **[plan.md](./plan.md)** for the comprehensive AI feature roadmap (22 featur
 - Note: WordPress pages must be created in admin (Pages > Add New) with matching slugs and "Custom PHP Page Template" selected, then permalinks flushed
 - Updated CLAUDE.md WordPress Integration section with full page template table
 
+**[February 10, 2026] (Session 10):**
+- Production hardening: removed all demo assumptions and hardcoded sample data
+- **Step 1 — Monitoring baseline**: replaced `const baseline = 25` with dynamic `_baselineAov` signal set from first scan's `salesReport.summary.averageOrderValue`
+- **Step 2 — Cart tax rate**: replaced `private readonly defaultTaxRate = 0.0825` with `_taxRate = signal(0.0825)` + `setTaxRate(rate)` method + `taxRate` public readonly
+- **Step 3 — Slug-based resolution**: removed `defaultRestaurantId` from both environments, added `resolveRestaurantBySlug(slug)` to AuthService, added `restaurantSlug` input to OnlineOrderPortal that resolves restaurant + sets tax rate, removed `?? environment.defaultRestaurantId` from OrderService
+- **Step 4 — DynamicPricing**: removed 3 hardcoded pricing rules + 4 hardcoded recommendations, init as empty arrays, added localStorage persistence per restaurant, added empty-state messaging
+- **Step 5 — WasteTracker**: replaced hardcoded `_recommendations` signal with `computed()` that analyzes actual `_entries()` data (top category, top item, day patterns), added empty-state messaging
+- **Step 6 — Stripe validation**: added runtime check in `ensureStripeLoaded()` — if key contains "placeholder", sets error signal instead of loading
+- **Step 7 — plan.md**: removed ~15 "demo" references, replaced WordPress Demo Expansion Plan with note about completed Session 9 deployment, marked all 4 tiers as COMPLETE
+- **Step 8 — CLAUDE.md**: "demo project" → "production product", "demo pages" → "OrderStack pages", "Test Restaurant ID" → "Development Restaurant ID", added Configuration Required section (Stripe key, restaurant slug)
+- **Model change**: added `slug: string` to `Restaurant` interface
+- Build: Library + Elements compile with zero errors (773 kB main.js)
+- Next: commit, push, redeploy; WordPress needs `restaurant-slug="taipa"` attribute on online-ordering page
+
 ---
 
-*Last Updated: February 9, 2026*
+*Last Updated: February 10, 2026*

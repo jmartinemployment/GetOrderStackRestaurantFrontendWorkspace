@@ -43,12 +43,86 @@ export class WasteTracker {
   private readonly _formQuantity = signal(0);
   private readonly _formReason = signal('');
 
-  private readonly _recommendations = signal<WasteRecommendation[]>([
-    { title: 'Reduce chicken prep batches', description: 'Chicken prep waste averages 12% of total usage. Consider reducing batch size from 20 to 15 portions during weekdays.', estimatedSavings: '$180/week', priority: 'high', category: 'prep_loss' },
-    { title: 'Improve produce storage rotation', description: 'Lettuce and tomato spoilage spikes on Mondays, suggesting weekend stock is not being rotated properly.', estimatedSavings: '$95/week', priority: 'high', category: 'spoilage' },
-    { title: 'Adjust Friday prep quantities', description: 'Friday evening overproduction accounts for 30% of weekly waste. Align prep with actual Friday order volume.', estimatedSavings: '$120/week', priority: 'medium', category: 'overproduction' },
-    { title: 'Review sauce portion sizes', description: 'Customer returns frequently cite "too much sauce" — consider reducing default portion by 15%.', estimatedSavings: '$45/week', priority: 'low', category: 'customer_return' },
-  ]);
+  readonly recommendations = computed<WasteRecommendation[]>(() => {
+    const entries = this._entries();
+    if (entries.length === 0) return [];
+
+    const recs: WasteRecommendation[] = [];
+
+    // Analyze top wasted category
+    const catCosts = new Map<WasteCategory, number>();
+    for (const entry of entries) {
+      catCosts.set(entry.category, (catCosts.get(entry.category) ?? 0) + entry.estimatedCost);
+    }
+    let topCat: WasteCategory | null = null;
+    let topCatCost = 0;
+    for (const [cat, cost] of catCosts) {
+      if (cost > topCatCost) {
+        topCat = cat;
+        topCatCost = cost;
+      }
+    }
+    if (topCat) {
+      const label = this.getCategoryLabel(topCat);
+      const weeklyCost = `$${Math.round(topCatCost)}/total`;
+      recs.push({
+        title: `Reduce ${label.toLowerCase()} waste`,
+        description: `${label} is your highest waste category at $${topCatCost.toFixed(2)}. Review processes to reduce this category.`,
+        estimatedSavings: weeklyCost,
+        priority: topCatCost > 100 ? 'high' : topCatCost > 50 ? 'medium' : 'low',
+        category: topCat,
+      });
+    }
+
+    // Analyze top wasted item
+    const itemCosts = new Map<string, { name: string; cost: number; count: number; category: WasteCategory }>();
+    for (const entry of entries) {
+      const existing = itemCosts.get(entry.inventoryItemId);
+      if (existing) {
+        existing.cost += entry.estimatedCost;
+        existing.count++;
+      } else {
+        itemCosts.set(entry.inventoryItemId, { name: entry.itemName, cost: entry.estimatedCost, count: 1, category: entry.category });
+      }
+    }
+    const topItem = [...itemCosts.values()].sort((a, b) => b.cost - a.cost).at(0);
+    if (topItem && topItem.count >= 2) {
+      recs.push({
+        title: `Address ${topItem.name} waste`,
+        description: `${topItem.name} has been wasted ${topItem.count} times totaling $${topItem.cost.toFixed(2)}. Consider adjusting order quantities or storage.`,
+        estimatedSavings: `$${Math.round(topItem.cost * 0.5)}/potential`,
+        priority: topItem.cost > 50 ? 'high' : 'medium',
+        category: topItem.category,
+      });
+    }
+
+    // Day pattern analysis
+    const dayCosts = new Map<number, number>();
+    for (const entry of entries) {
+      const day = entry.createdAt.getDay();
+      dayCosts.set(day, (dayCosts.get(day) ?? 0) + entry.estimatedCost);
+    }
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    let peakDay = -1;
+    let peakCost = 0;
+    for (const [day, cost] of dayCosts) {
+      if (cost > peakCost) {
+        peakDay = day;
+        peakCost = cost;
+      }
+    }
+    if (peakDay >= 0 && dayCosts.size >= 2) {
+      recs.push({
+        title: `Review ${dayNames[peakDay]} operations`,
+        description: `${dayNames[peakDay]} shows the highest waste at $${peakCost.toFixed(2)}. Adjust prep quantities for this day.`,
+        estimatedSavings: `$${Math.round(peakCost * 0.3)}/potential`,
+        priority: 'medium',
+        category: 'overproduction',
+      });
+    }
+
+    return recs;
+  });
 
   readonly activeTab = this._activeTab.asReadonly();
   readonly entries = this._entries.asReadonly();
@@ -58,7 +132,6 @@ export class WasteTracker {
   readonly formCategory = this._formCategory.asReadonly();
   readonly formQuantity = this._formQuantity.asReadonly();
   readonly formReason = this._formReason.asReadonly();
-  readonly recommendations = this._recommendations.asReadonly();
 
   readonly wasteCategories = WASTE_CATEGORIES;
 

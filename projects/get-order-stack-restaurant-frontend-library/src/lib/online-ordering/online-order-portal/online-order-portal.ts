@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed, effect, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject, signal, computed, effect, input, ChangeDetectionStrategy } from '@angular/core';
 import { CurrencyPipe } from '@angular/common';
 import { MenuService } from '../../services/menu';
 import { CartService } from '../../services/cart';
@@ -6,7 +6,6 @@ import { OrderService } from '../../services/order';
 import { AuthService } from '../../services/auth';
 import { LoadingSpinner } from '../../shared/loading-spinner/loading-spinner';
 import { MenuItem, OrderType } from '../../models';
-import { environment } from '../../environments/environment';
 
 type OnlineStep = 'menu' | 'cart' | 'info' | 'confirm';
 
@@ -23,7 +22,11 @@ export class OnlineOrderPortal {
   private readonly orderService = inject(OrderService);
   private readonly authService = inject(AuthService);
 
+  readonly restaurantSlug = input<string>('');
+
   readonly isAuthenticated = this.authService.isAuthenticated;
+  private readonly _resolveError = signal<string | null>(null);
+  readonly resolveError = this._resolveError.asReadonly();
 
   private readonly _step = signal<OnlineStep>('menu');
   private readonly _selectedCategory = signal<string | null>(null);
@@ -86,17 +89,32 @@ export class OnlineOrderPortal {
     return this.cartItemCount() > 0;
   });
 
-  private get restaurantId(): string {
-    return this.authService.selectedRestaurantId() ?? environment.defaultRestaurantId;
-  }
-
   constructor() {
+    // Resolve restaurant from slug attribute or fall back to auth selection
     effect(() => {
-      const rid = this.authService.selectedRestaurantId() ?? environment.defaultRestaurantId;
-      if (rid) {
-        this.menuService.loadMenuForRestaurant(rid);
+      const slug = this.restaurantSlug();
+      const authId = this.authService.selectedRestaurantId();
+
+      if (slug) {
+        this.resolveSlug(slug);
+      } else if (authId) {
+        this.menuService.loadMenuForRestaurant(authId);
       }
     });
+  }
+
+  private async resolveSlug(slug: string): Promise<void> {
+    this._resolveError.set(null);
+    const restaurant = await this.authService.resolveRestaurantBySlug(slug);
+    if (restaurant) {
+      this.authService.selectRestaurant(restaurant.id, restaurant.name, restaurant.logo);
+      if (restaurant.taxRate > 0) {
+        this.cartService.setTaxRate(restaurant.taxRate);
+      }
+      this.menuService.loadMenuForRestaurant(restaurant.id);
+    } else {
+      this._resolveError.set(`Restaurant "${slug}" not found`);
+    }
   }
 
   setStep(step: OnlineStep): void {

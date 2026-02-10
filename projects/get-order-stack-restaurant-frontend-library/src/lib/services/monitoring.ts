@@ -29,6 +29,7 @@ export class MonitoringService {
   private readonly _lastScanTime = signal<Date | null>(null);
   private readonly _scanCount = signal(0);
   private readonly _error = signal<string | null>(null);
+  private readonly _baselineAov = signal<number | null>(null);
 
   private readonly _rules = signal<AnomalyRule[]>([
     { id: 'rev-drop', name: 'Revenue Drop', category: 'revenue', severity: 'critical', enabled: true, description: 'Alert when current revenue is 30%+ below average' },
@@ -150,14 +151,19 @@ export class MonitoringService {
         }
       }
 
+      // Set baseline AOV from first scan's sales data
+      if (this._baselineAov() === null && salesReport?.summary?.averageOrderValue) {
+        this._baselineAov.set(salesReport.summary.averageOrderValue);
+      }
+
       if (this.isRuleEnabled(enabledRules, 'avg-order-drop') && salesReport) {
         const avgOrder = salesReport.summary?.averageOrderValue ?? 0;
-        const baseline = 25; // baseline avg order value
-        if (avgOrder > 0 && avgOrder < baseline * 0.8) {
+        const baseline = this._baselineAov();
+        if (baseline !== null && avgOrder > 0 && avgOrder < baseline * 0.8) {
           newAlerts.push(this.createAlert(
             'revenue', 'info',
             'Average Order Value Low',
-            `Average order ($${avgOrder.toFixed(2)}) is below typical baseline ($${baseline.toFixed(2)})`,
+            `Average order ($${avgOrder.toFixed(2)}) is below restaurant baseline ($${baseline.toFixed(2)})`,
             'Consider upselling prompts or combo deals',
             `$${avgOrder.toFixed(2)}`, avgOrder, baseline * 0.8,
           ));

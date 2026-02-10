@@ -1,7 +1,7 @@
 import { Injectable, inject, signal, computed } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
-import { User, UserRestaurant, LoginRequest, LoginResponse } from '../models';
+import { User, UserRestaurant, LoginRequest, LoginResponse, Restaurant } from '../models';
 import { environment } from '../environments/environment';
 
 @Injectable({
@@ -175,5 +175,15 @@ export class AuthService {
     this._user.set(data.user);
     this._restaurants.set(data.restaurants || []);
     this.saveToStorage(data.token, data.user, data.restaurants || []);
+  }
+
+  async resolveRestaurantBySlug(slug: string): Promise<Restaurant | null> {
+    try {
+      return await firstValueFrom(
+        this.http.get<Restaurant>(`${this.apiUrl}/restaurant/slug/${slug}`)
+      );
+    } catch {
+      return null;
+    }
   }
 }

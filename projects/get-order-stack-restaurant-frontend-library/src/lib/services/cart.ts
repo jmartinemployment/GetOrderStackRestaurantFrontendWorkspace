@@ -1,4 +1,4 @@
-import { Injectable, inject, signal, computed } from '@angular/core';
+import { Injectable, inject, signal, computed, Signal } from '@angular/core';
 import { Cart, CartItem } from '../models/cart.model';
 import { MenuItem, Modifier } from '../models/menu.model';
 import { OrderType, CustomerInfo } from '../models/order.model';
@@ -9,7 +9,7 @@ import { SocketService } from './socket';
 })
 export class CartService {
   private readonly socketService = inject(SocketService);
-  private readonly defaultTaxRate = 0.0825;
+  private readonly _taxRate = signal(0.0825);
 
   // Private writable signals
   private readonly _items = signal<CartItem[]>([]);
@@ -38,8 +38,10 @@ export class CartService {
     this._items().reduce((sum, item) => sum + item.totalPrice, 0)
   );
 
+  readonly taxRate: Signal<number> = this._taxRate.asReadonly();
+
   readonly tax = computed(() =>
-    Math.round(this.subtotal() * this.defaultTaxRate * 100) / 100
+    Math.round(this.subtotal() * this._taxRate() * 100) / 100
   );
 
   readonly total = computed(() =>
@@ -168,6 +170,10 @@ export class CartService {
 
   setTip(amount: number): void {
     this._tip.set(Math.max(0, amount));
+  }
+
+  setTaxRate(rate: number): void {
+    this._taxRate.set(Math.max(0, rate));
   }
 
   setTipPercentage(percentage: number): void {

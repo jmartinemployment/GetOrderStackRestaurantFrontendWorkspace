@@ -37,6 +37,11 @@ export class PaymentService {
   async ensureStripeLoaded(): Promise<Stripe | null> {
     if (this.stripeInstance) return this.stripeInstance;
 
+    if (environment.stripePublishableKey.includes('placeholder')) {
+      this._error.set('Stripe publishable key not configured — replace pk_test_placeholder in environment files');
+      return null;
+    }
+
     this.stripeInstance = await loadStripe(environment.stripePublishableKey);
     return this.stripeInstance;
   }

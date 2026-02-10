@@ -1,8 +1,10 @@
 # Get-Order-Stack AI Feature Roadmap — Toast POS Competitor
 
+> **This is the production roadmap for getorderstack.com.**
+
 ## Context
 
-Get-Order-Stack is a restaurant operating system built to compete with Toast POS. The **backend already has significant AI features built with Claude Sonnet 4** (cost estimation, menu engineering, sales insights, inventory predictions, order profit analysis) — but **none of these are surfaced in the frontend**. The current upsell bar uses a static manual "popular" checkbox instead of the cart-aware AI upsell API that's already live. Additionally, entire backend modules (inventory, payments, tables, CRM, reservations) have working APIs with zero frontend UI.
+Get-Order-Stack is a restaurant operating system built to compete with Toast POS. The **backend already has significant AI features built with Claude Sonnet 4** (cost estimation, menu engineering, sales insights, inventory predictions, order profit analysis). The frontend now surfaces all four tiers of features (T1–T4 complete). The system is deployed via WordPress at geekatyourspot.com with 18 feature pages.
 
 This plan maps every AI integration opportunity across all restaurant operations domains, organized by implementation effort.
 
@@ -12,7 +14,7 @@ This plan maps every AI integration opportunity across all restaurant operations
 
 ### Why Angular Elements / Web Components — Not React Native
 
-Research into what the 8 major restaurant POS competitors actually use confirms that **React Native is unnecessary** for Get-Order-Stack's use case. The system is a web-based ordering demo embedded in WordPress via Angular Elements — exactly the scenario where web technologies excel.
+Research into what the 8 major restaurant POS competitors actually use confirms that **React Native is unnecessary** for Get-Order-Stack's use case. The system is a web-based ordering platform embedded in WordPress via Angular Elements — exactly the scenario where web technologies excel.
 
 ### Competitor Tech Stacks (February 2026)
 
@@ -33,7 +35,7 @@ Research into what the 8 major restaurant POS competitors actually use confirms 
 2. **React Native is only used by TouchBistro** (migrating from native iOS) — and only for their staff-facing iPad POS, not customer ordering
 3. **Customer-facing ordering is universally web-based** — Toast, Lightspeed, ChowNow, and Olo all use web technologies for customer ordering
 4. **KDS splits between native (Toast, Square) and web (Lightspeed)** — Lightspeed proves browser-based KDS is viable
-5. **React Native's advantage is hardware integration** — receipt printers (StarXpand SDK), NFC readers, Bluetooth peripherals, cash drawers — none of which apply to a web demo
+5. **React Native's advantage is hardware integration** — receipt printers (StarXpand SDK), NFC readers, Bluetooth peripherals, cash drawers — none of which apply to a web-first SaaS product
 
 ### When React Native Would Make Sense (Future, Not Now)
 
@@ -44,7 +46,7 @@ React Native becomes relevant only if Get-Order-Stack builds a **dedicated staff
 - Offline-first with SQLite (no network = still processing orders)
 - App Store distribution for branded restaurant apps
 
-That's a separate product from the web-based Angular Elements demo and would be a Tier 5+ consideration. Note: receipt printing for in-restaurant use does **not** require React Native — see the Receipt Printing Architecture section below.
+That's a separate product from the web-based Angular Elements platform and would be a Tier 5+ consideration. Note: receipt printing for in-restaurant use does **not** require React Native — see the Receipt Printing Architecture section below.
 
 ### Get-Order-Stack's Web Components Advantage
 
@@ -65,7 +67,7 @@ That's a separate product from the web-based Angular Elements demo and would be 
 | **React Native** | Medium-High | Near-native | Excellent | Excellent | 1 codebase |
 | **PWA / Web Components** | Lowest | Good | Limited | Good | 1 codebase |
 
-**Verdict:** Angular Elements / Web Components is the correct architecture for a web-embedded restaurant ordering demo. The competitors that use React Native or native apps do so for hardware-integrated staff POS — a different product category entirely.
+**Verdict:** Angular Elements / Web Components is the correct architecture for a web-embedded restaurant ordering platform. The competitors that use React Native or native apps do so for hardware-integrated staff POS — a different product category entirely.
 
 ### Receipt Printing Architecture
 
@@ -143,90 +145,13 @@ React Native is **only** needed for one specific scenario: **mobile delivery dri
 
 ---
 
-## WordPress Demo Expansion Plan
+## WordPress Multi-Page Distribution
 
-### Current State
+> **STATUS: COMPLETE** — Deployed in Session 9. All 18 feature pages are live.
 
-The Get-Order-Stack demo **already works** on the WordPress site at `geekatyourspot.com/taipa-demo/`:
+The original expansion plan (taipa-*-demo slugs) was superseded by the production deployment using `orderstack-*` slugs. See `CLAUDE.md` Session 9 notes for the full page template table. 20 custom elements are registered in `main.ts`, with `functions.php` loading the bundle conditionally on all 18 OrderStack pages.
 
-- **`page-taipa-demo.php`** loads `<get-order-stack-login>`, `<get-order-stack-restaurant-select>`, `<get-order-stack-sos-terminal>`
-- **`functions.php`** conditionally loads the bundle via `wp_enqueue_script_module()` on `is_page('taipa-demo')`
-- **`dist/.../get-order-stack-elements/`** holds built `main.js` + `styles.css`
-- **4 custom elements registered:** login, restaurant-select, sos-terminal, kds-display
-- **KDS display is registered but not on any demo page yet**
-
-### Multi-Page Demo Architecture
-
-Instead of cramming all features onto one page, expand into a **demo navigation structure** in WordPress:
-
-| WordPress Page | Slug | Custom Elements | Audience |
-|---|---|---|---|
-| Customer Ordering | `/taipa-demo/` | login, restaurant-select, sos-terminal | Customer-facing |
-| Kitchen Display | `/taipa-kds-demo/` | login, kds-display | Staff (kitchen) |
-| Analytics | `/taipa-analytics-demo/` | login, menu-engineering, sales-dashboard | Management |
-| Inventory | `/taipa-inventory-demo/` | login, inventory-dashboard | Management |
-| Menu Management | `/taipa-menu-demo/` | login, category-management, item-management | Management |
-
-Each page gets its own PHP template (`page-taipa-*.php`), all sharing the same `get-order-stack-elements` bundle loaded conditionally on all Taipa demo pages.
-
-### WordPress Integration Changes
-
-**`functions.php`** — expand conditional loading to all Taipa pages:
-```php
-if (is_page(['taipa-demo', 'taipa-kds-demo', 'taipa-analytics-demo',
-             'taipa-inventory-demo', 'taipa-menu-demo'])) {
-    wp_enqueue_style('order-stack-elements-css', ...);
-    wp_enqueue_script_module('order-stack-elements', ...);
-}
-```
-
-**`geek-sidebar`** — add all demo pages under the Demo dropdown:
-```
-Demo
-├─ Taipa Ordering        (/taipa-demo/)
-├─ Taipa KDS             (/taipa-kds-demo/)
-├─ Taipa Analytics       (/taipa-analytics-demo/)
-├─ Taipa Inventory       (/taipa-inventory-demo/)
-├─ Taipa Menu Mgmt       (/taipa-menu-demo/)
-├─ ACORD PCS Demo        (/acord-pcs-demo/)
-└─ ACORD LHA Demo        (/acord-lhs-demo/)
-```
-
-### Demo Expansion Phases
-
-**Phase 1: Immediate** (alongside Tier 1 development)
-1. Add `<get-order-stack-kds-display>` to a new `page-taipa-kds-demo.php`
-2. Add `<get-order-stack-category-management>` and `<get-order-stack-item-management>` to a new `page-taipa-menu-demo.php`
-3. Update `functions.php` to load bundle on all `taipa-*` pages
-4. Update `geek-sidebar` navigation with new demo links
-
-**Phase 2: As Tier 1 Features Land**
-1. Register new custom elements in `elements/src/main.ts` as they're built
-2. Create `page-taipa-analytics-demo.php` when T1-02 (Menu Engineering) and T1-03 (Sales Dashboard) are ready
-3. Create `page-taipa-inventory-demo.php` when T1-05 (Inventory Dashboard) is ready
-4. Copy updated bundles to Geek dist and FTP upload
-
-**Phase 3: Full Demo Suite** (Tier 2-3 features)
-1. Add table floor plan to analytics or its own page
-2. Add AI Command Center as the demo landing page
-3. Add online ordering as a customer-facing demo variant
-
-### New Custom Elements to Register (by phase)
-
-| Custom Element | Source Feature | Phase |
-|---|---|---|
-| `get-order-stack-menu-engineering` | T1-02 | Phase 2 |
-| `get-order-stack-sales-dashboard` | T1-03 | Phase 2 |
-| `get-order-stack-inventory-dashboard` | T1-05 | Phase 2 |
-| `get-order-stack-floor-plan` | T2-06 | Phase 3 |
-| `get-order-stack-command-center` | T3-01 | Phase 3 |
-| `get-order-stack-online-ordering` | T3-04 | Phase 3 |
-| `get-order-stack-crm` | T3-02 | Phase 3 |
-| `get-order-stack-ai-chat` | T3-06 | Phase 3 |
-
-### Build & Deploy Workflow (Unchanged)
-
-The existing workflow handles multi-page demos with zero changes:
+### Build & Deploy Workflow
 
 ```bash
 # 1. Build in this workspace
@@ -236,10 +161,10 @@ ng build get-order-stack-restaurant-frontend-elements
 cp dist/get-order-stack-restaurant-frontend-elements/browser/{main.js,styles.css} \
    /Users/jam/development/geek-at-your-spot-workspace/dist/geek-at-your-spot-elements/browser/get-order-stack-elements/
 
-# 3. FTP upload (same directory — all demo pages load the same bundle)
+# 3. FTP upload
 ```
 
-One bundle serves all Taipa demo pages. New custom elements are available on any page that includes the `<script type="module">` tag — no additional bundles needed.
+One bundle serves all OrderStack pages. New custom elements are available on any page that includes the `<script type="module">` tag.
 
 ---
 
@@ -263,9 +188,9 @@ One bundle serves all Taipa demo pages. New custom elements are available on any
 
 ---
 
-## TIER 1: Surface What's Already Built
+## TIER 1: Surface What's Already Built — COMPLETE
 
-Backend ready. Zero backend work. Only frontend components needed.
+> All 7 features implemented (Sessions 2-5). Backend ready, zero backend work needed.
 
 ### T1-01. AI-Powered Cart-Aware Upsell Bar
 **Domain:** SOS / Menu Engineering
@@ -355,9 +280,9 @@ Payment statuses: `pending`, `paid`, `failed`, `cancelled`, `partial_refund`, `r
 
 ---
 
-## TIER 2: Enhance Existing Features with AI
+## TIER 2: Enhance Existing Features with AI — COMPLETE (5/6)
 
-Enrich current components. Some backend additions needed.
+> T2-01, T2-02, T2-03, T2-05, T2-06 complete (Sessions 6-7). T2-04 deferred (no backend endpoints).
 
 ### T2-01. Smart KDS with Prep Time Predictions & Station Routing
 **Domain:** KDS
@@ -403,7 +328,7 @@ Enrich current components. Some backend additions needed.
 
 ---
 
-## TIER 3: New AI-Powered Modules (Compete with Toast)
+## TIER 3: New AI-Powered Modules (Compete with Toast) — COMPLETE
 
 ### T3-01. AI Command Center / Restaurant IQ
 **Domain:** All
@@ -443,7 +368,7 @@ Enrich current components. Some backend additions needed.
 
 ---
 
-## TIER 4: Differentiators (Beyond Toast)
+## TIER 4: Differentiators (Beyond Toast) — COMPLETE
 
 ### T4-01. Autonomous AI Monitoring Agent
 **What:** Background agent runs every 15 min, detects anomalies (revenue drops, inventory discrepancies, fraud patterns, kitchen bottlenecks), pushes proactive alerts via WebSocket.

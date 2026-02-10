@@ -49,7 +49,7 @@ export class OrderService {
   );
 
   private get restaurantId(): string | null {
-    return this.authService.selectedRestaurantId() ?? environment.defaultRestaurantId;
+    return this.authService.selectedRestaurantId();
   }
 
   constructor() {
