@@ -1,5 +1,5 @@
 import { Injectable, inject, signal, computed } from '@angular/core';
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { Customer, CustomerSegment, CustomerSegmentInfo } from '../models';
 import { AuthService } from './auth';
@@ -41,10 +41,6 @@ export class CustomerService {
       );
       this._customers.set(data ?? []);
     } catch (err: unknown) {
-      if (err instanceof HttpErrorResponse && err.status === 404) {
-        this._customers.set([]);
-        return;
-      }
       const message = err instanceof Error ? err.message : 'Failed to load customers';
       this._error.set(message);
     } finally {
@@ -66,10 +62,6 @@ export class CustomerService {
       );
       this._customers.set(data ?? []);
     } catch (err: unknown) {
-      if (err instanceof HttpErrorResponse && err.status === 404) {
-        this._customers.set([]);
-        return;
-      }
       const message = err instanceof Error ? err.message : 'Failed to search customers';
       this._error.set(message);
     } finally {
