@@ -32,7 +32,7 @@ export class TableService {
 
     try {
       const tables = await firstValueFrom(
-        this.http.get<RestaurantTable[]>(`${this.apiUrl}/${this.restaurantId}/tables`)
+        this.http.get<RestaurantTable[]>(`${this.apiUrl}/restaurant/${this.restaurantId}/tables`)
       );
       this._tables.set(tables);
     } catch {
@@ -48,7 +48,7 @@ export class TableService {
 
     try {
       const table = await firstValueFrom(
-        this.http.post<RestaurantTable>(`${this.apiUrl}/${this.restaurantId}/tables`, data)
+        this.http.post<RestaurantTable>(`${this.apiUrl}/restaurant/${this.restaurantId}/tables`, data)
       );
       this._tables.update(tables => [...tables, table]);
       return table;
@@ -65,7 +65,7 @@ export class TableService {
     try {
       const updated = await firstValueFrom(
         this.http.patch<RestaurantTable>(
-          `${this.apiUrl}/${this.restaurantId}/tables/${tableId}`,
+          `${this.apiUrl}/restaurant/${this.restaurantId}/tables/${tableId}`,
           data
         )
       );
@@ -96,7 +96,7 @@ export class TableService {
 
     try {
       await firstValueFrom(
-        this.http.delete(`${this.apiUrl}/${this.restaurantId}/tables/${tableId}`)
+        this.http.delete(`${this.apiUrl}/restaurant/${this.restaurantId}/tables/${tableId}`)
       );
       this._tables.update(tables => tables.filter(t => t.id !== tableId));
       return true;
