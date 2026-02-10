@@ -6,6 +6,7 @@ import { OrderService } from '../../services/order';
 import { AuthService } from '../../services/auth';
 import { LoadingSpinner } from '../../shared/loading-spinner/loading-spinner';
 import { MenuItem, OrderType } from '../../models';
+import { environment } from '../../environments/environment';
 
 type OnlineStep = 'menu' | 'cart' | 'info' | 'confirm';
 
@@ -85,10 +86,15 @@ export class OnlineOrderPortal {
     return this.cartItemCount() > 0;
   });
 
+  private get restaurantId(): string {
+    return this.authService.selectedRestaurantId() ?? environment.defaultRestaurantId;
+  }
+
   constructor() {
     effect(() => {
-      if (this.isAuthenticated() && this.authService.selectedRestaurantId()) {
-        this.menuService.loadMenu();
+      const rid = this.authService.selectedRestaurantId() ?? environment.defaultRestaurantId;
+      if (rid) {
+        this.menuService.loadMenuForRestaurant(rid);
       }
     });
   }

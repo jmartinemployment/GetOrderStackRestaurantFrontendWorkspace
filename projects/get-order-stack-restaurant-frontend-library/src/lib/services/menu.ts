@@ -58,7 +58,11 @@ export class MenuService {
   }
 
   async loadMenu(): Promise<void> {
-    if (!this.restaurantId) {
+    return this.loadMenuForRestaurant(this.restaurantId);
+  }
+
+  async loadMenuForRestaurant(restaurantId: string | null): Promise<void> {
+    if (!restaurantId) {
       this._error.set('No restaurant selected');
       return;
     }
@@ -73,7 +77,7 @@ export class MenuService {
     try {
       const response = await firstValueFrom(
         this.http.get<MenuCategory[]>(
-          `${this.apiUrl}/restaurant/${this.restaurantId}/menu/grouped?lang=${this._currentLanguage()}`
+          `${this.apiUrl}/restaurant/${restaurantId}/menu/grouped?lang=${this._currentLanguage()}`
         )
       );
       this._categories.set(this.normalizeMenuData(response || []));

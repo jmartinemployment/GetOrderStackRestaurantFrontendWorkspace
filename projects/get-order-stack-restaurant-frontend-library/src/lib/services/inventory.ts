@@ -1,5 +1,5 @@
 import { Injectable, inject, signal } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import {
   InventoryItem,
@@ -89,6 +89,10 @@ export class InventoryService {
       );
       this._alerts.set(data);
     } catch (err: unknown) {
+      if (err instanceof HttpErrorResponse && err.status === 404) {
+        this._alerts.set([]);
+        return;
+      }
       const message = err instanceof Error ? err.message : 'Failed to load alerts';
       this._error.set(message);
     }
@@ -105,6 +109,10 @@ export class InventoryService {
       );
       this._predictions.set(data);
     } catch (err: unknown) {
+      if (err instanceof HttpErrorResponse && err.status === 404) {
+        this._predictions.set([]);
+        return;
+      }
       const message = err instanceof Error ? err.message : 'Failed to load predictions';
       this._error.set(message);
     }
