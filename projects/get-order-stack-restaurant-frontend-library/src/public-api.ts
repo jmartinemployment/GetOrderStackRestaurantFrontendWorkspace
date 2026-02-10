@@ -75,7 +75,23 @@ export { OnlineOrderPortal } from './lib/online-ordering/online-order-portal';
 // AI Chat components
 export { ChatAssistant } from './lib/ai-chat/chat-assistant/chat-assistant';
 
+// Monitoring components
+export { MonitoringAgent } from './lib/monitoring/monitoring-agent';
+
+// Voice Ordering components
+export { VoiceOrder } from './lib/voice-ordering/voice-order';
+
+// Dynamic Pricing components
+export { DynamicPricing } from './lib/pricing/dynamic-pricing';
+
+// Waste Reduction components
+export { WasteTracker } from './lib/waste/waste-tracker';
+
+// Sentiment Analysis components
+export { SentimentDashboard } from './lib/sentiment/sentiment-dashboard';
+
 // Additional services
 export { ChatService } from './lib/services/chat';
 export { CustomerService } from './lib/services/customer';
+export { MonitoringService } from './lib/services/monitoring';
 export { ReservationService } from './lib/services/reservation';

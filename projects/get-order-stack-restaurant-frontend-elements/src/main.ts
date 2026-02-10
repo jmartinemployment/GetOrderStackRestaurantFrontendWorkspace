@@ -18,6 +18,11 @@ import {
   ReservationManager,
   ChatAssistant,
   OnlineOrderPortal,
+  MonitoringAgent,
+  VoiceOrder,
+  DynamicPricing,
+  WasteTracker,
+  SentimentDashboard,
 } from 'get-order-stack-restaurant-frontend-library';
 
 (async () => {
@@ -44,6 +49,11 @@ import {
     [ReservationManager, 'get-order-stack-reservations'],
     [ChatAssistant, 'get-order-stack-ai-chat'],
     [OnlineOrderPortal, 'get-order-stack-online-ordering'],
+    [MonitoringAgent, 'get-order-stack-monitoring-agent'],
+    [VoiceOrder, 'get-order-stack-voice-order'],
+    [DynamicPricing, 'get-order-stack-dynamic-pricing'],
+    [WasteTracker, 'get-order-stack-waste-tracker'],
+    [SentimentDashboard, 'get-order-stack-sentiment'],
   ];
 
   for (const [component, tag] of elements) {
