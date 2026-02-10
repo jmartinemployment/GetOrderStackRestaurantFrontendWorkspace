@@ -90,7 +90,7 @@ Get-Order-Stack-Restaurant-Frontend-Workspace/
 
 **All custom element tags follow `get-order-stack-*` naming.** No exceptions.
 
-## Registered Web Components (10 in main.ts)
+## Registered Web Components (20 in main.ts)
 
 | Custom Element Tag | Source Component | Domain |
 |---|---|---|
@@ -98,12 +98,22 @@ Get-Order-Stack-Restaurant-Frontend-Workspace/
 | `get-order-stack-restaurant-select` | `RestaurantSelect` | Auth |
 | `get-order-stack-sos-terminal` | `SosTerminal` | SOS |
 | `get-order-stack-kds-display` | `KdsDisplay` | KDS |
+| `get-order-stack-command-center` | `CommandCenter` | Analytics |
 | `get-order-stack-menu-engineering` | `MenuEngineeringDashboard` | Analytics |
 | `get-order-stack-sales-dashboard` | `SalesDashboard` | Analytics |
 | `get-order-stack-inventory-dashboard` | `InventoryDashboard` | Inventory |
 | `get-order-stack-category-management` | `CategoryManagement` | Menu Mgmt |
 | `get-order-stack-item-management` | `ItemManagement` | Menu Mgmt |
 | `get-order-stack-floor-plan` | `FloorPlan` | Table Mgmt |
+| `get-order-stack-crm` | `CustomerDashboard` | CRM |
+| `get-order-stack-reservations` | `ReservationManager` | Reservations |
+| `get-order-stack-ai-chat` | `ChatAssistant` | AI Chat |
+| `get-order-stack-online-ordering` | `OnlineOrderPortal` | Online Ordering |
+| `get-order-stack-monitoring-agent` | `MonitoringAgent` | Monitoring |
+| `get-order-stack-voice-order` | `VoiceOrder` | Voice Ordering |
+| `get-order-stack-dynamic-pricing` | `DynamicPricing` | Pricing |
+| `get-order-stack-waste-tracker` | `WasteTracker` | Waste Reduction |
+| `get-order-stack-sentiment` | `SentimentDashboard` | Sentiment |
 
 Internal (not registered as custom elements):
 - All `shared/` components — used internally by other components
@@ -150,17 +160,49 @@ cp dist/get-order-stack-restaurant-frontend-elements/browser/{main.js,styles.css
 
 ### WordPress Integration
 
-The bundle is conditionally loaded on demo pages via `functions.php` in the Geek-At-Your-Spot workspace:
+The bundle is conditionally loaded on demo pages via `functions.php` in the Geek-At-Your-Spot workspace. Uses `is_page($array)` with all OrderStack page slugs:
 
 ```php
-// OrderStack bundle — demo pages only
-if (is_page('taipa-demo')) {
-    wp_enqueue_style('order-stack-elements-css',
-        get_template_directory_uri() . '/assets/geek-elements/get-order-stack-elements/styles.css', ...);
-    wp_enqueue_script_module('order-stack-elements',
-        get_template_directory_uri() . '/assets/geek-elements/get-order-stack-elements/main.js', ...);
+$orderstack_pages = array(
+    'taipa-demo', 'orderstack-kds', 'orderstack-menu-engineering', 'orderstack-sales',
+    'orderstack-inventory', 'orderstack-menu-management', 'orderstack-orders',
+    'orderstack-online-ordering', 'orderstack-reservations', 'orderstack-command-center',
+    'orderstack-floor-plan', 'orderstack-crm', 'orderstack-ai-chat',
+    'orderstack-monitoring', 'orderstack-voice-order', 'orderstack-pricing',
+    'orderstack-waste', 'orderstack-sentiment',
+);
+if (is_page($orderstack_pages)) {
+    wp_enqueue_style('order-stack-elements-css', ...);
+    wp_enqueue_script_module('order-stack-elements', ...);
 }
 ```
+
+### WordPress Page Templates (18 pages)
+
+Each page has a PHP template (`page-{slug}.php`) in the Geek-At-Your-Spot theme. All include `<get-order-stack-login>` + `<get-order-stack-restaurant-select>` for auth (except online-ordering which is public-facing).
+
+| Page Slug | PHP Template | Components |
+|---|---|---|
+| `taipa-demo` | `page-taipa-demo.php` | login, restaurant-select, sos-terminal |
+| `orderstack-kds` | `page-orderstack-kds.php` | login, restaurant-select, kds-display |
+| `orderstack-menu-engineering` | `page-orderstack-menu-engineering.php` | login, restaurant-select, menu-engineering |
+| `orderstack-sales` | `page-orderstack-sales.php` | login, restaurant-select, sales-dashboard |
+| `orderstack-inventory` | `page-orderstack-inventory.php` | login, restaurant-select, inventory-dashboard |
+| `orderstack-menu-management` | `page-orderstack-menu-management.php` | login, restaurant-select, category-management, item-management |
+| `orderstack-orders` | `page-orderstack-orders.php` | login, restaurant-select, pending-orders, order-history |
+| `orderstack-online-ordering` | `page-orderstack-online-ordering.php` | online-ordering (no auth — customer-facing) |
+| `orderstack-reservations` | `page-orderstack-reservations.php` | login, restaurant-select, reservations |
+| `orderstack-command-center` | `page-orderstack-command-center.php` | login, restaurant-select, command-center |
+| `orderstack-floor-plan` | `page-orderstack-floor-plan.php` | login, restaurant-select, floor-plan |
+| `orderstack-crm` | `page-orderstack-crm.php` | login, restaurant-select, crm |
+| `orderstack-ai-chat` | `page-orderstack-ai-chat.php` | login, restaurant-select, ai-chat |
+| `orderstack-monitoring` | `page-orderstack-monitoring.php` | login, restaurant-select, monitoring-agent |
+| `orderstack-voice-order` | `page-orderstack-voice-order.php` | login, restaurant-select, voice-order |
+| `orderstack-pricing` | `page-orderstack-pricing.php` | login, restaurant-select, dynamic-pricing |
+| `orderstack-waste` | `page-orderstack-waste.php` | login, restaurant-select, waste-tracker |
+| `orderstack-sentiment` | `page-orderstack-sentiment.php` | login, restaurant-select, sentiment |
+
+**Important:** Pages must be created in WordPress Admin (Pages > Add New) with matching slug and "Custom PHP Page Template" selected. Then flush permalinks (Settings > Permalinks > Save).
 
 **Important:** `wp_enqueue_script_module` and `wp_enqueue_script` are separate systems. Modules cannot depend on classic scripts.
 
@@ -411,6 +453,93 @@ See **[plan.md](./plan.md)** for the comprehensive AI feature roadmap (22 featur
 - Tier 2 progress: T2-01 DONE, T2-03 DONE, T2-06 DONE. Remaining: T2-02 (Auto-86), T2-04 (Multi-Device Routing), T2-05 (Priority Notifications)
 - Backend repo: `jmartinemployment/Get-Order-Stack-Restaurant-Backend` (https://github.com/jmartinemployment/Get-Order-Stack-Restaurant-Backend.git)
 - Next: T2-02 (Auto-86) or T2-05 (Priority Notifications), then Tier 3
+
+**[February 9, 2026] (Session 7):**
+- Completed: T2-02 (Intelligent 86 System), T2-05 (Priority Notifications) — Tier 2 fully complete (T2-04 deferred: no backend endpoints)
+- Completed: All Tier 3 features (T3-01 through T3-06) — 6 new components
+- **T2-05 Priority Notifications:**
+  - Enhanced `OrderNotifications` with Web Audio API (4 distinct tones), Desktop Notification API, urgency classification, elapsed time display, sound/desktop toggle controls, pulse animation for urgent alerts
+- **T3-01 AI Command Center:**
+  - Created `analytics/command-center/` — composes AnalyticsService, InventoryService, OrderService via `Promise.all()`
+  - Added `RecentProfitSummary` interface to `order.model.ts`, `getRecentProfit()` to OrderService
+  - 3 tabs: Overview (6 KPIs + insights + top sellers + stock watch), AI Insights (unified feed), Alerts (inventory alerts + predictions)
+  - Registered as `get-order-stack-command-center`
+- **T3-02 Customer CRM:**
+  - Created `customer.model.ts`, `CustomerService` with segment calculation (VIP/Regular/New/At-Risk/Dormant)
+  - Created `crm/customer-dashboard/` — search, segment filtering, sortable table, detail side panel
+  - Registered as `get-order-stack-crm`
+- **T3-04 Online Ordering Portal:**
+  - Created `online-ordering/online-order-portal/` — 4-step mobile-optimized flow: menu → cart → info → confirm
+  - Category pills, search, qty controls, floating cart bar, order type toggle (pickup/delivery/dine-in), customer form, order summary
+  - Uses CartService (menuItem pattern), OrderService with `orderSource: 'online'`
+  - Registered as `get-order-stack-online-ordering`
+- **T3-05 Reservation Manager:**
+  - Created `reservation.model.ts`, `ReservationService` with CRUD + status workflow
+  - Created `reservations/reservation-manager/` — today/upcoming/past tabs, booking form, status actions, KPI strip
+  - Registered as `get-order-stack-reservations`
+- **T3-06 AI Chat Assistant:**
+  - Created `chat.model.ts`, `ChatService` with conversation management
+  - Created `ai-chat/chat-assistant/` — message bubbles, typing indicator, suggested queries, auto-scroll
+  - Registered as `get-order-stack-ai-chat`
+- New services exported: ChatService, CustomerService, ReservationService
+- Build: 892.64 kB main.js, zero errors (SCSS budget warnings non-blocking)
+- Custom elements: 15 total registered in main.ts
+- Error fixed: CartItem uses `menuItem: MenuItem` (nested object) + `id` (cart item ID), not flat `menuItemId`/`name` — fixed in OnlineOrderPortal
+- **Tier status:** T1 complete (7/7), T2 complete (5/6, T2-04 deferred), T3 complete (6/6)
+- Next: Tier 4 features or deployment/testing
+
+**[February 9, 2026] (Session 8):**
+- Completed: All Tier 4 features (T4-01 through T4-05) — 5 new components, 1 new service
+- **T4-01 Autonomous Monitoring Agent:**
+  - Created `models/monitoring.model.ts` — `MonitoringAlert`, `MonitoringSnapshot`, `AnomalyRule` interfaces
+  - Created `services/monitoring.ts` — `MonitoringService` with configurable polling (60s default), 8 built-in anomaly rules, deduplication, acknowledge/clear, snapshot timeline
+  - Created `monitoring/monitoring-agent/` — 3 tabs: Live Feed (filtered alerts with severity/category), Alert History, Rules (toggle on/off)
+  - Polls existing AnalyticsService, InventoryService for data — no new backend needed
+  - Registered as `get-order-stack-monitoring-agent`
+- **T4-02 Voice AI Ordering:**
+  - Created `models/voice.model.ts` — `VoiceMatch`, `VoiceTranscript`, `VoiceSession` interfaces
+  - Created `voice-ordering/voice-order/` — Web Speech API integration, bilingual (EN/ES), fuzzy menu matching with quantity extraction ("two chicken tacos"), SpeechSynthesis voice feedback, animated waveform, confidence badges
+  - Uses `(globalThis as any).SpeechRecognition` for cross-browser compat
+  - Registered as `get-order-stack-voice-order`
+- **T4-03 Dynamic Menu Pricing:**
+  - Created `models/pricing.model.ts` — `PricingRule`, `PricingRecommendation`, `ItemPricePreview` interfaces
+  - Created `pricing/dynamic-pricing/` — 3 tabs: Rules (CRUD form with type/multiplier/time/days), Price Preview (live table with strikethrough base prices), AI Suggestions (4 sample recommendations)
+  - Time-based rule engine: checks current time/day against rules, applies multiplier
+  - Rule types: happy_hour, surge, off_peak, seasonal, custom
+  - Registered as `get-order-stack-dynamic-pricing`
+- **T4-04 AI Waste Reduction:**
+  - Created `models/waste.model.ts` — `WasteEntry`, `WasteSummary`, `WasteRecommendation` interfaces
+  - Created `waste/waste-tracker/` — 3 tabs: Waste Log (entry form + filtered list), Analysis (category breakdown bars + top wasted items), AI Tips (4 sample recommendations with priority/savings)
+  - Integrates with InventoryService.recordUsage() to deduct stock on waste entry
+  - 5 waste categories: prep_loss, spoilage, customer_return, damaged, overproduction
+  - Registered as `get-order-stack-waste-tracker`
+- **T4-05 Sentiment Analysis:**
+  - Created `models/sentiment.model.ts` — `SentimentEntry`, `SentimentSummary`, `SentimentFlag` interfaces
+  - Created `sentiment/sentiment-dashboard/` — 3 tabs: Overview (sentiment bars + keyword cloud + flag grid), Entries (filtered list with score/keywords/flags), Flags (detail view by flag type)
+  - Client-side NLP: keyword matching for positive/negative scoring, 6 flag categories (complaint, allergy, rush, compliment, dietary, modification)
+  - Fetches orders and analyzes specialInstructions text
+  - Registered as `get-order-stack-sentiment`
+- Build: 1.00 MB main.js (at budget warning threshold), zero errors
+- Custom elements: 20 total registered in main.ts
+- New services exported: MonitoringService
+- New models: monitoring, voice, pricing, waste, sentiment (5 new model files)
+- Errors fixed: InventoryService methods take no restaurantId arg (reads internally), SpeechRecognition types need `any` cast, arrow functions not allowed in Angular templates
+- **ALL TIERS COMPLETE:** T1 (7/7), T2 (5/6, T2-04 deferred), T3 (6/6), T4 (5/5) — 22 features total implemented
+
+**[February 9, 2026] (Session 9):**
+- Deployed: Bundle (main.js 754 KB + styles.css 225 KB) uploaded to WordPress via FTPS curl
+- Created: 17 PHP page templates in Geek-At-Your-Spot theme for all OrderStack features
+  - `page-orderstack-kds.php`, `page-orderstack-menu-engineering.php`, `page-orderstack-sales.php`
+  - `page-orderstack-inventory.php`, `page-orderstack-menu-management.php`, `page-orderstack-orders.php`
+  - `page-orderstack-online-ordering.php`, `page-orderstack-reservations.php`
+  - `page-orderstack-command-center.php`, `page-orderstack-floor-plan.php`, `page-orderstack-crm.php`, `page-orderstack-ai-chat.php`
+  - `page-orderstack-monitoring.php`, `page-orderstack-voice-order.php`, `page-orderstack-pricing.php`, `page-orderstack-waste.php`, `page-orderstack-sentiment.php`
+- Modified: `functions.php` — replaced single `is_page('taipa-demo')` with `is_page($orderstack_pages)` array of 18 slugs for both CSS and JS enqueue
+- All pages follow same pattern: geek-navbar header, login + restaurant-select for auth, functional component(s) in main
+- Exception: `page-orderstack-online-ordering.php` — no auth components (customer-facing portal)
+- FTP uploaded: all 17 PHP files + updated functions.php to geekatyourspot.com theme directory
+- Note: WordPress pages must be created in admin (Pages > Add New) with matching slugs and "Custom PHP Page Template" selected, then permalinks flushed
+- Updated CLAUDE.md WordPress Integration section with full page template table
 
 ---
 
