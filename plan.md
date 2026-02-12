@@ -6,7 +6,7 @@
 
 Get-Order-Stack is a restaurant operating system built to compete with Toast, Square, Clover POS. The **backend already has significant AI features built with Claude Sonnet 4** (cost estimation, menu engineering, sales insights, inventory predictions, order profit analysis). The frontend now surfaces all four tiers of features (T1–T4 complete). The system is deployed via WordPress at geekatyourspot.com with 18 feature pages.
 
-**Foundational Capabilities:** Dining Options (dine-in, takeout, curbside, delivery, catering) fully implemented with frontend workflows (Session 11) and production-ready backend validation via Zod (Session 12). Query filtering supports delivery status tracking and catering approval workflows.
+**Foundational Capabilities:** Dining Options (dine-in, takeout, curbside, delivery, catering) fully implemented with frontend workflows (Session 11) and production-ready backend validation via Zod (Session 12). Query filtering supports delivery status tracking and catering approval workflows. Control Panel fully implemented with 4 tabs: Printers, AI Settings, Online Pricing, Catering Calendar (Session 13). Course System UI implemented in PendingOrders (grouped items, fire status badges, manual fire controls) and OrderNotifications (course-ready audio chime + desktop alerts) (Session 13). Duplicate notification bug fixed (Session 14). Course Pacing Mode Selector complete (Session 15) — replaced boolean toggle with 3-way `CoursePacingMode` dropdown (disabled/server_fires/auto_fire_timed) that persists from AI Settings → KDS → PendingOrders with operator override. KDS Recall Ticket complete (Session 15) — backward status transitions with print status cleanup. Catering Approval Timeout complete (Session 16) — configurable auto-reject timer with countdown UI in PendingOrders and AI Settings panel. Offline Mode complete (Session 16) — localStorage order queue with auto-sync on reconnect, CheckoutModal routes through OrderService, PendingOrders shows "Queued" badge with disabled actions for offline orders.
 
 This plan maps every AI integration opportunity across all restaurant operations domains, organized by implementation effort.
 
@@ -174,25 +174,31 @@ One bundle serves all OrderStack pages. New custom elements are available on any
 
 | Domain | Current State | AI Priority |
 |--------|--------------|-------------|
-| Self-Order System (SOS) | Built (menu, cart, checkout) | HIGH — upsell, voice |
-| Kitchen Display (KDS) | Built (3-column) | HIGH — smart routing, prep times |
-| Order Management | Built (pending, history, receipt) | MEDIUM — profit insights |
-| Menu Management | Built (CRUD) | HIGH — cost estimation, quadrants |
-| Inventory | Backend ready, **no frontend** | HIGH — surface backend AI |
-| Analytics/Reporting | Backend ready, **no frontend** | CRITICAL — surface backend AI |
-| Payments | Stripe backend ready, **no frontend** | CRITICAL — enable transactions |
-| Table Management | Backend ready, **no frontend** | MEDIUM — floor plan UI |
-| Customer/CRM | Schema exists, minimal API | HIGH — personalization |
-| Staff/Scheduling | PIN auth only | HIGH — labor intelligence |
-| Reservations | Backend CRUD ready | MEDIUM — AI capacity |
-| Online Ordering | Schema supports it | HIGH — customer-facing portal |
-| Marketing/Loyalty | loyaltyPoints field only | MEDIUM — AI campaigns |
+| Self-Order System (SOS) | ✅ Built (menu, cart, checkout, upsell, voice) | Complete |
+| Kitchen Display (KDS) | ✅ Built (prep times, rush, recall, course pacing) | Complete |
+| Order Management | ✅ Built (pending, history, receipt, profit, offline queue) | Complete |
+| Menu Management | ✅ Built (CRUD, AI cost estimation, AI descriptions) | Complete |
+| Inventory | ✅ Built (dashboard, alerts, predictions, stock actions) | Complete |
+| Analytics/Reporting | ✅ Built (menu engineering, sales, command center) | Complete |
+| Payments | ✅ Built (Stripe Elements, refunds, payment badges) | Complete |
+| Table Management | ✅ Built (floor plan, drag-and-drop, status management) | Complete |
+| Customer/CRM | ✅ Built (dashboard, segments, search, detail panel) | Complete |
+| Staff/Scheduling | PIN auth only | 📋 PLANNED (T3-03 deferred) |
+| Reservations | ✅ Built (manager, booking, status workflow) | Complete |
+| Online Ordering | ✅ Built (customer portal, 4-step flow, order tracking) | Complete |
+| Marketing/Loyalty | loyaltyPoints field only | 📋 PLANNED |
+| Settings | ✅ Built (Control Panel: printers, AI settings, online pricing, catering calendar) | Complete |
+| Monitoring | ✅ Built (autonomous agent, anomaly rules, alert feed) | Complete |
+| Voice Ordering | ✅ Built (Web Speech API, bilingual EN/ES, fuzzy match) | Complete |
+| Dynamic Pricing | ✅ Built (rules engine, time-based, price preview) | Complete |
+| Waste Reduction | ✅ Built (waste log, analysis, AI recommendations) | Complete |
+| Sentiment Analysis | ✅ Built (NLP, keyword scoring, flag categories) | Complete |
 
 ---
 
-## TIER 1: Surface What's Already Built — COMPLETE (7/8)
+## TIER 1: Surface What's Already Built — ✅ COMPLETE (8/8)
 
-> 7 features fully implemented (Sessions 2-5), T1-08 in progress (Sessions 11-12). T1-01 through T1-07: backend ready, zero backend work needed. T1-08: frontend complete, backend 75% complete (phases 1-6 of 8 done).
+> All 8 features fully implemented (Sessions 2-5, 11-13). T1-01 through T1-07: backend ready, zero backend work needed. T1-08: complete (frontend Session 11, backend phases 1-6 Session 12, phases 7-8 Session 12). Control Panel expanded with AI Settings, Online Pricing, and Catering Calendar tabs (Session 13).
 
 ### T1-01. AI-Powered Cart-Aware Upsell Bar
 **Domain:** SOS / Menu Engineering
@@ -238,7 +244,7 @@ One bundle serves all OrderStack pages. New custom elements are available on any
 
 ### T1-07. Stripe Payment Integration in Checkout
 **Domain:** Payments
-**Status:** IN PROGRESS
+**Status:** ✅ COMPLETE (Session 5)
 **What:** Connect Stripe checkout to the existing backend. Card input via Stripe Elements, payment confirmation flow, refund capability in order management.
 **Backend:** READY — `POST /orders/:id/payment-intent`, `/payment-status`, `/refund`, `/cancel-payment`, webhook handler
 **Frontend:** Install `@stripe/stripe-js`, create `PaymentService`, embed Stripe Elements in `CheckoutModal`, add payment status badges.
@@ -274,10 +280,10 @@ Payment statuses: `pending`, `paid`, `failed`, `cancelled`, `partial_refund`, `r
 
 ### T1-08. Receipt Printing via Star CloudPRNT
 **Domain:** Orders / KDS
-**Status:** IN PROGRESS — Frontend complete (Phase 5), Backend phases 1-6 complete (Session 12), phases 7-8 remaining
+**Status:** ✅ COMPLETE (Sessions 11-12)
 **What:** When staff marks an order "Ready" in KDS or PendingOrders, the backend queues a print job via Star CloudPRNT API. The CloudPRNT-compatible printer polls the backend and picks up the job — no browser hardware APIs needed, works on any device including iPad/Safari.
-**Backend:** PARTIAL (6/8 phases) — Prisma schema updated, DTOs created, Star Line Mode utility built, CloudPrntService + PrinterService implemented, CloudPRNT protocol routes complete. REMAINING: Integrate CloudPrntService into order status flow, add WebSocket events, background job cleanup.
-**Frontend:** COMPLETE — PrinterSettings UI with CRUD, CloudPRNT config display, MAC validation, test print. ControlPanel shell with Printers tab. PrinterService with 5 methods. Registered `get-order-stack-control-panel` custom element (23 total).
+**Backend:** ✅ COMPLETE (8/8 phases) — Prisma schema, DTOs, Star Line Mode utility, CloudPrntService + PrinterService (singleton pattern), CloudPRNT protocol routes, order status integration, WebSocket print events (`order:printed`, `order:print_failed`), background stale job cleanup (every 10 min).
+**Frontend:** ✅ COMPLETE — PrinterSettings UI with CRUD, CloudPRNT config display, MAC validation, test print. ControlPanel shell with Printers tab. PrinterService with 5 methods. Registered `get-order-stack-control-panel` custom element (23 total).
 **Hardware:** Star CloudPRNT-compatible printer (mC-Print3 recommended — 80mm thermal, ethernet + USB + Bluetooth, CloudPRNT built-in). CloudPRNT Next (MQTT) supported for sub-second delivery.
 **Impact:** Completes the staff order fulfillment workflow. Without receipt printing, "Order Ready" is a dead end — staff has no physical ticket to deliver with the food. Pairs naturally with T1-07 (Stripe) since payment + receipt go together.
 
@@ -289,21 +295,22 @@ Payment statuses: `pending`, `paid`, `failed`, `cancelled`, `partial_refund`, `r
 
 ### T2-01. Smart KDS with Prep Time Predictions & Station Routing
 **Domain:** KDS
-**Status:** COMPLETE (prep time + rush; station routing deferred to backend work)
+**Status:** ✅ COMPLETE (prep time + rush + recall ticket + course pacing)
 **What:** Show estimated prep time countdown on order cards, color escalation (green/amber/red by time), route items to kitchen stations, add station filter to KDS header, "Rush" button.
 **Backend:** PARTIAL — `prepTimeMinutes` and `Station` model exist. Need prep estimate endpoint.
-**Frontend:** Prep time countdown with color escalation from MenuItem.prepTimeMinutes. Rush priority toggle. KDS stats header (active/overdue/avg wait). Station routing deferred until backend station-category mapping is built.
+**Frontend:** Prep time countdown with color escalation from MenuItem.prepTimeMinutes. Rush priority toggle. KDS stats header (active/overdue/avg wait). Recall ticket (backward status transitions). Course pacing mode from AI Settings with operator override. Station routing deferred until backend station-category mapping is built.
 **Impact:** Station routing cuts ticket times 15-20%.
 
 ### T2-02. Intelligent 86 System (Auto-86 from Inventory)
 **Domain:** Menu / Inventory
+**Status:** ✅ COMPLETE
 **What:** When inventory drops below threshold (via `RecipeIngredient` links), auto-86 the menu item and notify SOS terminals in real-time via WebSocket.
 **Backend:** PARTIAL — `RecipeIngredient` model, `eightySixed` field, `PATCH /86` endpoint exist. Need automated trigger.
 **Impact:** Prevents selling items you're out of. Eliminates customer disappointment.
 
 ### T2-03. AI-Enhanced Menu Item Cards
 **Domain:** SOS
-**Status:** COMPLETE
+**Status:** ✅ COMPLETE
 **What:** Replace manual "Popular" checkbox with data-driven badges: "Best Seller" (top 10% by volume), "Chef's Pick" (high margin), "New" (< 14 days). Staff mode shows profit overlay.
 **Backend:** Uses existing menu engineering classification endpoint — no new endpoint needed.
 **Frontend:** MenuItemCard now shows data-driven badges from AnalyticsService menu engineering data: Best Seller (stars), Chef's Pick (cash-cows), Popular (puzzles), New (< 14 days). SosTerminal loads engineering data on init.
@@ -311,19 +318,21 @@ Payment statuses: `pending`, `paid`, `failed`, `cancelled`, `partial_refund`, `r
 
 ### T2-04. Smart Order Routing (Multi-Device)
 **Domain:** KDS
+**Status:** ⏭️ DEFERRED (no backend station-category mapping endpoints)
 **What:** Route order items to correct KDS station by category. Expo mode shows all items across stations with completion tracking.
 **Backend:** PARTIAL — `Station` model exists. Need station-category mapping.
 **Impact:** Critical for multi-station kitchens.
 
 ### T2-05. Real-Time Priority Notifications
 **Domain:** Orders
+**Status:** ✅ COMPLETE
 **What:** Color-code notifications by wait time, escalate overdue orders, VIP customer flagging, differentiated sound alerts, desktop notification API.
-**Backend:** PARTIAL — timing data exists. Need VIP threshold config.
+**Frontend:** Web Audio API (4 distinct tones), Desktop Notification API, urgency classification, elapsed time display, sound/desktop toggle controls, pulse animation for urgent alerts. Course-ready audio chime + desktop alerts. Duplicate notification fix (single course-specific message).
 **Impact:** No more lost orders. Catches bottlenecks before customer complaints.
 
 ### T2-06. Table Management Floor Plan
 **Domain:** Tables
-**Status:** COMPLETE
+**Status:** ✅ COMPLETE
 **What:** Visual drag-and-drop floor plan using `posX`/`posY`, color-coded status, click-to-view current order.
 **Backend:** READY — Full CRUD endpoints exist.
 **Frontend:** `FloorPlan` component with drag-and-drop canvas, list view, KPI strip, section filtering, add/edit/delete tables, status management, active order display. `TableService` with full CRUD. Registered as `get-order-stack-floor-plan`.
@@ -335,38 +344,44 @@ Payment statuses: `pending`, `paid`, `failed`, `cancelled`, `partial_refund`, `r
 
 ### T3-01. AI Command Center / Restaurant IQ
 **Domain:** All
+**Status:** ✅ COMPLETE
 **What:** Central dashboard: real-time KPIs, "For You" AI recommendations feed, active alerts, quick actions. Single screen for all restaurant intelligence.
-**Backend:** NEEDS NEW — Aggregation endpoint combining all AI services.
+**Frontend:** 3 tabs: Overview (6 KPIs + insights + top sellers + stock watch), AI Insights (unified feed), Alerts (inventory alerts + predictions). Composes AnalyticsService, InventoryService, OrderService via `Promise.all()`.
 **Impact:** Flagship Toast IQ competitor. Reduces manager screens from 5+ to 1.
 
 ### T3-02. Customer Intelligence / CRM
 **Domain:** CRM
+**Status:** ✅ COMPLETE
 **What:** Customer profiles, order history, spend analysis, AI-generated segments (VIP, At-Risk, New, Dormant), personalized outreach recommendations.
-**Backend:** PARTIAL — `Customer` model with loyalty fields. Need search/segmentation endpoints.
+**Frontend:** Search, segment filtering (VIP/Regular/New/At-Risk/Dormant), sortable table, detail side panel. CustomerService with segment calculation.
 **Impact:** Retention is 5x cheaper than acquisition. AI segmentation catches churn risk.
 
 ### T3-03. Labor Intelligence / Staff Scheduling
 **Domain:** Staff
+**Status:** ⏭️ DEFERRED (no backend schema or service)
 **What:** AI staffing recommendations from historical sales patterns, demand forecasting by hour/day, schedule management, labor cost tracking vs targets.
 **Backend:** NEEDS NEW — Need `Shift`/`StaffSchedule` models, `LaborIntelligenceService`.
 **Impact:** Labor is 25-35% of costs. AI scheduling saves $500-2000/month.
 
 ### T3-04. Online Ordering Portal (Customer-Facing)
 **Domain:** Online Ordering
+**Status:** ✅ COMPLETE
 **What:** Mobile-optimized customer ordering: menu browsing, cart, Stripe checkout, real-time order tracking. Separate theme from staff UI.
-**Backend:** PARTIAL — Order creation with `orderSource: 'online'` supported.
+**Frontend:** 4-step mobile-optimized flow (menu → cart → info → confirm). Category pills, search, qty controls, floating cart bar, order type toggle (pickup/delivery/dine-in/curbside/catering), customer form, order summary, order tracking with polling. Slug-based restaurant resolution.
 **Impact:** 30-40% of restaurant revenue is digital. Table stakes for modern POS.
 
 ### T3-05. Reservation System with AI Capacity Planning
 **Domain:** Reservations
+**Status:** ✅ COMPLETE
 **What:** Reservation management with AI-predicted table turn times, auto-table assignment, waitlist with estimated wait, overbooking recommendations.
-**Backend:** PARTIAL — CRUD endpoints exist. Need AI availability prediction.
+**Frontend:** Today/upcoming/past tabs, booking form, status actions, KPI strip. ReservationService with CRUD + status workflow.
 **Impact:** AI turn time prediction increases covers 10-15%.
 
 ### T3-06. Conversational AI Assistant (Restaurant IQ Chat)
 **Domain:** All
+**Status:** ✅ COMPLETE
 **What:** Chat interface for natural language queries: "How did we do last Tuesday?", "Which items should I cut?", "When will we run out of chicken?" Routes queries to backend services via Claude function-calling.
-**Backend:** NEEDS NEW — `ChatService` with Claude tool-use routing.
+**Frontend:** Message bubbles, typing indicator, suggested queries, auto-scroll. ChatService with conversation management.
 **Impact:** Direct Toast IQ competitor. Natural language access to all restaurant data.
 
 ---
@@ -374,28 +389,33 @@ Payment statuses: `pending`, `paid`, `failed`, `cancelled`, `partial_refund`, `r
 ## TIER 4: Differentiators (Beyond Toast) — COMPLETE
 
 ### T4-01. Autonomous AI Monitoring Agent
-**What:** Background agent runs every 15 min, detects anomalies (revenue drops, inventory discrepancies, fraud patterns, kitchen bottlenecks), pushes proactive alerts via WebSocket.
-**AI:** Claude for anomaly interpretation + algorithmic thresholds.
+**Status:** ✅ COMPLETE
+**What:** Background agent runs every 60s (configurable), detects anomalies (revenue drops, inventory discrepancies, fraud patterns, kitchen bottlenecks), pushes proactive alerts.
+**Frontend:** 3 tabs: Live Feed (filtered alerts with severity/category), Alert History, Rules (8 built-in anomaly rules, toggle on/off). MonitoringService with configurable polling, deduplication, acknowledge/clear, snapshot timeline. Polls AnalyticsService + InventoryService — no new backend needed.
 **Impact:** Catches problems before crises. Fraud detection saves $5K-20K/year.
 
 ### T4-02. Voice AI Ordering
+**Status:** ✅ COMPLETE
 **What:** Voice-activated ordering at kiosk or phone using browser Web Speech API + Claude NLP for entity extraction. Bilingual (English/Spanish).
-**AI:** Web Speech API + Claude for menu item extraction.
+**Frontend:** Web Speech API integration, bilingual (EN/ES), fuzzy menu matching with quantity extraction ("two chicken tacos"), SpeechSynthesis voice feedback, animated waveform, confidence badges.
 **Impact:** $2.5B market by 2027. Accessibility improvement. Differentiator over all major POS competitors.
 
 ### T4-03. Dynamic Menu Pricing
+**Status:** ✅ COMPLETE
 **What:** Time-based and demand-based price adjustments (happy hour, surge pricing, off-peak discounts). AI recommends pricing strategies.
-**AI:** Claude for strategy recommendations; rule-based execution.
+**Frontend:** 3 tabs: Rules (CRUD form with type/multiplier/time/days), Price Preview (live table with strikethrough base prices), AI Suggestions. Time-based rule engine checks current time/day against rules. Rule types: happy_hour, surge, off_peak, seasonal, custom. localStorage persistence per restaurant.
 **Impact:** Dynamic pricing increases revenue 5-15%.
 
 ### T4-04. AI-Powered Waste Reduction
+**Status:** ✅ COMPLETE
 **What:** Track food waste by category (prep, expired, returns). AI analyzes patterns, suggests prep quantity adjustments.
-**AI:** Claude for pattern analysis.
+**Frontend:** 3 tabs: Waste Log (entry form + filtered list), Analysis (category breakdown bars + top wasted items), AI Tips (computed recommendations from actual waste data). 5 waste categories: prep_loss, spoilage, customer_return, damaged, overproduction. Integrates with InventoryService.recordUsage() to deduct stock.
 **Impact:** Cuts waste 30-50%, saving $500-2000/month.
 
 ### T4-05. Sentiment Analysis from Order Data
+**Status:** ✅ COMPLETE
 **What:** NLP analysis of `specialInstructions` text and order patterns to gauge satisfaction. Detects complaint keywords, tracks return rates.
-**AI:** Claude NLP for sentiment extraction.
+**Frontend:** 3 tabs: Overview (sentiment bars + keyword cloud + flag grid), Entries (filtered list with score/keywords/flags), Flags (detail view by flag type). Client-side NLP: keyword matching for positive/negative scoring, 6 flag categories (complaint, allergy, rush, compliment, dietary, modification).
 **Impact:** Early detection of quality issues before negative reviews.
 
 ---
@@ -408,7 +428,10 @@ Payment statuses: `pending`, `paid`, `failed`, `cancelled`, `partial_refund`, `r
 | T1-06 | AI Cost in Menu Mgmt | 1-2 days | 1 | None | ✅ COMPLETE |
 | T1-04 | Order Profit Insights | 1 day | 1 | None | ✅ COMPLETE |
 | T1-07 | Stripe Checkout | 3-4 days | 2 | None | ✅ COMPLETE |
-| T1-08 | Receipt Printing (CloudPRNT) | 2-3 days | 2 | CloudPRNT API | 🚧 Frontend ✅, Backend 75% (phases 1-6/8) |
+| T1-08 | Receipt Printing (CloudPRNT) | 2-3 days | 2 | CloudPRNT API | ✅ COMPLETE |
+| CP | Control Panel Tabs (AI Settings, Online Pricing, Catering Calendar) | 1 day | — | PATCH settings | ✅ COMPLETE |
+| CS | Course System UI (PendingOrders display + fire, OrderNotifications chime, duplicate notification bugfix, Course Pacing Mode Selector, KDS Recall Ticket) | 1 day | — | None | ✅ COMPLETE |
+| EC | Edge Cases (Catering Approval Timeout, Offline Mode order queue) | 1 day | — | None | ✅ COMPLETE |
 | T1-02 | Menu Engineering Dashboard | 3-4 days | 2 | None | ✅ COMPLETE |
 | T1-03 | Sales Dashboard | 3-4 days | 3 | None | ✅ COMPLETE |
 | T1-05 | Inventory Dashboard | 5-7 days | 3-4 | None | ✅ COMPLETE |
@@ -430,13 +453,13 @@ Payment statuses: `pending`, `paid`, `failed`, `cancelled`, `partial_refund`, `r
 
 ---
 
-## New Services & Models Required
+## Services & Models Inventory — ✅ ALL IMPLEMENTED
 
-**Services:** `AnalyticsService`, `InventoryService`, `PaymentService`, `PrintService`, `TableService`, `CustomerService`, `ChatService`
+**Services (14 total):** `AnalyticsService`, `AuthService`, `CartService`, `ChatService`, `CustomerService`, `InventoryService`, `MenuService`, `MonitoringService`, `OrderService`, `PaymentService`, `PrinterService`, `ReservationService`, `RestaurantSettingsService`, `SocketService`, `TableService`
 
-**Models:** `analytics.model.ts`, `inventory.model.ts`, `payment.model.ts`, `table.model.ts` (expand existing `customer.model.ts`)
+**Models (20 files):** `analytics.model.ts`, `auth.model.ts`, `cart.model.ts`, `chat.model.ts`, `customer.model.ts`, `dining-option.model.ts`, `inventory.model.ts`, `menu.model.ts`, `monitoring.model.ts`, `order.model.ts`, `payment.model.ts`, `pricing.model.ts`, `printer.model.ts`, `reservation.model.ts`, `restaurant.model.ts`, `sentiment.model.ts`, `settings.model.ts`, `table.model.ts`, `voice.model.ts`, `waste.model.ts`
 
-**New Custom Elements:** `get-order-stack-menu-engineering`, `get-order-stack-sales-dashboard`, `get-order-stack-inventory-dashboard`, `get-order-stack-floor-plan`, `get-order-stack-command-center`, `get-order-stack-crm`, `get-order-stack-ai-chat`, `get-order-stack-online-ordering`
+**Custom Elements (23 registered in main.ts):** `get-order-stack-login`, `get-order-stack-restaurant-select`, `get-order-stack-sos-terminal`, `get-order-stack-kds-display`, `get-order-stack-command-center`, `get-order-stack-menu-engineering`, `get-order-stack-sales-dashboard`, `get-order-stack-inventory-dashboard`, `get-order-stack-category-management`, `get-order-stack-item-management`, `get-order-stack-floor-plan`, `get-order-stack-crm`, `get-order-stack-reservations`, `get-order-stack-ai-chat`, `get-order-stack-online-ordering`, `get-order-stack-monitoring-agent`, `get-order-stack-voice-order`, `get-order-stack-dynamic-pricing`, `get-order-stack-waste-tracker`, `get-order-stack-sentiment`, `get-order-stack-pending-orders`, `get-order-stack-order-history`, `get-order-stack-control-panel`
 
 ---
 

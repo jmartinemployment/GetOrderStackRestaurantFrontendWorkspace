@@ -68,8 +68,8 @@ Order
 │   ├── phone
 │   └── email
 ├── deliveryInfo (delivery only)
-│   ├── address
-│   ├── deliveryState: PENDING | PICKED_UP | IN_PROGRESS | DELIVERED
+│   ├── address (street, city, state, zip)
+│   ├── deliveryState: PREPARING | OUT_FOR_DELIVERY | DELIVERED
 │   ├── dispatchedDate
 │   └── deliveredDate
 ├── curbsidePickupInfo (curbside only)
@@ -139,7 +139,7 @@ Order
 
 ## ORDER STATES (6 Separate Systems) — ✅ IMPLEMENTED
 
-**Status:** All order state workflows implemented in frontend models and components. Backend AI approval logic exists but Control Panel UI settings not yet surfaced.
+**Status:** All order state workflows implemented in frontend models and components. Backend AI approval logic exists. Control Panel UI settings surfaced (AI Settings tab — Session 13).
 
 ### 1. SCHEDULED ORDER APPROVAL (approvalStatus)
 *Tracks: Has this order been approved to fire?*
@@ -317,9 +317,9 @@ Credit: OPEN → PAID → CLOSED
 
 ---
 
-## COURSE SYSTEM — 🚧 PARTIALLY IMPLEMENTED
+## COURSE SYSTEM — 🚧 PARTIALLY IMPLEMENTED (UI Complete, AI Auto-Fire Pending)
 
-**Status:** Basic course data model exists in Order model. Manual fire controls not yet implemented in SOS Terminal. AI-Powered Course Pacing (described below) is backend-ready but not surfaced in frontend UI.
+**Status:** All frontend course features complete. Course data model (Course, CourseFireStatus, CoursePacingMode, Selection.course in order.model.ts). Course display and manual fire controls in PendingOrders — grouped items by course, fire status badges (PENDING/FIRED/READY), Fire button for PENDING courses, held-item dimming. Course-ready audio chime + desktop alerts in OrderNotifications (single notification with course-specific message, sound respects mute toggle). Course Pacing Mode Selector — 3-way `CoursePacingMode` dropdown (`disabled` / `server_fires` / `auto_fire_timed`) in AI Settings, with persistence flowing from AI Settings → KDS (with operator override) → PendingOrders. KDS Recall Ticket — backward status transitions with print status cleanup. Only AI-Powered Course Pacing (auto-fire timing based on prep times, kitchen load, table pace) remains as a backend-dependent feature.
 
 ### Course Pacing Options
 
@@ -334,9 +334,9 @@ Credit: OPEN → PAID → CLOSED
 
 **[GETORDERSTACK: AI-Powered Course Pacing]**
 
-**Control Panel Setting:** `Enable AI Course Pacing` (On/Off, default: Off)
+**Control Panel Setting:** `Course Pacing Mode` (Dropdown: Disabled / Server Fires / Auto-Fire Timed, default: Disabled)
 
-When enabled, AI dynamically calculates optimal fire time based on:
+When set to Server Fires or Auto-Fire Timed, the course system activates. AI-powered auto-fire timing dynamically calculates optimal fire time based on:
 - Prep times per item
 - Current kitchen load
 - Table eating pace
@@ -378,7 +378,7 @@ All items finish simultaneously.
 
 ## KDS WORKFLOW — ✅ IMPLEMENTED (T2-01)
 
-**Status:** KDS Display component complete with prep time tracking, rush priority, overdue alerts, and average wait time stats. Expo Station toggle exists in data model but UI not yet surfaced in Control Panel.
+**Status:** KDS Display component complete with prep time tracking (color escalation green/amber/red), rush priority toggle, overdue alerts, average wait time stats, recall ticket (backward status transitions with print status cleanup), and course pacing mode synced from AI Settings (with operator override for per-session changes). Expo Station toggle exists in data model but UI not yet surfaced in Control Panel.
 
 **Control Panel Setting:** `Enable Expo Station` (On/Off, default: Off) — 📋 PLANNED (UI pending)
 
@@ -490,11 +490,11 @@ All items finish simultaneously.
 **Status:** Complete workflow with structured address capture (address2/city/state/zip/notes), delivery state tracking (PREPARING → OUT_FOR_DELIVERY → DELIVERED), and order tracking display in Online Portal.
 
 ### Phase 1: Order Placed
-- Customer data required (name, phone, email, full address)
+- Customer data required (name, phone, email, full address: street, city, state, zip)
 - **Update CRM** (create or update customer record)
 - Server = who entered order
 - **Device = which device placed order** (for notifications)
-- deliveryState = PENDING
+- deliveryState = PREPARING
 
 ### Phase 2: Kitchen
 - Ticket shows DELIVERY, customer name, address, notes
@@ -506,14 +506,14 @@ All items finish simultaneously.
 - Webhook to delivery service (if integrated)
 
 ### Phase 4: Delivery
-- PICKED_UP → IN_PROGRESS → DELIVERED
+- PREPARING → OUT_FOR_DELIVERY → DELIVERED
 - Timestamps tracked
 
 ---
 
 ## CATERING WORKFLOW — ✅ IMPLEMENTED
 
-**Status:** Complete workflow with event details, deposit tracking, AI approval evaluation (backend-ready), and catering-specific display in receipts. Catering Calendar UI not yet implemented in Control Panel.
+**Status:** Complete workflow with event details, deposit tracking, AI approval evaluation (backend-ready), and catering-specific display in receipts. Catering Calendar UI implemented in Control Panel (Session 13).
 
 ### Phase 1: Order Placed
 - Customer data required (name, phone, email, address)
@@ -576,22 +576,24 @@ OPEN → PAID → CLOSED
 
 ---
 
-## SETTINGS TO IMPLEMENT — 🚧 PARTIALLY IMPLEMENTED
+## SETTINGS TO IMPLEMENT — ✅ IMPLEMENTED (Sessions 11-13)
 
-**Status:** Control Panel component created (T1-08 Session 11, updated Session 12) with Printer Management tab complete (full CRUD UI, CloudPRNT config, MAC validation, test print, online/offline status). Backend CloudPRNT integration 75% complete (phases 1-6/8 — schema, services, routes done; order flow integration and WebSocket events pending). AI Settings, Online Order Pricing, and Catering Calendar tabs defined but UI not yet implemented. Backend supports these settings.
+**Status:** Control Panel component complete with 4 tabs: Printers (T1-08 Session 11-12), AI Settings (Session 13), Online Pricing (Session 13), Catering Calendar (Session 13). Backend CloudPRNT integration ✅ COMPLETE. All settings tabs fully implemented with role-based access (owner/manager/super_admin = edit, staff = view only), local form signals with save/discard pattern, localStorage + backend PATCH persistence.
 
-### Control Panel - AI Settings
+### Control Panel - AI Settings — ✅ IMPLEMENTED (Session 13)
 
 | Setting | Type | Default | Description |
 |---------|------|---------|-------------|
 | Enable AI Order Approval | Toggle | On | Master switch for AI approval system |
-| **Enable AI Course Pacing** | Toggle | Off | AI calculates optimal fire times based on prep times, kitchen load, and table pace |
+| **Course Pacing Mode** | Dropdown | Disabled | 3-way selector: Disabled (all items fire immediately), Server Fires (manual per-course fire), Auto-Fire Timed (auto-fire after delay when previous course completes) |
+| **Catering Approval Timeout** | Hours | 24 | Auto-reject catering orders awaiting approval after this many hours |
 | Time threshold | Hours | 12 | Orders scheduled beyond this require AI review |
 | Value threshold | Currency | $200 | Orders over this value require AI review |
 | Quantity threshold | Number | 20 | Orders over this item count require AI review |
-| Catering Calendar | Link | — | Access shared catering calendar |
 
-### Control Panel - Online Order Pricing
+**Frontend:** `AiSettings` component in `settings/ai-settings/`. Three panels (AI Order Approval with 3 threshold inputs, Catering Approval Timeout with hours input, Course Pacing Mode dropdown with dynamic description). Computed threshold and timeout descriptions. Save/Discard action bar. Role-based view-only for staff.
+
+### Control Panel - Online Order Pricing — ✅ IMPLEMENTED (Session 13)
 
 | Setting | Type | Default | Description |
 |---------|------|---------|-------------|
@@ -606,14 +608,20 @@ OPEN → PAID → CLOSED
 - Cover third-party delivery costs without eating margin
 - Transparent pricing vs hidden in menu prices
 
-### Control Panel - Catering Calendar
+**Frontend:** `OnlinePricing` component in `settings/online-pricing/`. Enable toggle, adjustment type dropdown, amount input, delivery fee, customer visibility toggle. Price Preview panel with 4 computed KPI cards ($10 base → online price → delivery fee → customer total). Save/Discard. Role-based view-only.
+
+### Control Panel - Catering Calendar — ✅ IMPLEMENTED (Session 13)
 
 | Setting | Type | Description |
 |---------|------|-------------|
-| Calendar Access | Role-based | Manager: edit, Server/Cashier: view |
-| Capacity Blocks | Events | Block dates/times for private events |
-| Catering Events | Events | Scheduled catering orders |
+| Calendar Access | Role-based | Manager/Owner: edit, Staff: view |
+| Max Events Per Day | Number | Default 3 — capacity threshold |
+| Max Headcount Per Day | Number | Default 200 — capacity threshold |
+| Capacity Blocks | CRUD | Block dates/times for private events |
+| Catering Events | Calendar view | Scheduled catering orders from backend |
 | Conflict Alerts | Toggle | Warn when new order conflicts with existing |
+
+**Frontend:** `CateringCalendar` component in `settings/catering-calendar/`. KPI strip (upcoming events, total headcount, conflict days, pending approvals). Capacity settings panel with save/discard. 7-column CSS Grid month calendar with color-coded cells (today, past, over-capacity red border, has-block orange border). Day detail panel with event cards (customer, time, headcount, event type, approval badge, deposit status, special instructions) and capacity block management (add/remove). Role-based access.
 
 ### Bartender Settings
 | Setting | Options |
@@ -628,7 +636,7 @@ OPEN → PAID → CLOSED
 - **Bump ticket** → fulfillmentStatus = READY → Notification to device that placed order
 - **86 item** → Flag unavailable → Blocks ordering → Notifies all server devices → **AI uses this data for future order evaluations**
 - **Un-86 item** → Item available again
-- **Recall ticket** → Bring back bumped ticket (mistake correction)
+- **Recall ticket** → ✅ IMPLEMENTED (Session 15) — Bring back bumped ticket (mistake correction). Moves order backward one status (READY→COOKING, COOKING→NEW). Clears print status and timeout on recall. Backend PATCH endpoint must accept backward transitions.
 
 ---
 
@@ -660,7 +668,10 @@ GetOrderStack Applications
 │   ├── get-order-stack-voice-order       # Voice AI Ordering
 │   ├── get-order-stack-dynamic-pricing   # Dynamic Menu Pricing
 │   ├── get-order-stack-waste-tracker     # AI Waste Reduction
-│   └── get-order-stack-sentiment         # Sentiment Analysis
+│   ├── get-order-stack-sentiment         # Sentiment Analysis
+│   ├── get-order-stack-pending-orders   # Pending Order Management
+│   ├── get-order-stack-order-history    # Order History
+│   └── get-order-stack-control-panel    # Settings (Printers, AI, Pricing, Catering)
 │
 ├── Restaurant Backend (Express.js + TypeScript)
 │   ├── REST API endpoints
@@ -720,22 +731,36 @@ GetOrderStack Applications
 
 ## ERROR/EDGE CASES — 🚧 PARTIALLY IMPLEMENTED
 
-**Status:** Basic error handling exists (card declined, item 86'd via T2-02, payment errors in Stripe flow). Offline mode, order throttling, and approval timeout logic not yet implemented.
+**Status:** Core error handling and resilience features implemented: card declined (Stripe), item 86'd (T2-02), payment errors (Stripe flow), offline order queuing (localStorage queue with auto-sync on reconnect), catering approval timeout (configurable auto-reject with countdown UI). Order throttling not yet implemented.
 
-| Scenario | Behavior |
-|----------|----------|
-| Network offline | Offline mode, queue orders |
-| Card declined | Display error, retry/alternate |
-| Item 86'd | Block from selection |
-| Order throttled | Delay firing |
-| Approval timeout | NOT_APPROVED |
-| Void after payment | Refund initiated |
+| Scenario | Behavior | Status |
+|----------|----------|--------|
+| Network offline | Offline mode — orders queued in localStorage, auto-synced on reconnect | ✅ IMPLEMENTED |
+| Card declined | Display error, retry/alternate | ✅ IMPLEMENTED |
+| Item 86'd | Block from selection | ✅ IMPLEMENTED |
+| Order throttled | Delay firing | 📋 PLANNED |
+| Approval timeout | Auto-reject after configurable hours (default 24h) | ✅ IMPLEMENTED |
+| Void after payment | Refund initiated | ✅ IMPLEMENTED |
+
+### Offline Mode (Session 16)
+- `SocketService.isOnline` computed: requires BOTH `navigator.onLine` AND socket connected
+- `OrderService.createOrder()` checks `isOnline()` before HTTP POST — queues locally when offline
+- Queued orders saved to localStorage (restaurant-scoped), auto-synced sequentially on reconnect
+- Placeholder orders shown in PendingOrders with "Queued" badge and disabled action buttons
+- Replaced by real orders after sync; retry on failure with count tracking
+- `CheckoutModal` now routes through `OrderService.createOrder()` instead of direct `HttpClient.post()`
+
+### Catering Approval Timeout (Session 16)
+- Configurable `approvalTimeoutHours` in AI Settings (default: 24 hours)
+- 60-second interval checks pending approval orders against timeout
+- Countdown display in PendingOrders ("Xh Xm remaining") with urgent pulse animation (< 1h)
+- Auto-reject fires when elapsed time exceeds timeout — with deduplication guard
 
 ---
 
 ## INTEGRATION POINTS — 🚧 PARTIALLY IMPLEMENTED
 
-**Status:** KDS real-time sync (WebSocket) ✅, kitchen printers (T1-08 CloudPRNT 75% — frontend + backend routes complete, order flow integration pending), payment processor (Stripe ✅, not PayPal Zettle), online ordering (T3-04) ✅, dining options backend validation ✅. Third-party delivery, loyalty, accounting, and payroll integrations not yet implemented.
+**Status:** KDS real-time sync (WebSocket) ✅, kitchen printers (T1-08 CloudPRNT ✅ COMPLETE — frontend PrinterSettings + Control Panel, backend all 8 phases), payment processor (Stripe ✅, PayPal Zettle 📋 PLANNED), online ordering (T3-04) ✅, dining options (frontend + backend validation) ✅, offline mode (localStorage queue + auto-sync) ✅. Third-party delivery, loyalty, accounting, and payroll integrations not yet implemented.
 
 | System | Method |
 |--------|--------|
@@ -989,20 +1014,20 @@ GetOrderStack Applications
 
 ---
 
-*Document Version: 4.1*
-*Last Updated: 2026-02-12 (Session 12 — Dining Options backend validation complete, T1-08 CloudPRNT backend phases 1-6 implemented)*
+*Document Version: 4.8*
+*Last Updated: 2026-02-12 (Status refresh — all statuses verified against codebase)*
 *Location: Get-Order-Stack-Restaurant-Frontend-Workspace/Get-Order-Stack-Workflow.md*
 
 ## IMPLEMENTATION SUMMARY
 
 **Completed (All 4 Tiers):**
-- ✅ **T1 (7/8):** AI Upsell, Menu Engineering, Sales Dashboard, Order Profit Insights, Inventory Dashboard, AI Cost Estimation, Stripe Payments — 🚧 Receipt Printing (T1-08: frontend ✅, backend 75%)
+- ✅ **T1 (8/8):** AI Upsell, Menu Engineering, Sales Dashboard, Order Profit Insights, Inventory Dashboard, AI Cost Estimation, Stripe Payments, Receipt Printing (T1-08 ✅ COMPLETE)
 - ✅ **T2 (5/6):** Smart KDS, Auto-86, AI Menu Badges, Priority Notifications, Table Floor Plan (Multi-Device Routing deferred — no backend)
 - ✅ **T3 (6/6):** AI Command Center, Customer CRM, Online Ordering Portal, Reservation Manager, AI Chat Assistant
 - ✅ **T4 (5/5):** Autonomous Monitoring, Voice AI, Dynamic Pricing, Waste Reduction, Sentiment Analysis
-- 🚧 **T1-08 Receipt Printing (CloudPRNT):**
+- ✅ **T1-08 Receipt Printing (CloudPRNT) — COMPLETE (Session 12):**
   - ✅ Frontend: Control Panel + PrinterSettings UI (CRUD, CloudPRNT config, MAC validation, test print, status indicators)
-  - 🚧 Backend: Phases 1-6/8 complete (schema, DTOs, Star Line Mode, services, routes) — Phases 7-8 pending (order flow integration, WebSocket events, cleanup job)
+  - ✅ Backend: All 8 phases complete (schema, DTOs, Star Line Mode, services, routes, order flow integration, WebSocket events, cleanup job)
 - ✅ **Dining Options:** COMPLETE (frontend + backend)
   - ✅ Frontend (Session 11): 5 dining types in Online Portal, OrderHistory, Checkout, ReceiptPrinter
   - ✅ Backend (Session 12): Zod validation, query filtering (deliveryStatus, approvalStatus), API documentation
@@ -1010,10 +1035,12 @@ GetOrderStack Applications
 **Frontend:** 23 Web Components registered and deployed to WordPress (geekatyourspot.com)
 **Backend:** Claude AI services (Sonnet 4), PostgreSQL/Prisma, WebSocket + polling, Stripe integration
 
-**Pending:**
-- 📋 Control Panel UI for AI Settings, Online Pricing, Catering Calendar (backend-ready)
-- 📋 Course pacing controls (manual fire, AI-powered timing)
-- 📋 Offline mode, order throttling, approval timeout edge cases
+**Remaining:**
+- 🚧 AI auto-fire course pacing — backend execution pending (frontend UI complete: mode selector, manual fire, course notifications, recall ticket)
+- 📋 Order throttling — not yet implemented
+- 📋 Expo Station UI — toggle exists in data model, UI not yet surfaced in Control Panel
 - 🔬 Third-party delivery, loyalty, accounting/payroll integrations (research phase)
 - 📋 PayPal Zettle switch (currently Stripe)
 - 📋 Tip pooling, tip-out rules, compliance reporting (Pro tier)
+- ⏭️ T2-04 Multi-Device KDS Routing — deferred (no backend station-category mapping)
+- ⏭️ T3-03 Labor Intelligence / Staff Scheduling — deferred (no backend schema)
