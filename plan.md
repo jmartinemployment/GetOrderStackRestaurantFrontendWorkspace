@@ -4,7 +4,9 @@
 
 ## Context
 
-Get-Order-Stack is a restaurant operating system built to compete with Toast POS. The **backend already has significant AI features built with Claude Sonnet 4** (cost estimation, menu engineering, sales insights, inventory predictions, order profit analysis). The frontend now surfaces all four tiers of features (T1–T4 complete). The system is deployed via WordPress at geekatyourspot.com with 18 feature pages.
+Get-Order-Stack is a restaurant operating system built to compete with Toast, Square, Clover POS. The **backend already has significant AI features built with Claude Sonnet 4** (cost estimation, menu engineering, sales insights, inventory predictions, order profit analysis). The frontend now surfaces all four tiers of features (T1–T4 complete). The system is deployed via WordPress at geekatyourspot.com with 18 feature pages.
+
+**Foundational Capabilities:** Dining Options (dine-in, takeout, curbside, delivery, catering) fully implemented with frontend workflows (Session 11) and production-ready backend validation via Zod (Session 12). Query filtering supports delivery status tracking and catering approval workflows.
 
 This plan maps every AI integration opportunity across all restaurant operations domains, organized by implementation effort.
 
@@ -188,9 +190,9 @@ One bundle serves all OrderStack pages. New custom elements are available on any
 
 ---
 
-## TIER 1: Surface What's Already Built — COMPLETE
+## TIER 1: Surface What's Already Built — COMPLETE (7/8)
 
-> All 7 features implemented (Sessions 2-5). Backend ready, zero backend work needed.
+> 7 features fully implemented (Sessions 2-5), T1-08 in progress (Sessions 11-12). T1-01 through T1-07: backend ready, zero backend work needed. T1-08: frontend complete, backend 75% complete (phases 1-6 of 8 done).
 
 ### T1-01. AI-Powered Cart-Aware Upsell Bar
 **Domain:** SOS / Menu Engineering
@@ -272,9 +274,10 @@ Payment statuses: `pending`, `paid`, `failed`, `cancelled`, `partial_refund`, `r
 
 ### T1-08. Receipt Printing via Star CloudPRNT
 **Domain:** Orders / KDS
+**Status:** IN PROGRESS — Frontend complete (Phase 5), Backend phases 1-6 complete (Session 12), phases 7-8 remaining
 **What:** When staff marks an order "Ready" in KDS or PendingOrders, the backend queues a print job via Star CloudPRNT API. The CloudPRNT-compatible printer polls the backend and picks up the job — no browser hardware APIs needed, works on any device including iPad/Safari.
-**Backend:** NEW — Add Star CloudPRNT API integration to the order status change handler (`PATCH /orders/:id/status`). Queue print job when status transitions to `ready`. Expose `/print/status/:orderId` for polling print confirmation.
-**Frontend:** Add "Printing..." status badge to order cards when order is marked ready. Listen for WebSocket `order:printed` event to confirm print completion. Add print status indicator to `PendingOrders` and KDS `OrderCard`.
+**Backend:** PARTIAL (6/8 phases) — Prisma schema updated, DTOs created, Star Line Mode utility built, CloudPrntService + PrinterService implemented, CloudPRNT protocol routes complete. REMAINING: Integrate CloudPrntService into order status flow, add WebSocket events, background job cleanup.
+**Frontend:** COMPLETE — PrinterSettings UI with CRUD, CloudPRNT config display, MAC validation, test print. ControlPanel shell with Printers tab. PrinterService with 5 methods. Registered `get-order-stack-control-panel` custom element (23 total).
 **Hardware:** Star CloudPRNT-compatible printer (mC-Print3 recommended — 80mm thermal, ethernet + USB + Bluetooth, CloudPRNT built-in). CloudPRNT Next (MQTT) supported for sub-second delivery.
 **Impact:** Completes the staff order fulfillment workflow. Without receipt printing, "Order Ready" is a dead end — staff has no physical ticket to deliver with the food. Pairs naturally with T1-07 (Stripe) since payment + receipt go together.
 
@@ -399,31 +402,31 @@ Payment statuses: `pending`, `paid`, `failed`, `cancelled`, `partial_refund`, `r
 
 ## Implementation Priority
 
-| # | Feature | Effort | Sprint | Backend Work |
-|---|---------|--------|--------|-------------|
-| T1-01 | AI Upsell Bar | 1-2 days | 1 | None |
-| T1-06 | AI Cost in Menu Mgmt | 1-2 days | 1 | None |
-| T1-04 | Order Profit Insights | 1 day | 1 | None |
-| T1-07 | Stripe Checkout | 3-4 days | 2 | None |
-| T1-08 | Receipt Printing (CloudPRNT) | 2-3 days | 2 | CloudPRNT API |
-| T1-02 | Menu Engineering Dashboard | 3-4 days | 2 | None |
-| T1-03 | Sales Dashboard | 3-4 days | 3 | None |
-| T1-05 | Inventory Dashboard | 5-7 days | 3-4 | None |
-| T2-06 | Table Floor Plan | 3-4 days | 4 | None |
-| T2-01 | Smart KDS | 3-4 days | 4-5 | New endpoint |
-| T2-02 | Auto-86 System | 2-3 days | 5 | WebSocket event |
-| T2-03 | Enhanced Menu Cards | 1-2 days | 5 | New endpoint |
-| T3-01 | AI Command Center | 5-7 days | 6-7 | Aggregation endpoint |
-| T3-02 | Customer CRM | 5-7 days | 7-8 | Search/segment endpoints |
-| T3-06 | AI Chat Assistant | 7-10 days | 8-9 | ChatService + tool-use |
-| T3-04 | Online Ordering | 10+ days | 9-11 | Minor additions |
-| T3-03 | Labor Intelligence | 7-10 days | 10-12 | New schema + service |
-| T3-05 | Reservations AI | 5-7 days | 12-13 | AI prediction endpoint |
-| T4-01 | Autonomous Agent | 7-10 days | 14+ | Background job system |
-| T4-02 | Voice Ordering | 7-10 days | 15+ | NLP endpoint |
-| T4-03 | Dynamic Pricing | 5-7 days | 16+ | New schema |
-| T4-04 | Waste Reduction | 5-7 days | 17+ | New schema + service |
-| T4-05 | Sentiment Analysis | 3-5 days | 18+ | NLP pipeline |
+| # | Feature | Effort | Sprint | Backend Work | Status |
+|---|---------|--------|--------|-------------|--------|
+| T1-01 | AI Upsell Bar | 1-2 days | 1 | None | ✅ COMPLETE |
+| T1-06 | AI Cost in Menu Mgmt | 1-2 days | 1 | None | ✅ COMPLETE |
+| T1-04 | Order Profit Insights | 1 day | 1 | None | ✅ COMPLETE |
+| T1-07 | Stripe Checkout | 3-4 days | 2 | None | ✅ COMPLETE |
+| T1-08 | Receipt Printing (CloudPRNT) | 2-3 days | 2 | CloudPRNT API | 🚧 Frontend ✅, Backend 75% (phases 1-6/8) |
+| T1-02 | Menu Engineering Dashboard | 3-4 days | 2 | None | ✅ COMPLETE |
+| T1-03 | Sales Dashboard | 3-4 days | 3 | None | ✅ COMPLETE |
+| T1-05 | Inventory Dashboard | 5-7 days | 3-4 | None | ✅ COMPLETE |
+| T2-06 | Table Floor Plan | 3-4 days | 4 | None | ✅ COMPLETE |
+| T2-01 | Smart KDS | 3-4 days | 4-5 | New endpoint | ✅ COMPLETE |
+| T2-02 | Auto-86 System | 2-3 days | 5 | WebSocket event | ✅ COMPLETE |
+| T2-03 | Enhanced Menu Cards | 1-2 days | 5 | New endpoint | ✅ COMPLETE |
+| T3-01 | AI Command Center | 5-7 days | 6-7 | Aggregation endpoint | ✅ COMPLETE |
+| T3-02 | Customer CRM | 5-7 days | 7-8 | Search/segment endpoints | ✅ COMPLETE |
+| T3-06 | AI Chat Assistant | 7-10 days | 8-9 | ChatService + tool-use | ✅ COMPLETE |
+| T3-04 | Online Ordering | 10+ days | 9-11 | Minor additions | ✅ COMPLETE |
+| T3-03 | Labor Intelligence | 7-10 days | 10-12 | New schema + service | ⏭️ DEFERRED |
+| T3-05 | Reservations AI | 5-7 days | 12-13 | AI prediction endpoint | ✅ COMPLETE |
+| T4-01 | Autonomous Agent | 7-10 days | 14+ | Background job system | ✅ COMPLETE |
+| T4-02 | Voice Ordering | 7-10 days | 15+ | NLP endpoint | ✅ COMPLETE |
+| T4-03 | Dynamic Pricing | 5-7 days | 16+ | New schema | ✅ COMPLETE |
+| T4-04 | Waste Reduction | 5-7 days | 17+ | New schema + service | ✅ COMPLETE |
+| T4-05 | Sentiment Analysis | 3-5 days | 18+ | NLP pipeline | ✅ COMPLETE |
 
 ---
 

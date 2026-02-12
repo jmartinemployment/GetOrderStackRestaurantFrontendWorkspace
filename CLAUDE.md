@@ -598,6 +598,32 @@ See **[plan.md](./plan.md)** for the comprehensive AI feature roadmap (22 featur
 - WordPress: needs new page `orderstack-control-panel` + PHP template + slug in `$orderstack_pages` array
 - Next: T1-08 backend phases (Prisma models, print service, CloudPRNT endpoints, printer CRUD API), then Dining Options backend phases
 
+**[February 12, 2026] (Session 12):**
+- Completed: Dining Options backend validation + query filtering (4 phases)
+- Installed: Zod npm package for schema validation
+- Created: `src/validators/dining.validator.ts` (Backend) — Zod schemas enforce dining requirements per order type
+  - `DeliveryInfoSchema` — validates address, city, 2-letter state code, 5/9-digit ZIP
+  - `CurbsideInfoSchema` — validates vehicleDescription
+  - `CateringInfoSchema` — validates eventDate (ISO), eventTime, headcount (≥1)
+  - `CustomerInfoSchema` — validates firstName, lastName, phone (≥10 digits), email (optional)
+  - `validateDiningData()` — enforces requirements by order type, returns { valid, errors[] }
+- Modified: `src/app/app.routes.ts` (Backend) — POST /:restaurantId/orders validates before Prisma create
+  - Validation returns 400 with detailed error messages on failure
+  - Example: "Delivery: state: State must be 2-letter code"
+- Modified: `src/app/app.routes.ts` (Backend) — GET /:restaurantId/orders supports new query params
+  - `?deliveryStatus=PREPARING|OUT_FOR_DELIVERY|DELIVERED` — filter delivery orders by state
+  - `?approvalStatus=NEEDS_APPROVAL|APPROVED|NOT_APPROVED` — filter catering orders by approval
+- Created: `DINING_OPTIONS_API.md` (Backend) — Complete API reference documentation
+  - Overview of 5 dining types with required fields table
+  - Order creation examples for each type
+  - Validation rules and error messages reference
+  - Query filtering documentation
+  - State machines (delivery workflow, catering approval)
+  - Testing checklist (15 tests)
+- Status: ✅ Dining Options COMPLETE (frontend Session 11 + backend Session 12)
+- Backend repo: `/Users/jam/development/Get-Order-Stack-Restaurant-Backend`
+- Next: T1-08 Printer Integration backend phases 7-8 (order flow integration, WebSocket events)
+
 ---
 
-*Last Updated: February 12, 2026*
+*Last Updated: February 12, 2026 (Session 12)*
