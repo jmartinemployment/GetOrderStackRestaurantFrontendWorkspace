@@ -1,4 +1,5 @@
 import { CoursePacingMode } from './order.model';
+import { PaymentProcessorType } from './payment.model';
 
 /**
  * AI Settings — Control Panel > AI Settings tab
@@ -113,4 +114,16 @@ export function defaultCateringCapacitySettings(): CateringCapacitySettings {
     maxHeadcountPerDay: 200,
     conflictAlertsEnabled: true,
   };
+}
+
+/**
+ * Payment Settings — Control Panel > Payments tab
+ */
+export interface PaymentSettings {
+  processor: PaymentProcessorType;
+  requirePaymentBeforeKitchen: boolean;
+}
+
+export function defaultPaymentSettings(): PaymentSettings {
+  return { processor: 'none', requirePaymentBeforeKitchen: false };
 }

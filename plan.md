@@ -6,7 +6,7 @@
 
 Get-Order-Stack is a restaurant operating system built to compete with Toast, Square, Clover POS. The **backend already has significant AI features built with Claude Sonnet 4** (cost estimation, menu engineering, sales insights, inventory predictions, order profit analysis). The frontend now surfaces all four tiers of features (T1–T4 complete). The system is deployed via WordPress at geekatyourspot.com with 18 feature pages.
 
-**Foundational Capabilities:** Dining Options (dine-in, takeout, curbside, delivery, catering) fully implemented with frontend workflows (Session 11) and production-ready backend validation via Zod (Session 12). Query filtering supports delivery status tracking and catering approval workflows. Control Panel fully implemented with 4 tabs: Printers, AI Settings, Online Pricing, Catering Calendar (Session 13). Course System UI implemented in PendingOrders (grouped items, fire status badges, manual fire controls) and OrderNotifications (course-ready audio chime + desktop alerts) (Session 13). Duplicate notification bug fixed (Session 14). Course Pacing Mode Selector complete (Session 15) — replaced boolean toggle with 3-way `CoursePacingMode` dropdown (disabled/server_fires/auto_fire_timed) that persists from AI Settings → KDS → PendingOrders with operator override. KDS Recall Ticket complete (Session 15) — backward status transitions with print status cleanup. Catering Approval Timeout complete (Session 16) — configurable auto-reject timer with countdown UI in PendingOrders and AI Settings panel. Offline Mode complete (Session 16) — localStorage order queue with auto-sync on reconnect, CheckoutModal routes through OrderService, PendingOrders shows "Queued" badge with disabled actions for offline orders. Expo Station complete (Session 17) — local verification layer in KDS with 4-column layout, AI Settings toggle + KDS header override, expo check triggers print, toggle-off safety prints unchecked orders.
+**Foundational Capabilities:** Dining Options (dine-in, takeout, curbside, delivery, catering) fully implemented with frontend workflows (Session 11) and production-ready backend validation via Zod (Session 12). Query filtering supports delivery status tracking and catering approval workflows. Control Panel fully implemented with 5 tabs: Printers, AI Settings, Online Pricing, Catering Calendar, Payments (Sessions 13, 18). Course System UI implemented in PendingOrders (grouped items, fire status badges, manual fire controls) and OrderNotifications (course-ready audio chime + desktop alerts) (Session 13). Duplicate notification bug fixed (Session 14). Course Pacing Mode Selector complete (Session 15) — replaced boolean toggle with 3-way `CoursePacingMode` dropdown (disabled/server_fires/auto_fire_timed) that persists from AI Settings → KDS → PendingOrders with operator override. KDS Recall Ticket complete (Session 15) — backward status transitions with print status cleanup. Catering Approval Timeout complete (Session 16) — configurable auto-reject timer with countdown UI in PendingOrders and AI Settings panel. Offline Mode complete (Session 16) — localStorage order queue with auto-sync on reconnect, CheckoutModal routes through OrderService, PendingOrders shows "Queued" badge with disabled actions for offline orders. Expo Station complete (Session 17) — local verification layer in KDS with 4-column layout, AI Settings toggle + KDS header override, expo check triggers print, toggle-off safety prints unchecked orders. PayPal Zettle integration complete (Session 18) — provider-based payment abstraction (`PaymentProvider` interface), PayPal recommended + Stripe fallback, restaurant selects processor via Payments tab in Control Panel.
 
 This plan maps every AI integration opportunity across all restaurant operations domains, organized by implementation effort.
 
@@ -180,14 +180,14 @@ One bundle serves all OrderStack pages. New custom elements are available on any
 | Menu Management | ✅ Built (CRUD, AI cost estimation, AI descriptions) | Complete |
 | Inventory | ✅ Built (dashboard, alerts, predictions, stock actions) | Complete |
 | Analytics/Reporting | ✅ Built (menu engineering, sales, command center) | Complete |
-| Payments | ✅ Built (Stripe Elements, refunds, payment badges) | Complete |
+| Payments | ✅ Built (PayPal Zettle + Stripe provider pattern, refunds, payment badges) | Complete |
 | Table Management | ✅ Built (floor plan, drag-and-drop, status management) | Complete |
 | Customer/CRM | ✅ Built (dashboard, segments, search, detail panel) | Complete |
 | Staff/Scheduling | PIN auth only | 📋 PLANNED (T3-03 deferred) |
 | Reservations | ✅ Built (manager, booking, status workflow) | Complete |
 | Online Ordering | ✅ Built (customer portal, 4-step flow, order tracking) | Complete |
 | Marketing/Loyalty | loyaltyPoints field only | 📋 PLANNED |
-| Settings | ✅ Built (Control Panel: printers, AI settings, online pricing, catering calendar) | Complete |
+| Settings | ✅ Built (Control Panel: printers, AI settings, online pricing, catering calendar, payments) | Complete |
 | Monitoring | ✅ Built (autonomous agent, anomaly rules, alert feed) | Complete |
 | Voice Ordering | ✅ Built (Web Speech API, bilingual EN/ES, fuzzy match) | Complete |
 | Dynamic Pricing | ✅ Built (rules engine, time-based, price preview) | Complete |
@@ -242,41 +242,27 @@ One bundle serves all OrderStack pages. New custom elements are available on any
 **Frontend:** Add methods to `MenuService`, add buttons and AI data display to `ItemManagement` form.
 **Impact:** Most restaurants have no idea what their food cost is. Instant visibility into margins per item.
 
-### T1-07. Stripe Payment Integration in Checkout
+### T1-07. Payment Integration (PayPal Zettle + Stripe)
 **Domain:** Payments
-**Status:** ✅ COMPLETE (Session 5)
-**What:** Connect Stripe checkout to the existing backend. Card input via Stripe Elements, payment confirmation flow, refund capability in order management.
-**Backend:** READY — `POST /orders/:id/payment-intent`, `/payment-status`, `/refund`, `/cancel-payment`, webhook handler
-**Frontend:** Install `@stripe/stripe-js`, create `PaymentService`, embed Stripe Elements in `CheckoutModal`, add payment status badges.
-**Impact:** Without this, the system cannot process real transactions. Table stakes for POS.
+**Status:** ✅ COMPLETE (Session 5 Stripe, Session 18 PayPal Zettle + provider abstraction)
+**What:** Processor-agnostic payment system with `PaymentProvider` interface. PayPal Zettle (recommended, lowest fees) and Stripe (fallback) as provider implementations. Restaurants select their processor in Control Panel → Payments tab. Card input, payment confirmation, refund capability in order management.
+**Backend:** Stripe endpoints READY. PayPal endpoints needed: `POST /paypal-create`, `POST /paypal-capture`.
+**Frontend:** `PaymentService` orchestrator delegates to `StripePaymentProvider` or `PayPalPaymentProvider` plain classes. PayPal buttons auto-confirm; Stripe requires explicit Pay button. `PaymentSettingsComponent` in Control Panel for processor selection.
+**Impact:** Without this, the system cannot process real transactions. PayPal Zettle saves ~$3K/year vs Stripe on $80K/month volume.
 
-#### Backend Endpoints (All READY)
+#### Backend Endpoints
 
-| Method | Endpoint | Request | Response |
-|--------|----------|---------|----------|
-| POST | `/restaurant/:id/orders/:orderId/payment-intent` | None | `{ clientSecret, paymentIntentId }` |
-| GET | `/restaurant/:id/orders/:orderId/payment-status` | None | `{ orderId, orderNumber, paymentStatus, paymentMethod, total, stripe: { status, amount, currency } \| null }` |
-| POST | `/restaurant/:id/orders/:orderId/cancel-payment` | None | `{ success, message }` |
-| POST | `/restaurant/:id/orders/:orderId/refund` | `{ amount?: number }` | `{ success, refundId, amount, status }` |
-| POST | `/api/webhooks/stripe` | Stripe webhook payload | `{ received: true }` |
+| Method | Endpoint | Request | Response | Status |
+|--------|----------|---------|----------|--------|
+| POST | `/restaurant/:id/orders/:orderId/payment-intent` | None | `{ clientSecret, paymentIntentId }` | ✅ READY |
+| GET | `/restaurant/:id/orders/:orderId/payment-status` | None | `{ orderId, orderNumber, paymentStatus, paymentMethod, total, processorData }` | ✅ READY |
+| POST | `/restaurant/:id/orders/:orderId/cancel-payment` | None | `{ success, message }` | ✅ READY |
+| POST | `/restaurant/:id/orders/:orderId/refund` | `{ amount?: number }` | `{ success, refundId, amount, status }` | ✅ READY |
+| POST | `/api/webhooks/stripe` | Stripe webhook payload | `{ received: true }` | ✅ READY |
+| POST | `/restaurant/:id/orders/:orderId/paypal-create` | `{}` | `{ paypalOrderId }` | 📋 NEEDED |
+| POST | `/restaurant/:id/orders/:orderId/paypal-capture` | `{}` | `{ captureId, status }` | 📋 NEEDED |
 
 Payment statuses: `pending`, `paid`, `failed`, `cancelled`, `partial_refund`, `refunded`
-
-#### Implementation Plan
-
-| # | File | Action |
-|---|------|--------|
-| 1 | `package.json` | Install `@stripe/stripe-js` |
-| 2 | `models/payment.model.ts` | Create interfaces: `PaymentIntentResponse`, `PaymentStatusResponse`, `RefundResponse`, `PaymentStep` |
-| 3 | `services/payment.ts` | Create `PaymentService` — signal-based, Stripe.js loader, 4 HTTP methods |
-| 4 | `models/order.model.ts` | Add `stripePaymentIntentId` to `Order` |
-| 5 | `checkout-modal.ts` | Add 2-step flow: order → payment via Stripe Payment Element |
-| 6 | `checkout-modal.html` | Payment step UI with Stripe mount, totals, pay/cancel buttons |
-| 7 | `checkout-modal.scss` | Stripe element container styles, payment status badges |
-| 8 | `pending-orders.ts/html` | Payment status badge per order |
-| 9 | `order-history.ts/html` | Payment badge in list + refund button in detail view |
-| 10 | `public-api.ts`, `models/index.ts` | Export PaymentService + payment models |
-| 11 | Build & verify | Zero errors on library + elements |
 
 ### T1-08. Receipt Printing via Star CloudPRNT
 **Domain:** Orders / KDS
@@ -427,7 +413,7 @@ Payment statuses: `pending`, `paid`, `failed`, `cancelled`, `partial_refund`, `r
 | T1-01 | AI Upsell Bar | 1-2 days | 1 | None | ✅ COMPLETE |
 | T1-06 | AI Cost in Menu Mgmt | 1-2 days | 1 | None | ✅ COMPLETE |
 | T1-04 | Order Profit Insights | 1 day | 1 | None | ✅ COMPLETE |
-| T1-07 | Stripe Checkout | 3-4 days | 2 | None | ✅ COMPLETE |
+| T1-07 | Payment Integration (PayPal + Stripe) | 3-4 days | 2 | PayPal endpoints needed | ✅ COMPLETE |
 | T1-08 | Receipt Printing (CloudPRNT) | 2-3 days | 2 | CloudPRNT API | ✅ COMPLETE |
 | CP | Control Panel Tabs (AI Settings, Online Pricing, Catering Calendar) | 1 day | — | PATCH settings | ✅ COMPLETE |
 | CS | Course System UI (PendingOrders display + fire, OrderNotifications chime, duplicate notification bugfix, Course Pacing Mode Selector, KDS Recall Ticket) | 1 day | — | None | ✅ COMPLETE |
@@ -458,6 +444,8 @@ Payment statuses: `pending`, `paid`, `failed`, `cancelled`, `partial_refund`, `r
 
 **Services (14 total):** `AnalyticsService`, `AuthService`, `CartService`, `ChatService`, `CustomerService`, `InventoryService`, `MenuService`, `MonitoringService`, `OrderService`, `PaymentService`, `PrinterService`, `ReservationService`, `RestaurantSettingsService`, `SocketService`, `TableService`
 
+**Payment Providers (2):** `StripePaymentProvider`, `PayPalPaymentProvider` — plain classes (not Angular services) implementing `PaymentProvider` interface, used by `PaymentService` orchestrator
+
 **Models (20 files):** `analytics.model.ts`, `auth.model.ts`, `cart.model.ts`, `chat.model.ts`, `customer.model.ts`, `dining-option.model.ts`, `inventory.model.ts`, `menu.model.ts`, `monitoring.model.ts`, `order.model.ts`, `payment.model.ts`, `pricing.model.ts`, `printer.model.ts`, `reservation.model.ts`, `restaurant.model.ts`, `sentiment.model.ts`, `settings.model.ts`, `table.model.ts`, `voice.model.ts`, `waste.model.ts`
 
 **Custom Elements (23 registered in main.ts):** `get-order-stack-login`, `get-order-stack-restaurant-select`, `get-order-stack-sos-terminal`, `get-order-stack-kds-display`, `get-order-stack-command-center`, `get-order-stack-menu-engineering`, `get-order-stack-sales-dashboard`, `get-order-stack-inventory-dashboard`, `get-order-stack-category-management`, `get-order-stack-item-management`, `get-order-stack-floor-plan`, `get-order-stack-crm`, `get-order-stack-reservations`, `get-order-stack-ai-chat`, `get-order-stack-online-ordering`, `get-order-stack-monitoring-agent`, `get-order-stack-voice-order`, `get-order-stack-dynamic-pricing`, `get-order-stack-waste-tracker`, `get-order-stack-sentiment`, `get-order-stack-pending-orders`, `get-order-stack-order-history`, `get-order-stack-control-panel`
@@ -477,7 +465,9 @@ Payment statuses: `pending`, `paid`, `failed`, `cancelled`, `partial_refund`, `r
 | Backend: `src/services/menu-engineering.service.ts` | Defines interfaces frontend models must mirror |
 | Backend: `src/services/sales-insights.service.ts` | Defines sales report interfaces |
 | Backend: `src/services/inventory.service.ts` | Full inventory + predictions |
-| Backend: `src/services/stripe.service.ts` | Payment processing |
+| Backend: `src/services/stripe.service.ts` | Stripe payment processing |
+| `library/src/lib/services/providers/` | PayPal + Stripe payment provider implementations |
+| `library/src/lib/settings/payment-settings/` | Payment processor selection UI |
 
 ---
 

@@ -1,6 +1,24 @@
-export interface PaymentIntentResponse {
-  clientSecret: string;
-  paymentIntentId: string;
+export type PaymentProcessorType = 'stripe' | 'paypal' | 'none';
+export type PaymentStep = 'cart' | 'paying' | 'success' | 'failed';
+
+export interface PaymentContext {
+  restaurantId: string;
+  apiUrl: string;
+}
+
+export interface PaymentCreateResult {
+  paymentId: string;
+  clientToken?: string;
+}
+
+export interface PaymentProvider {
+  readonly type: PaymentProcessorType;
+  createPayment(orderId: string, amount: number, context: PaymentContext): Promise<PaymentCreateResult>;
+  mountPaymentUI(container: HTMLElement): Promise<boolean>;
+  confirmPayment(): Promise<boolean>;
+  cancelPayment(orderId: string, context: PaymentContext): Promise<boolean>;
+  requestRefund(orderId: string, context: PaymentContext, amount?: number): Promise<RefundResponse | null>;
+  destroy(): void;
 }
 
 export interface PaymentStatusResponse {
@@ -9,11 +27,7 @@ export interface PaymentStatusResponse {
   paymentStatus: string;
   paymentMethod: string | null;
   total: number;
-  stripe: {
-    status: string;
-    amount: number;
-    currency: string;
-  } | null;
+  processorData: Record<string, unknown> | null;
 }
 
 export interface RefundResponse {
@@ -23,4 +37,8 @@ export interface RefundResponse {
   status: string;
 }
 
-export type PaymentStep = 'cart' | 'paying' | 'success' | 'failed';
+// Kept for StripePaymentProvider internal use
+export interface PaymentIntentResponse {
+  clientSecret: string;
+  paymentIntentId: string;
+}

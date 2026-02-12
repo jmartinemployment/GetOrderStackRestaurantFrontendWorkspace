@@ -671,14 +671,15 @@ export class OrderService implements OnDestroy {
 
     // Build payments array
     const payments: Payment[] = [];
-    if (raw.paymentMethod || raw.stripePaymentIntentId) {
+    if (raw.paymentMethod || raw.stripePaymentIntentId || raw.paypalOrderId) {
       payments.push({
-        guid: raw.stripePaymentIntentId ?? crypto.randomUUID(),
+        guid: raw.stripePaymentIntentId ?? raw.paypalOrderId ?? crypto.randomUUID(),
         paymentMethod: raw.paymentMethod ?? 'unknown',
         amount: totalAmount,
         tipAmount,
         status: checkPaymentStatus,
-        stripePaymentIntentId: raw.stripePaymentIntentId,
+        paymentProcessor: raw.stripePaymentIntentId ? 'stripe' : (raw.paypalOrderId ? 'paypal' : undefined),
+        paymentProcessorId: raw.stripePaymentIntentId ?? raw.paypalOrderId,
         paidDate: checkPaymentStatus === 'PAID' ? new Date() : undefined,
       });
     }

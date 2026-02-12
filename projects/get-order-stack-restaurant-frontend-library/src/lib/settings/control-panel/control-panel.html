@@ -25,6 +25,9 @@
     @if (activeTab() === 'catering-calendar') {
       <get-order-stack-catering-calendar />
     }
+    @if (activeTab() === 'payments') {
+      <get-order-stack-payment-settings />
+    }
   } @else {
     <div class="text-center text-muted py-5">
       <p>Please log in and select a restaurant to access settings.</p>

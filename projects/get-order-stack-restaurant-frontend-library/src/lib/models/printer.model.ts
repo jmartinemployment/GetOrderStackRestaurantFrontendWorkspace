@@ -1,6 +1,6 @@
 export type PrinterModel = 'Star mC-Print3' | 'Star mC-Print2' | 'Star TSP654II' | 'Star TSP743II';
 
-export type ControlPanelTab = 'printers' | 'ai-settings' | 'online-pricing' | 'catering-calendar';
+export type ControlPanelTab = 'printers' | 'ai-settings' | 'online-pricing' | 'catering-calendar' | 'payments';
 
 export interface Printer {
   id: string;

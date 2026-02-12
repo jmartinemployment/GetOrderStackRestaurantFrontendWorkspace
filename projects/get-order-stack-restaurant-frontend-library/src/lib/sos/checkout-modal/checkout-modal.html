@@ -496,10 +496,10 @@
           </div>
         </div>
 
-        <!-- Stripe Payment Element Mount Point -->
-        <div class="stripe-container mb-3">
-          <div #stripeMount class="stripe-element"></div>
-          @if (!stripeReady()) {
+        <!-- Payment UI Mount Point -->
+        <div class="payment-container mb-3">
+          <div #stripeMount class="payment-element"></div>
+          @if (!paymentUIReady()) {
             <div class="d-flex justify-content-center p-3">
               <span class="spinner-border spinner-border-sm me-2"></span>
               <span class="text-muted small">Loading payment form...</span>
@@ -517,19 +517,21 @@
         >
           Cancel
         </button>
-        <button
-          type="button"
-          class="btn btn-success flex-grow-1"
-          [disabled]="isProcessingPayment() || !stripeReady()"
-          (click)="confirmPayment()"
-        >
-          @if (isProcessingPayment()) {
-            <span class="spinner-border spinner-border-sm me-2"></span>
-            Processing...
-          } @else {
-            Pay {{ total() | currency }}
-          }
-        </button>
+        @if (needsExplicitConfirm()) {
+          <button
+            type="button"
+            class="btn btn-success flex-grow-1"
+            [disabled]="isProcessingPayment() || !paymentUIReady()"
+            (click)="confirmPayment()"
+          >
+            @if (isProcessingPayment()) {
+              <span class="spinner-border spinner-border-sm me-2"></span>
+              Processing...
+            } @else {
+              Pay {{ total() | currency }}
+            }
+          </button>
+        }
       </div>
     }
 

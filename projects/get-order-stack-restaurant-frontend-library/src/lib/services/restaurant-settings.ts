@@ -5,10 +5,12 @@ import {
   AISettings,
   OnlinePricingSettings,
   CateringCapacitySettings,
+  PaymentSettings,
   CapacityBlock,
   defaultAISettings,
   defaultOnlinePricingSettings,
   defaultCateringCapacitySettings,
+  defaultPaymentSettings,
 } from '../models';
 import { Order } from '../models';
 import { AuthService } from './auth';
@@ -25,6 +27,7 @@ export class RestaurantSettingsService {
   private readonly _aiSettings = signal<AISettings>(defaultAISettings());
   private readonly _onlinePricingSettings = signal<OnlinePricingSettings>(defaultOnlinePricingSettings());
   private readonly _cateringCapacitySettings = signal<CateringCapacitySettings>(defaultCateringCapacitySettings());
+  private readonly _paymentSettings = signal<PaymentSettings>(defaultPaymentSettings());
   private readonly _capacityBlocks = signal<CapacityBlock[]>([]);
   private readonly _cateringOrders = signal<Order[]>([]);
   private readonly _isLoading = signal(false);
@@ -34,6 +37,7 @@ export class RestaurantSettingsService {
   readonly aiSettings = this._aiSettings.asReadonly();
   readonly onlinePricingSettings = this._onlinePricingSettings.asReadonly();
   readonly cateringCapacitySettings = this._cateringCapacitySettings.asReadonly();
+  readonly paymentSettings = this._paymentSettings.asReadonly();
   readonly capacityBlocks = this._capacityBlocks.asReadonly();
   readonly cateringOrders = this._cateringOrders.asReadonly();
   readonly isLoading = this._isLoading.asReadonly();
@@ -59,6 +63,7 @@ export class RestaurantSettingsService {
       const aiFromServer = response['aiSettings'] as Partial<AISettings> | undefined;
       const pricingFromServer = response['onlinePricingSettings'] as Partial<OnlinePricingSettings> | undefined;
       const cateringFromServer = response['cateringCapacitySettings'] as Partial<CateringCapacitySettings> | undefined;
+      const paymentFromServer = response['paymentSettings'] as Partial<PaymentSettings> | undefined;
 
       this._aiSettings.set({
         ...defaultAISettings(),
@@ -67,6 +72,7 @@ export class RestaurantSettingsService {
       });
       this._onlinePricingSettings.set({ ...defaultOnlinePricingSettings(), ...this.readLocalStorage('online-pricing-settings'), ...pricingFromServer });
       this._cateringCapacitySettings.set({ ...defaultCateringCapacitySettings(), ...this.readLocalStorage('catering-capacity-settings'), ...cateringFromServer });
+      this._paymentSettings.set({ ...defaultPaymentSettings(), ...this.readLocalStorage('payment-settings'), ...paymentFromServer });
     } catch {
       // Backend may not have these fields yet — fall back to localStorage
       this._aiSettings.set({
@@ -75,6 +81,7 @@ export class RestaurantSettingsService {
       });
       this._onlinePricingSettings.set({ ...defaultOnlinePricingSettings(), ...this.readLocalStorage('online-pricing-settings') });
       this._cateringCapacitySettings.set({ ...defaultCateringCapacitySettings(), ...this.readLocalStorage('catering-capacity-settings') });
+      this._paymentSettings.set({ ...defaultPaymentSettings(), ...this.readLocalStorage('payment-settings') });
     } finally {
       this.loadCapacityBlocks();
       this._isLoading.set(false);
@@ -140,6 +147,27 @@ export class RestaurantSettingsService {
     } finally {
       localStorage.setItem(`${this.restaurantId}-catering-capacity-settings`, JSON.stringify(s));
       this._cateringCapacitySettings.set(s);
+      this._isSaving.set(false);
+    }
+  }
+
+  async savePaymentSettings(s: PaymentSettings): Promise<void> {
+    if (!this.restaurantId) return;
+    this._isSaving.set(true);
+    this._error.set(null);
+
+    try {
+      await firstValueFrom(
+        this.http.patch(
+          `${this.apiUrl}/restaurant/${this.restaurantId}`,
+          { paymentSettings: s }
+        )
+      );
+    } catch {
+      // Backend may not support this field yet
+    } finally {
+      localStorage.setItem(`${this.restaurantId}-payment-settings`, JSON.stringify(s));
+      this._paymentSettings.set(s);
       this._isSaving.set(false);
     }
   }

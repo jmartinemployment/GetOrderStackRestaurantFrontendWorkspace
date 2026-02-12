@@ -127,6 +127,7 @@ Internal (not registered as custom elements):
 - `MenuDisplay`, `CartDrawer`, `CheckoutModal`, `UpsellBar`, `OrderNotifications`, `MenuItemCard` — used internally by `SosTerminal`
 - `OrderCard`, `StatusBadge` — used internally by `KdsDisplay`
 - `PrinterSettings` — used internally by `ControlPanel`
+- `PaymentSettingsComponent` — used internally by `ControlPanel`
 - `ReceiptPrinter` — used internally by other components
 
 ## Core Services
@@ -136,7 +137,7 @@ Internal (not registered as custom elements):
 | `AnalyticsService` | AI upsell, menu engineering, sales reports | Signals, debounced fetch, `firstValueFrom()` |
 | `AuthService` | Authentication, session, restaurant selection | Signals, localStorage persistence |
 | `InventoryService` | Inventory CRUD, stock actions, AI predictions, reports | Signals, 10 HTTP methods, `firstValueFrom()` |
-| `PaymentService` | Stripe Elements, payment intents, refunds | Stripe.js, signals, `firstValueFrom()` |
+| `PaymentService` | Processor-agnostic orchestrator (PayPal Zettle + Stripe), provider pattern, refunds | Signals, `firstValueFrom()`, delegates to `PaymentProvider` instances |
 | `MenuService` | Menu CRUD, AI cost estimation, language support (en/es) | `firstValueFrom()`, HttpClient |
 | `CartService` | Shopping cart state, tax/tip calculation | Signals, 8.25% default tax |
 | `OrderService` | Order management, profit insights | `firstValueFrom()`, HttpClient |
@@ -287,6 +288,7 @@ Development Restaurant ID: `f2cfe8dd-48f3-4596-ab1e-22a28b23ad38` (production us
 | Setting | File | Status |
 |---------|------|--------|
 | Stripe publishable key | `environments/environment.ts` + `environment.prod.ts` | `pk_test_placeholder` — must be replaced with real key from Stripe dashboard |
+| PayPal client ID | `environments/environment.ts` + `environment.prod.ts` | `sb` (sandbox) — replace with real PayPal client ID for production |
 | Restaurant slug | WordPress `page-orderstack-online-ordering.php` | Add `restaurant-slug="taipa"` attribute to `<get-order-stack-online-ordering>` tag |
 
 ## Common Issues
@@ -624,6 +626,60 @@ See **[plan.md](./plan.md)** for the comprehensive AI feature roadmap (22 featur
 - Backend repo: `/Users/jam/development/Get-Order-Stack-Restaurant-Backend`
 - Next: T1-08 Printer Integration backend phases 7-8 (order flow integration, WebSocket events)
 
+**[February 12, 2026] (Session 17):**
+- Implemented: Expo Station UI — local verification layer in KDS (10 files modified, 0 new files)
+- **Design:** No new `GuestOrderStatus`. EXPO is a client-side split of `READY_FOR_PICKUP` orders into "unchecked" (expo queue) and "checked" (ready column). Print triggers on expo check instead of on status change.
+- **settings.model.ts:** Added `expoStationEnabled: boolean` to `AISettings` interface, default `false`
+- **ai-settings.ts:** Added `_expoStationEnabled` signal, readonly, `loadFromService()`, `onExpoStationToggle()` handler, save field
+- **ai-settings.html:** Inserted Expo Station toggle panel between Catering Timeout and Course Pacing sections
+- **order.ts (OrderService):** Added `options?: { skipPrint?: boolean }` param to `updateOrderStatus()`, gated print on `!options?.skipPrint`, added `triggerPrint(orderId)` public method
+- **order-card.ts:** Added `isExpoQueue` input, `expoCheck` output, `bumpLabel` computed ("CHECKED" when expo), expo early-return in `onBump()`
+- **order-card.html:** Added EXPO badge in header, footer guard expanded to `nextAction() || isExpoQueue()`, button uses `bumpLabel()` with conditional `btn-expo-check` class
+- **order-card.scss:** Added `.btn-expo-check` (orange #e35d00), `.expo-badge` (flash animation), `.bg-expo`
+- **kds-display.ts:** Added `_expoStationEnabled`, `_expoOverride`, `_expoCheckedOrders` signals; `expoQueueOrders`/`expoCheckedOrders` computed; `onExpoCheck()` (adds to checked set + triggers print), `toggleExpoStation()` with toggle-off safety (prints unchecked expo orders before disabling); `skipPrint` passed in `onStatusChange()` when expo enabled
+- **kds-display.html:** Expo toggle in header, dynamic `kds-columns-4` class, EXPO column with `[isExpoQueue]="true"` + `(expoCheck)`, READY column uses `expoCheckedOrders()` (falls through to `readyOrders()` when expo off)
+- **kds-display.scss:** `.kds-columns-4` (4-column responsive grid: 4@desktop, 2@1200px, 1@768px), `.expo` column header color
+- Updated: `Get-Order-Stack-Workflow.md` v4.9 — KDS Workflow section, Dine-In Phase 4, AI Settings table, Expo Settings section, removed from Remaining items
+- Updated: `plan.md` — T2-01 status, Domain Map, Implementation Priority table (EX row), Context paragraph
+- Build: 929 kB main.js + 231 kB styles.css, zero errors (pre-existing SCSS budget warnings only)
+- Committed: `14fefb5` (73 files — includes accumulated sessions 11-16 changes), pushed to origin
+- Remote URL updated: `https://github.com/jmartinemployment/GetOrderStackRestaurantFrontendWorkspace.git`
+- Next: deploy updated bundle to WordPress, or continue with remaining backend work
+
+**[February 12, 2026] (Session 18):**
+- Implemented: PayPal Zettle Payment Integration — provider-based payment abstraction
+- Installed: `@paypal/paypal-js` npm package
+- **Architecture:** Replaced Stripe-only PaymentService with processor-agnostic orchestrator using `PaymentProvider` interface. PayPal is recommended processor; Stripe retained as fallback. Restaurants choose processor via new "Payments" tab in Control Panel.
+- **New files (4):**
+  - `services/providers/stripe-provider.ts` — extracted Stripe logic into plain class implementing `PaymentProvider`
+  - `services/providers/paypal-provider.ts` — PayPal Orders v2 integration (create → mount buttons → onApprove capture → confirm)
+  - `services/providers/index.ts` — barrel export
+  - `settings/payment-settings/` — 4 files (ts, html, scss, index.ts) — radio buttons for None/PayPal/Stripe, "Require payment before kitchen" checkbox, save/discard
+- **Rewritten files:**
+  - `models/payment.model.ts` — added `PaymentProcessorType`, `PaymentProvider` interface, `PaymentContext`, `PaymentCreateResult`; `PaymentStatusResponse.stripe` → `processorData`
+  - `services/payment.ts` — processor-agnostic orchestrator, delegates to active provider; `setProcessorType()`, `isConfigured()`, `needsExplicitConfirm()`, `initiatePayment()`, `mountPaymentUI()`, `confirmPayment()`
+- **Modified files:**
+  - `environments/environment.ts` + `environment.prod.ts` — added `paypalClientId: 'sb'`
+  - `models/settings.model.ts` — added `PaymentSettings` interface + `defaultPaymentSettings()` factory
+  - `models/printer.model.ts` — added `'payments'` to `ControlPanelTab` union
+  - `models/order.model.ts` — `Payment.stripePaymentIntentId` → `paymentProcessor` + `paymentProcessorId`
+  - `services/order.ts` — `mapOrder` payments block handles both `stripePaymentIntentId` and `paypalOrderId`
+  - `services/restaurant-settings.ts` — added `_paymentSettings` signal, `paymentSettings` readonly, `savePaymentSettings()`
+  - `checkout-modal.ts` — reads processor from settings, conditional payment flow, auto-confirm for PayPal
+  - `checkout-modal.html` — `stripe-container` → `payment-container`, Pay button wrapped in `@if (needsExplicitConfirm())`
+  - `checkout-modal.scss` — `.stripe-container` → `.payment-container`
+  - `control-panel.ts` — added PaymentSettingsComponent import + Payments tab
+  - `control-panel.html` — added payments tab content
+  - `public-api.ts` — added `StripePaymentProvider` and `PayPalPaymentProvider` exports
+- **Key design decisions:**
+  - Providers are plain classes (not Angular services) — they use `fetch()` for HTTP, receive `PaymentContext` for callback access
+  - PayPal auto-confirms (buttons handle their own flow); Stripe requires explicit Pay button click
+  - Race condition handled via `paypalApproved` flag + Promise resolve/reject pattern
+  - Control Panel now has 5 tabs: Printers, AI Settings, Online Pricing, Catering Calendar, Payments
+- Build: 944 kB main.js + 231 kB styles.css, zero errors
+- Backend endpoints needed: `POST /paypal-create` and `POST /paypal-capture` (not yet built)
+- Next: build PayPal backend endpoints, deploy updated bundle to WordPress
+
 ---
 
-*Last Updated: February 12, 2026 (Session 12)*
+*Last Updated: February 12, 2026 (Session 18)*

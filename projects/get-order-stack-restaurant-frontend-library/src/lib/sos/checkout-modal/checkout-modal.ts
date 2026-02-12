@@ -1,10 +1,11 @@
-import { Component, inject, output, signal, computed, ChangeDetectionStrategy, ElementRef, viewChild } from '@angular/core';
+import { Component, inject, output, signal, computed, ChangeDetectionStrategy, ElementRef, viewChild, OnInit } from '@angular/core';
 import { CurrencyPipe } from '@angular/common';
 import { CartService } from '../../services/cart';
 import { AuthService } from '../../services/auth';
 import { SocketService } from '../../services/socket';
 import { PaymentService } from '../../services/payment';
 import { OrderService } from '../../services/order';
+import { RestaurantSettingsService } from '../../services/restaurant-settings';
 import { Modifier, CustomerInfo, Course } from '../../models';
 import {
   DiningOptionType,
@@ -22,12 +23,13 @@ import {
   styleUrl: './checkout-modal.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class CheckoutModal {
+export class CheckoutModal implements OnInit {
   private readonly cartService = inject(CartService);
   private readonly authService = inject(AuthService);
   private readonly socketService = inject(SocketService);
   private readonly paymentService = inject(PaymentService);
   private readonly orderService = inject(OrderService);
+  private readonly settingsService = inject(RestaurantSettingsService);
 
   orderPlaced = output<string>();
 
@@ -36,13 +38,13 @@ export class CheckoutModal {
   private readonly _error = signal<string | null>(null);
   private readonly _orderId = signal<string | null>(null);
   private readonly _orderNumber = signal<string | null>(null);
-  private readonly _stripeReady = signal(false);
+  private readonly _paymentUIReady = signal(false);
 
   readonly isSubmitting = this._isSubmitting.asReadonly();
   readonly error = this._error.asReadonly();
   readonly orderId = this._orderId.asReadonly();
   readonly orderNumber = this._orderNumber.asReadonly();
-  readonly stripeReady = this._stripeReady.asReadonly();
+  readonly paymentUIReady = this._paymentUIReady.asReadonly();
 
   readonly paymentStep = this.paymentService.paymentStep;
   readonly isProcessingPayment = this.paymentService.isProcessing;
@@ -57,7 +59,14 @@ export class CheckoutModal {
   readonly tip = this.cartService.tip;
   readonly total = this.cartService.total;
 
+  readonly needsExplicitConfirm = computed(() => this.paymentService.needsExplicitConfirm());
+
   readonly stripeMount = viewChild<ElementRef>('stripeMount');
+
+  ngOnInit(): void {
+    const processorType = this.settingsService.paymentSettings().processor;
+    this.paymentService.setProcessorType(processorType);
+  }
 
   // --- Dining option ---
   private readonly _diningType = signal<DiningOptionType>('dine-in');
@@ -236,7 +245,7 @@ export class CheckoutModal {
     this.cartService.close();
     this._orderId.set(null);
     this._orderNumber.set(null);
-    this._stripeReady.set(false);
+    this._paymentUIReady.set(false);
     this._error.set(null);
     this._showValidation.set(false);
   }
@@ -420,9 +429,16 @@ export class CheckoutModal {
         this._orderId.set(order.guid);
         this._orderNumber.set(order.orderNumber);
         this.orderPlaced.emit(order.orderNumber);
-        this.resetForm();
-        this.cartService.clear();
-        this.close();
+
+        if (this.paymentService.isConfigured()) {
+          this.resetForm();
+          this.cartService.clear();
+          await this.initiatePayment(order.guid, this.total());
+        } else {
+          this.resetForm();
+          this.cartService.clear();
+          this.close();
+        }
       } else {
         this._error.set('Failed to place order. Please try again.');
       }
@@ -445,6 +461,25 @@ export class CheckoutModal {
     }
   }
 
+  private async initiatePayment(orderId: string, amount: number): Promise<void> {
+    const initiated = await this.paymentService.initiatePayment(orderId, amount);
+    if (!initiated) return;
+
+    // Wait one tick for the DOM to render the payment container
+    await new Promise<void>(resolve => setTimeout(resolve, 50));
+
+    const mountEl = this.stripeMount()?.nativeElement;
+    if (mountEl) {
+      const mounted = await this.paymentService.mountPaymentUI(mountEl);
+      this._paymentUIReady.set(mounted);
+
+      // PayPal: auto-call confirmPayment (blocks until onApprove fires)
+      if (!this.paymentService.needsExplicitConfirm()) {
+        await this.confirmPayment();
+      }
+    }
+  }
+
   async cancelPayment(): Promise<void> {
     const oId = this._orderId();
     if (!oId) return;
@@ -453,7 +488,7 @@ export class CheckoutModal {
     this.paymentService.reset();
     this._orderId.set(null);
     this._orderNumber.set(null);
-    this._stripeReady.set(false);
+    this._paymentUIReady.set(false);
   }
 
   retryPayment(): void {
@@ -463,8 +498,12 @@ export class CheckoutModal {
     setTimeout(async () => {
       const mountEl = this.stripeMount()?.nativeElement;
       if (mountEl) {
-        const mounted = await this.paymentService.mountPaymentElement(mountEl);
-        this._stripeReady.set(mounted);
+        const mounted = await this.paymentService.mountPaymentUI(mountEl);
+        this._paymentUIReady.set(mounted);
+
+        if (!this.paymentService.needsExplicitConfirm()) {
+          await this.confirmPayment();
+        }
       }
     }, 50);
   }

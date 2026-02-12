@@ -5,11 +5,12 @@ import { PrinterSettings } from '../printer-settings';
 import { AiSettings } from '../ai-settings';
 import { OnlinePricing } from '../online-pricing';
 import { CateringCalendar } from '../catering-calendar';
+import { PaymentSettingsComponent } from '../payment-settings';
 import { ControlPanelTab } from '../../models';
 
 @Component({
   selector: 'get-order-stack-control-panel',
-  imports: [PrinterSettings, AiSettings, OnlinePricing, CateringCalendar],
+  imports: [PrinterSettings, AiSettings, OnlinePricing, CateringCalendar, PaymentSettingsComponent],
   templateUrl: './control-panel.html',
   styleUrl: './control-panel.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -28,6 +29,7 @@ export class ControlPanel implements OnInit {
     { key: 'ai-settings', label: 'AI Settings' },
     { key: 'online-pricing', label: 'Online Pricing' },
     { key: 'catering-calendar', label: 'Catering Calendar' },
+    { key: 'payments', label: 'Payments' },
   ];
 
   ngOnInit(): void {

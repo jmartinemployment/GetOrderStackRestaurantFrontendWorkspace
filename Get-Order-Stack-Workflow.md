@@ -545,16 +545,39 @@ All items finish simultaneously.
 
 ---
 
-## PAYMENT FLOWS — ✅ IMPLEMENTED (T1-07)
+## PAYMENT FLOWS — ✅ IMPLEMENTED (T1-07, Session 18 PayPal)
 
-**Status:** Stripe payment integration complete in CheckoutModal with credit card flow. Cash flow supported (backend). Pre-paid online orders complete in Online Portal with tip capture at checkout.
+**Status:** Provider-based payment abstraction complete. PayPal Zettle (recommended) and Stripe supported via `PaymentProvider` interface. Restaurants select processor in Control Panel → Payments tab. Cash flow supported (backend). Pre-paid online orders complete in Online Portal with tip capture at checkout.
 
-### Credit Card
+### Provider Architecture (Session 18)
+```
+PaymentService (orchestrator)
+├── setProcessorType('paypal' | 'stripe' | 'none')
+├── delegates to active PaymentProvider instance
+│   ├── PayPalPaymentProvider — PayPal Orders v2 (buttons auto-confirm)
+│   └── StripePaymentProvider — Stripe Elements (explicit Pay button)
+├── isConfigured() — true when processor != 'none'
+└── needsExplicitConfirm() — true for Stripe, false for PayPal
+```
+
+### Credit Card (PayPal Zettle — Recommended)
+```
+OPEN → PayPal create → mount buttons → onApprove → capture → PAID → CLOSED
+```
+- PayPal Buttons rendered in checkout
+- Customer clicks PayPal button (card/PayPal account)
+- `onApprove` triggers backend `/paypal-capture`
+- Auto-confirms (no separate Pay button needed)
+- Receipt (digital/printed)
+
+### Credit Card (Stripe — Fallback)
 ```
 OPEN → authorize → PAID → tip adjust → CLOSED
 ```
+- Stripe Payment Element rendered in checkout
 - Card presented (swipe/insert/tap/keyed)
-- Authorization
+- Customer clicks Pay button (explicit confirm)
+- Authorization via Stripe
 - **Tip entry** (customer enters on device or paper receipt)
 - Signature (optional based on amount)
 - Receipt (digital/printed)
@@ -574,15 +597,15 @@ OPEN → PAID → CLOSED
 ```
 - **Online Price Adjustment applied** (if enabled in Control Panel)
 - **Delivery Fee added** (for delivery orders, if configured)
-- Payment at checkout
+- Payment at checkout (via configured processor)
 - **Tip entry** (customer selects tip during online checkout)
 - check.paymentStatus = CLOSED on order creation
 
 ---
 
-## SETTINGS TO IMPLEMENT — ✅ IMPLEMENTED (Sessions 11-13)
+## SETTINGS TO IMPLEMENT — ✅ IMPLEMENTED (Sessions 11-13, 18)
 
-**Status:** Control Panel component complete with 4 tabs: Printers (T1-08 Session 11-12), AI Settings (Session 13), Online Pricing (Session 13), Catering Calendar (Session 13). Backend CloudPRNT integration ✅ COMPLETE. All settings tabs fully implemented with role-based access (owner/manager/super_admin = edit, staff = view only), local form signals with save/discard pattern, localStorage + backend PATCH persistence.
+**Status:** Control Panel component complete with 5 tabs: Printers (T1-08 Session 11-12), AI Settings (Session 13), Online Pricing (Session 13), Catering Calendar (Session 13), Payments (Session 18). Backend CloudPRNT integration ✅ COMPLETE. All settings tabs fully implemented with role-based access (owner/manager/super_admin = edit, staff = view only), local form signals with save/discard pattern, localStorage + backend PATCH persistence.
 
 ### Control Panel - AI Settings — ✅ IMPLEMENTED (Session 13)
 
@@ -627,6 +650,21 @@ OPEN → PAID → CLOSED
 | Conflict Alerts | Toggle | Warn when new order conflicts with existing |
 
 **Frontend:** `CateringCalendar` component in `settings/catering-calendar/`. KPI strip (upcoming events, total headcount, conflict days, pending approvals). Capacity settings panel with save/discard. 7-column CSS Grid month calendar with color-coded cells (today, past, over-capacity red border, has-block orange border). Day detail panel with event cards (customer, time, headcount, event type, approval badge, deposit status, special instructions) and capacity block management (add/remove). Role-based access.
+
+### Control Panel - Payments — ✅ IMPLEMENTED (Session 18)
+
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| Payment Processor | Radio | None | None / PayPal Zettle (recommended) / Stripe |
+| Require Payment Before Kitchen | Checkbox | Off | Block order from firing to KDS until payment confirmed |
+
+**Frontend:** `PaymentSettingsComponent` in `settings/payment-settings/`. Radio buttons for processor selection with descriptive text (PayPal = "Recommended — lowest processing fees"). Checkbox for kitchen gate. Save/Discard with dirty tracking. Reads/writes via `RestaurantSettingsService.savePaymentSettings()`.
+
+**Provider Pattern:**
+- `PaymentProvider` interface: `createPayment()`, `mountPaymentUI()`, `confirmPayment()`, `cancelPayment()`, `requestRefund()`, `destroy()`
+- `PayPalPaymentProvider`: PayPal Orders v2 — buttons auto-confirm, `onApprove` captures payment
+- `StripePaymentProvider`: Stripe Elements — explicit Pay button click, `confirmPayment()` calls Stripe SDK
+- `PaymentService` orchestrator: `setProcessorType()` instantiates correct provider, delegates all calls
 
 ### Bartender Settings
 | Setting | Options |
@@ -680,7 +718,7 @@ GetOrderStack Applications
 │   ├── get-order-stack-sentiment         # Sentiment Analysis
 │   ├── get-order-stack-pending-orders   # Pending Order Management
 │   ├── get-order-stack-order-history    # Order History
-│   └── get-order-stack-control-panel    # Settings (Printers, AI, Pricing, Catering)
+│   └── get-order-stack-control-panel    # Settings (Printers, AI, Pricing, Catering, Payments)
 │
 ├── Restaurant Backend (Express.js + TypeScript)
 │   ├── REST API endpoints
@@ -769,7 +807,7 @@ GetOrderStack Applications
 
 ## INTEGRATION POINTS — 🚧 PARTIALLY IMPLEMENTED
 
-**Status:** KDS real-time sync (WebSocket) ✅, kitchen printers (T1-08 CloudPRNT ✅ COMPLETE — frontend PrinterSettings + Control Panel, backend all 8 phases), payment processor (Stripe ✅, PayPal Zettle 📋 PLANNED), online ordering (T3-04) ✅, dining options (frontend + backend validation) ✅, offline mode (localStorage queue + auto-sync) ✅. Third-party delivery, loyalty, accounting, and payroll integrations not yet implemented.
+**Status:** KDS real-time sync (WebSocket) ✅, kitchen printers (T1-08 CloudPRNT ✅ COMPLETE — frontend PrinterSettings + Control Panel, backend all 8 phases), payment processor (PayPal Zettle ✅ frontend + Stripe ✅ — provider-based abstraction, Session 18; PayPal backend endpoints 📋 NEEDED), online ordering (T3-04) ✅, dining options (frontend + backend validation) ✅, offline mode (localStorage queue + auto-sync) ✅. Third-party delivery, loyalty, accounting, and payroll integrations not yet implemented.
 
 | System | Method |
 |--------|--------|
@@ -863,9 +901,9 @@ GetOrderStack Applications
 
 ---
 
-## PAYMENT PROCESSING - PAYPAL ZETTLE — 📋 PLANNED (Using Stripe Instead)
+## PAYMENT PROCESSING - PAYPAL ZETTLE — ✅ FRONTEND COMPLETE (Session 18)
 
-**Status:** Current implementation uses Stripe (T1-07 complete). PayPal Zettle integration not implemented. Cost analysis and comparison below remains valid for future consideration.
+**Status:** Provider-based payment abstraction implemented. `PayPalPaymentProvider` class handles PayPal Orders v2 flow (create → mount buttons → onApprove capture → confirm). `StripePaymentProvider` retained as fallback. Restaurants select processor via Control Panel → Payments tab. Backend endpoints (`/paypal-create`, `/paypal-capture`) still needed.
 
 **Why PayPal Zettle?**
 - Lowest flat-rate processing fees of any major processor
@@ -1023,8 +1061,8 @@ GetOrderStack Applications
 
 ---
 
-*Document Version: 4.9*
-*Last Updated: 2026-02-12 (Session 17 — Expo Station implemented)*
+*Document Version: 5.0*
+*Last Updated: 2026-02-12 (Session 18 — PayPal Zettle provider-based payment abstraction)*
 *Location: Get-Order-Stack-Restaurant-Frontend-Workspace/Get-Order-Stack-Workflow.md*
 
 ## IMPLEMENTATION SUMMARY
@@ -1042,13 +1080,13 @@ GetOrderStack Applications
   - ✅ Backend (Session 12): Zod validation, query filtering (deliveryStatus, approvalStatus), API documentation
 
 **Frontend:** 23 Web Components registered and deployed to WordPress (geekatyourspot.com)
-**Backend:** Claude AI services (Sonnet 4), PostgreSQL/Prisma, WebSocket + polling, Stripe integration
+**Backend:** Claude AI services (Sonnet 4), PostgreSQL/Prisma, WebSocket + polling, PayPal Zettle + Stripe payment integration
 
 **Remaining:**
 - 🚧 AI auto-fire course pacing — backend execution pending (frontend UI complete: mode selector, manual fire, course notifications, recall ticket)
 - 📋 Order throttling — not yet implemented
 - 🔬 Third-party delivery, loyalty, accounting/payroll integrations (research phase)
-- 📋 PayPal Zettle switch (currently Stripe)
+- 📋 PayPal Zettle backend endpoints — `POST /paypal-create` and `POST /paypal-capture` (frontend provider complete)
 - 📋 Tip pooling, tip-out rules, compliance reporting (Pro tier)
 - ⏭️ T2-04 Multi-Device KDS Routing — deferred (no backend station-category mapping)
 - ⏭️ T3-03 Labor Intelligence / Staff Scheduling — deferred (no backend schema)

@@ -22,6 +22,8 @@ export { PrinterService } from './lib/services/printer';
 export { RestaurantSettingsService } from './lib/services/restaurant-settings';
 export { SocketService } from './lib/services/socket';
 export type { SocketConnectionStatus, OrderEvent } from './lib/services/socket';
+export { StripePaymentProvider } from './lib/services/providers/stripe-provider';
+export { PayPalPaymentProvider } from './lib/services/providers/paypal-provider';
 
 // Shared components
 export { LoadingSpinner } from './lib/shared/loading-spinner/loading-spinner';

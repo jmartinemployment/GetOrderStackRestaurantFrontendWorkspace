@@ -83,7 +83,8 @@ export interface Payment {
   amount: number;
   tipAmount: number;
   status: PaymentStatus;
-  stripePaymentIntentId?: string;
+  paymentProcessor?: string;
+  paymentProcessorId?: string;
   paidDate?: Date;
 }
 

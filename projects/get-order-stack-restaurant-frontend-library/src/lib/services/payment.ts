@@ -1,10 +1,18 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
-import { loadStripe, Stripe, StripeElements, StripePaymentElement } from '@stripe/stripe-js';
-import { PaymentIntentResponse, PaymentStatusResponse, RefundResponse, PaymentStep } from '../models';
+import {
+  PaymentProcessorType,
+  PaymentProvider,
+  PaymentContext,
+  PaymentStatusResponse,
+  RefundResponse,
+  PaymentStep,
+} from '../models';
 import { AuthService } from './auth';
 import { environment } from '../environments/environment';
+import { StripePaymentProvider } from './providers/stripe-provider';
+import { PayPalPaymentProvider } from './providers/paypal-provider';
 
 @Injectable({
   providedIn: 'root',
@@ -14,120 +22,114 @@ export class PaymentService {
   private readonly authService = inject(AuthService);
   private readonly apiUrl = environment.apiUrl;
 
-  private stripeInstance: Stripe | null = null;
-  private elements: StripeElements | null = null;
-  private paymentElement: StripePaymentElement | null = null;
+  private provider: PaymentProvider | null = null;
 
   private readonly _paymentStep = signal<PaymentStep>('cart');
   private readonly _isProcessing = signal(false);
   private readonly _error = signal<string | null>(null);
-  private readonly _clientSecret = signal<string | null>(null);
-  private readonly _paymentIntentId = signal<string | null>(null);
+  private readonly _currentPaymentId = signal<string | null>(null);
+  private readonly _processorType = signal<PaymentProcessorType>('none');
 
   readonly paymentStep = this._paymentStep.asReadonly();
   readonly isProcessing = this._isProcessing.asReadonly();
   readonly error = this._error.asReadonly();
-  readonly clientSecret = this._clientSecret.asReadonly();
-  readonly paymentIntentId = this._paymentIntentId.asReadonly();
+  readonly currentPaymentId = this._currentPaymentId.asReadonly();
+  readonly processorType = this._processorType.asReadonly();
 
   private get restaurantId(): string | null {
     return this.authService.selectedRestaurantId();
   }
 
-  async ensureStripeLoaded(): Promise<Stripe | null> {
-    if (this.stripeInstance) return this.stripeInstance;
-
-    if (environment.stripePublishableKey.includes('placeholder')) {
-      this._error.set('Stripe publishable key not configured — replace pk_test_placeholder in environment files');
-      return null;
-    }
-
-    this.stripeInstance = await loadStripe(environment.stripePublishableKey);
-    return this.stripeInstance;
+  private get paymentContext(): PaymentContext | null {
+    if (!this.restaurantId) return null;
+    return { restaurantId: this.restaurantId, apiUrl: this.apiUrl };
   }
 
-  async createPaymentIntent(orderId: string): Promise<PaymentIntentResponse | null> {
-    if (!this.restaurantId) return null;
+  setProcessorType(type: PaymentProcessorType): void {
+    if (this._processorType() === type) return;
+
+    this.provider?.destroy();
+    this.provider = null;
+    this._processorType.set(type);
+
+    switch (type) {
+      case 'stripe':
+        this.provider = new StripePaymentProvider();
+        break;
+      case 'paypal':
+        this.provider = new PayPalPaymentProvider();
+        break;
+      case 'none':
+        break;
+    }
+  }
+
+  isConfigured(): boolean {
+    return this.provider !== null && this._processorType() !== 'none';
+  }
+
+  needsExplicitConfirm(): boolean {
+    return this._processorType() === 'stripe';
+  }
+
+  async initiatePayment(orderId: string, amount: number): Promise<boolean> {
+    if (!this.provider || !this.paymentContext) {
+      this._error.set('Payment processor not configured');
+      return false;
+    }
 
     this._isProcessing.set(true);
     this._error.set(null);
 
     try {
-      const response = await firstValueFrom(
-        this.http.post<PaymentIntentResponse>(
-          `${this.apiUrl}/restaurant/${this.restaurantId}/orders/${orderId}/payment-intent`,
-          {}
-        )
-      );
-      this._clientSecret.set(response.clientSecret);
-      this._paymentIntentId.set(response.paymentIntentId);
-      return response;
+      const result = await this.provider.createPayment(orderId, amount, this.paymentContext);
+      this._currentPaymentId.set(result.paymentId);
+      this._paymentStep.set('paying');
+      return true;
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to create payment intent';
+      const message = err instanceof Error ? err.message : 'Failed to initiate payment';
       this._error.set(message);
-      return null;
+      this._paymentStep.set('failed');
+      return false;
     } finally {
       this._isProcessing.set(false);
     }
   }
 
-  async mountPaymentElement(container: HTMLElement): Promise<boolean> {
-    const stripe = await this.ensureStripeLoaded();
-    const secret = this._clientSecret();
-
-    if (!stripe || !secret) {
-      this._error.set('Stripe not available');
+  async mountPaymentUI(container: HTMLElement): Promise<boolean> {
+    if (!this.provider) {
+      this._error.set('Payment processor not configured');
       return false;
     }
 
-    this.elements = stripe.elements({
-      clientSecret: secret,
-      appearance: {
-        theme: 'night',
-        variables: {
-          colorPrimary: '#7E5EF2',
-          colorBackground: '#03020D',
-          colorText: '#ffffff',
-          colorDanger: '#dc3545',
-          borderRadius: '0.375rem',
-          fontFamily: 'inherit',
-        },
-      },
-    });
-
-    this.paymentElement = this.elements.create('payment');
-    this.paymentElement.mount(container);
-    return true;
+    try {
+      return await this.provider.mountPaymentUI(container);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to mount payment UI';
+      this._error.set(message);
+      return false;
+    }
   }
 
   async confirmPayment(): Promise<boolean> {
-    const stripe = this.stripeInstance;
-    if (!stripe || !this.elements) {
+    if (!this.provider) {
       this._error.set('Payment not initialized');
       return false;
     }
 
     this._isProcessing.set(true);
     this._error.set(null);
-    this._paymentStep.set('paying');
 
     try {
-      const { error } = await stripe.confirmPayment({
-        elements: this.elements,
-        confirmParams: {
-          return_url: globalThis.location.href,
-        },
-        redirect: 'if_required',
-      });
+      const success = await this.provider.confirmPayment();
 
-      if (error) {
-        this._error.set(error.message ?? 'Payment failed');
+      if (success) {
+        this._paymentStep.set('success');
+      } else {
         this._paymentStep.set('failed');
-        return false;
       }
 
-      this._paymentStep.set('success');
-      return true;
+      return success;
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Payment confirmation failed';
       this._error.set(message);
@@ -153,19 +155,13 @@ export class PaymentService {
   }
 
   async cancelPayment(orderId: string): Promise<boolean> {
-    if (!this.restaurantId) return false;
+    if (!this.provider || !this.paymentContext) return false;
 
     this._isProcessing.set(true);
     this._error.set(null);
 
     try {
-      await firstValueFrom(
-        this.http.post(
-          `${this.apiUrl}/restaurant/${this.restaurantId}/orders/${orderId}/cancel-payment`,
-          {}
-        )
-      );
-      return true;
+      return await this.provider.cancelPayment(orderId, this.paymentContext);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to cancel payment';
       this._error.set(message);
@@ -176,20 +172,13 @@ export class PaymentService {
   }
 
   async requestRefund(orderId: string, amount?: number): Promise<RefundResponse | null> {
-    if (!this.restaurantId) return null;
+    if (!this.provider || !this.paymentContext) return null;
 
     this._isProcessing.set(true);
     this._error.set(null);
 
     try {
-      const body = amount !== undefined ? { amount } : {};
-      const response = await firstValueFrom(
-        this.http.post<RefundResponse>(
-          `${this.apiUrl}/restaurant/${this.restaurantId}/orders/${orderId}/refund`,
-          body
-        )
-      );
-      return response;
+      return await this.provider.requestRefund(orderId, this.paymentContext, amount);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to process refund';
       this._error.set(message);
@@ -200,14 +189,11 @@ export class PaymentService {
   }
 
   reset(): void {
-    this.paymentElement?.destroy();
-    this.paymentElement = null;
-    this.elements = null;
+    this.provider?.destroy();
     this._paymentStep.set('cart');
     this._isProcessing.set(false);
     this._error.set(null);
-    this._clientSecret.set(null);
-    this._paymentIntentId.set(null);
+    this._currentPaymentId.set(null);
   }
 
   setStep(step: PaymentStep): void {
