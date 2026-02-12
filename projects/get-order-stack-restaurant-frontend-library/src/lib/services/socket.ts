@@ -1,14 +1,13 @@
 import { Injectable, inject, signal, computed, OnDestroy } from '@angular/core';
 import { io, Socket } from 'socket.io-client';
 import { AuthService } from './auth';
-import { Order } from '../models';
 import { environment } from '../environments/environment';
 
 export type SocketConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'polling';
 
 export interface OrderEvent {
-  type: 'new' | 'updated' | 'cancelled';
-  order: Order;
+  type: 'new' | 'updated' | 'cancelled' | 'printed' | 'print_failed';
+  order: any;
 }
 
 @Injectable({
@@ -23,6 +22,7 @@ export class SocketService implements OnDestroy {
   private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
   private reconnectAttempts = 0;
   private readonly maxReconnectAttempts = 5;
+  private _deviceType: 'pos' | 'kds' | undefined;
 
   // Private writable signals
   private readonly _connectionStatus = signal<SocketConnectionStatus>('disconnected');
@@ -34,12 +34,21 @@ export class SocketService implements OnDestroy {
   readonly deviceId = this._deviceId.asReadonly();
   readonly lastOrderEvent = this._lastOrderEvent.asReadonly();
 
+  // Browser online detection
+  private readonly _browserOnline = signal(navigator.onLine);
+
   // Computed signals
   readonly isConnected = computed(() => this._connectionStatus() === 'connected');
   readonly isPolling = computed(() => this._connectionStatus() === 'polling');
+  readonly isOnline = computed(() => this._browserOnline() && this.isConnected());
 
   // Event callbacks
   private orderCallbacks: Array<(event: OrderEvent) => void> = [];
+
+  constructor() {
+    globalThis.addEventListener('online', () => this._browserOnline.set(true));
+    globalThis.addEventListener('offline', () => this._browserOnline.set(false));
+  }
 
   private getOrCreateDeviceId(): string {
     let deviceId = localStorage.getItem('device_id');
@@ -50,7 +59,11 @@ export class SocketService implements OnDestroy {
     return deviceId;
   }
 
-  connect(restaurantId: string): void {
+  connect(restaurantId: string, deviceType?: 'pos' | 'kds'): void {
+    if (deviceType) {
+      this._deviceType = deviceType;
+    }
+
     if (this.socket?.connected) {
       this.joinRestaurant(restaurantId);
       return;
@@ -63,6 +76,7 @@ export class SocketService implements OnDestroy {
       auth: {
         token: this.authService.token(),
         deviceId: this._deviceId(),
+        deviceType,
       },
     });
 
@@ -84,20 +98,37 @@ export class SocketService implements OnDestroy {
       this.handleReconnect(restaurantId);
     });
 
-    this.socket.on('order:new', (order: Order) => {
+    this.socket.on('order:new', (data: any) => {
+      const order = this.unwrapOrderPayload(data);
       const event: OrderEvent = { type: 'new', order };
       this._lastOrderEvent.set(event);
       this.notifyOrderCallbacks(event);
     });
 
-    this.socket.on('order:updated', (order: Order) => {
+    this.socket.on('order:updated', (data: any) => {
+      const order = this.unwrapOrderPayload(data);
       const event: OrderEvent = { type: 'updated', order };
       this._lastOrderEvent.set(event);
       this.notifyOrderCallbacks(event);
     });
 
-    this.socket.on('order:cancelled', (order: Order) => {
+    this.socket.on('order:cancelled', (data: any) => {
+      const order = this.unwrapOrderPayload(data);
       const event: OrderEvent = { type: 'cancelled', order };
+      this._lastOrderEvent.set(event);
+      this.notifyOrderCallbacks(event);
+    });
+
+    this.socket.on('order:printed', (data: any) => {
+      const order = this.unwrapOrderPayload(data);
+      const event: OrderEvent = { type: 'printed', order };
+      this._lastOrderEvent.set(event);
+      this.notifyOrderCallbacks(event);
+    });
+
+    this.socket.on('order:print_failed', (data: any) => {
+      const order = this.unwrapOrderPayload(data);
+      const event: OrderEvent = { type: 'print_failed', order };
       this._lastOrderEvent.set(event);
       this.notifyOrderCallbacks(event);
     });
@@ -133,7 +164,7 @@ export class SocketService implements OnDestroy {
 
     setTimeout(() => {
       if (this._connectionStatus() === 'disconnected') {
-        this.connect(restaurantId);
+        this.connect(restaurantId, this._deviceType);
       }
     }, delay);
   }
@@ -175,6 +206,11 @@ export class SocketService implements OnDestroy {
     return () => {
       this.orderCallbacks = this.orderCallbacks.filter(cb => cb !== callback);
     };
+  }
+
+  private unwrapOrderPayload(data: any): any {
+    // Backend sends { order, timestamp } — unwrap to get the raw order
+    return data?.order ?? data;
   }
 
   private notifyOrderCallbacks(event: OrderEvent): void {

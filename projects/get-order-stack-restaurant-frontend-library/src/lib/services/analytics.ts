@@ -135,12 +135,28 @@ export class AnalyticsService {
 
     try {
       const params = cartItemIds.join(',');
-      const suggestions = await firstValueFrom(
-        this.http.get<UpsellSuggestion[]>(
+      const raw = await firstValueFrom(
+        this.http.get<any[]>(
           `${this.apiUrl}/restaurant/${this.restaurantId}/analytics/upsell-suggestions?cartItems=${params}`
         )
       );
-      this._upsellSuggestions.set(suggestions ?? []);
+      const mapped: UpsellSuggestion[] = (raw ?? []).map(s => ({
+        item: {
+          id: s.menuItemId,
+          name: s.menuItemName,
+          price: Number(s.price) || 0,
+          description: '',
+          categoryId: '',
+          available: true,
+          popular: false,
+          dietary: [],
+          displayOrder: 0,
+          image: s.image || null,
+        } as any,
+        reason: s.reason || '',
+        suggestedScript: s.suggestedScript || '',
+      }));
+      this._upsellSuggestions.set(mapped);
     } catch {
       this._upsellSuggestions.set([]);
     } finally {

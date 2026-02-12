@@ -13,7 +13,7 @@
   border-bottom: 1px solid var(--deep-lake, #1D3273);
 
   h1 {
-    color: var(--pale-turquoise, #A7F2F2);
+    color: var(--dark-teal, #0E7490);
   }
 }
 
@@ -27,6 +27,18 @@
   @media (max-width: 992px) {
     grid-template-columns: 1fr;
     height: auto;
+  }
+}
+
+.kds-columns-4 {
+  grid-template-columns: repeat(4, 1fr);
+
+  @media (max-width: 1200px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -53,6 +65,10 @@
 
   &.cooking {
     background-color: #fd7e14;
+  }
+
+  &.expo {
+    background-color: #e35d00;
   }
 
   &.ready {
@@ -108,4 +124,17 @@
 
 .empty-state {
   color: var(--bs-secondary-color, #6c757d);
+}
+
+// Pacing mode selector
+.pacing-select {
+  max-width: 150px;
+  background-color: var(--midnight-black, #03020D);
+  border-color: var(--deep-lake, #1D3273);
+  color: #fff;
+  font-size: 0.8rem;
+
+  option {
+    background-color: var(--midnight-black, #03020D);
+  }
 }

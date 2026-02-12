@@ -19,6 +19,7 @@ export { OrderService } from './lib/services/order';
 export type { MappedOrderEvent } from './lib/services/order';
 export { TableService } from './lib/services/table';
 export { PrinterService } from './lib/services/printer';
+export { RestaurantSettingsService } from './lib/services/restaurant-settings';
 export { SocketService } from './lib/services/socket';
 export type { SocketConnectionStatus, OrderEvent } from './lib/services/socket';
 

@@ -12,7 +12,6 @@
             }
           }
           @case ('paying') { Payment }
-          @case ('success') { Payment Complete }
           @case ('failed') { Payment Failed }
         }
       </h4>
@@ -61,22 +60,35 @@
                     ✕
                   </button>
                 </div>
-                <div class="quantity-controls d-flex align-items-center gap-2 mt-2">
-                  <button
-                    type="button"
-                    class="btn btn-sm btn-outline-light"
-                    (click)="decrementQuantity(item.id)"
-                  >
-                    -
-                  </button>
-                  <span class="quantity-display">{{ item.quantity }}</span>
-                  <button
-                    type="button"
-                    class="btn btn-sm btn-outline-light"
-                    (click)="incrementQuantity(item.id)"
-                  >
-                    +
-                  </button>
+                <div class="d-flex align-items-center gap-2 mt-2">
+                  <div class="quantity-controls d-flex align-items-center gap-2">
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-outline-light"
+                      (click)="decrementQuantity(item.id)"
+                    >
+                      -
+                    </button>
+                    <span class="quantity-display">{{ item.quantity }}</span>
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-outline-light"
+                      (click)="incrementQuantity(item.id)"
+                    >
+                      +
+                    </button>
+                  </div>
+                  @if (showCourseAssignment()) {
+                    <select
+                      class="form-select form-select-sm course-select ms-auto"
+                      [value]="getCourseForItem(item.id)"
+                      (change)="onCourseAssign(item.id, $event)"
+                    >
+                      @for (opt of courseOptions; track opt.value) {
+                        <option [value]="opt.value">{{ opt.label }}</option>
+                      }
+                    </select>
+                  }
                 </div>
               </div>
             }
@@ -105,17 +117,332 @@
             </div>
           </div>
 
-          <!-- Table Number -->
-          <div class="mb-3">
-            <input
-              type="text"
-              class="form-control"
-              placeholder="Table Number *"
-              [value]="tableNumber()"
-              (input)="onTableNumberInput($event)"
-              [disabled]="isSubmitting()"
-            />
+          <!-- Dining Option Selector -->
+          <div class="dining-pills d-flex flex-wrap gap-2 mb-3">
+            @for (opt of diningOptionTypes; track opt.type) {
+              <button
+                type="button"
+                class="btn btn-sm"
+                [class.btn-primary]="diningType() === opt.type"
+                [class.btn-outline-light]="diningType() !== opt.type"
+                (click)="setDiningType(opt.type)"
+                [disabled]="isSubmitting()"
+              >
+                {{ opt.label }}
+              </button>
+            }
           </div>
+
+          <!-- Dine-In: Table Number -->
+          @if (selectedDiningOption().requiresTable) {
+            <div class="form-section">
+              <div class="section-title">Table</div>
+              <input
+                type="text"
+                class="form-control"
+                [class.is-invalid]="hasValidationError('table')"
+                placeholder="Table Number *"
+                [value]="tableNumber()"
+                (input)="onTableNumberInput($event)"
+                [disabled]="isSubmitting()"
+              />
+              @if (hasValidationError('table')) {
+                <div class="invalid-feedback d-block">Table number is required</div>
+              }
+            </div>
+          }
+
+          <!-- Customer Info -->
+          @if (selectedDiningOption().requiresCustomer) {
+            <div class="form-section">
+              <div class="section-title">Customer Info</div>
+              <div class="row g-2 mb-2">
+                <div class="col-6">
+                  <input
+                    type="text"
+                    class="form-control"
+                    [class.is-invalid]="hasValidationError('customer.firstName')"
+                    placeholder="First Name *"
+                    [value]="firstName()"
+                    (input)="onFieldInput('firstName', $event)"
+                    [disabled]="isSubmitting()"
+                  />
+                  @if (hasValidationError('customer.firstName')) {
+                    <div class="invalid-feedback d-block">Required</div>
+                  }
+                </div>
+                <div class="col-6">
+                  <input
+                    type="text"
+                    class="form-control"
+                    [class.is-invalid]="hasValidationError('customer.lastName')"
+                    placeholder="Last Name *"
+                    [value]="lastName()"
+                    (input)="onFieldInput('lastName', $event)"
+                    [disabled]="isSubmitting()"
+                  />
+                  @if (hasValidationError('customer.lastName')) {
+                    <div class="invalid-feedback d-block">Required</div>
+                  }
+                </div>
+              </div>
+              <div class="row g-2">
+                <div class="col-6">
+                  <input
+                    type="tel"
+                    class="form-control"
+                    [class.is-invalid]="hasValidationError('customer.phone')"
+                    placeholder="Phone *"
+                    [value]="phone()"
+                    (input)="onFieldInput('phone', $event)"
+                    [disabled]="isSubmitting()"
+                  />
+                  @if (hasValidationError('customer.phone')) {
+                    <div class="invalid-feedback d-block">Required</div>
+                  }
+                </div>
+                <div class="col-6">
+                  <input
+                    type="email"
+                    class="form-control"
+                    [class.is-invalid]="hasValidationError('customer.email')"
+                    placeholder="Email *"
+                    [value]="email()"
+                    (input)="onFieldInput('email', $event)"
+                    [disabled]="isSubmitting()"
+                  />
+                  @if (hasValidationError('customer.email')) {
+                    <div class="invalid-feedback d-block">Required</div>
+                  }
+                </div>
+              </div>
+            </div>
+          }
+
+          <!-- Curbside: Vehicle Info -->
+          @if (selectedDiningOption().requiresVehicle) {
+            <div class="form-section">
+              <div class="section-title">Vehicle Info</div>
+              <input
+                type="text"
+                class="form-control mb-2"
+                [class.is-invalid]="hasValidationError('curbsideInfo.vehicleDescription')"
+                placeholder="Vehicle Description * (e.g. Red Toyota Camry)"
+                [value]="vehicleDescription()"
+                (input)="onFieldInput('vehicleDescription', $event)"
+                [disabled]="isSubmitting()"
+              />
+              @if (hasValidationError('curbsideInfo.vehicleDescription')) {
+                <div class="invalid-feedback d-block mb-2">Vehicle description is required</div>
+              }
+              <div class="row g-2">
+                <div class="col-4">
+                  <input
+                    type="text"
+                    class="form-control"
+                    placeholder="Make"
+                    [value]="vehicleMake()"
+                    (input)="onFieldInput('vehicleMake', $event)"
+                    [disabled]="isSubmitting()"
+                  />
+                </div>
+                <div class="col-4">
+                  <input
+                    type="text"
+                    class="form-control"
+                    placeholder="Model"
+                    [value]="vehicleModel()"
+                    (input)="onFieldInput('vehicleModel', $event)"
+                    [disabled]="isSubmitting()"
+                  />
+                </div>
+                <div class="col-4">
+                  <input
+                    type="text"
+                    class="form-control"
+                    placeholder="Color"
+                    [value]="vehicleColor()"
+                    (input)="onFieldInput('vehicleColor', $event)"
+                    [disabled]="isSubmitting()"
+                  />
+                </div>
+              </div>
+            </div>
+          }
+
+          <!-- Delivery: Address -->
+          @if (selectedDiningOption().requiresAddress) {
+            <div class="form-section">
+              <div class="section-title">Delivery Address</div>
+              <input
+                type="text"
+                class="form-control mb-2"
+                [class.is-invalid]="hasValidationError('deliveryInfo.address')"
+                placeholder="Address Line 1 *"
+                [value]="address()"
+                (input)="onFieldInput('address', $event)"
+                [disabled]="isSubmitting()"
+              />
+              @if (hasValidationError('deliveryInfo.address')) {
+                <div class="invalid-feedback d-block mb-2">Address is required</div>
+              }
+              <input
+                type="text"
+                class="form-control mb-2"
+                placeholder="Address Line 2"
+                [value]="address2()"
+                (input)="onFieldInput('address2', $event)"
+                [disabled]="isSubmitting()"
+              />
+              <div class="row g-2 mb-2">
+                <div class="col-5">
+                  <input
+                    type="text"
+                    class="form-control"
+                    placeholder="City"
+                    [value]="city()"
+                    (input)="onFieldInput('city', $event)"
+                    [disabled]="isSubmitting()"
+                  />
+                </div>
+                <div class="col-3">
+                  <input
+                    type="text"
+                    class="form-control"
+                    placeholder="State"
+                    [value]="state()"
+                    (input)="onFieldInput('state', $event)"
+                    [disabled]="isSubmitting()"
+                  />
+                </div>
+                <div class="col-4">
+                  <input
+                    type="text"
+                    class="form-control"
+                    placeholder="Zip"
+                    [value]="zip()"
+                    (input)="onFieldInput('zip', $event)"
+                    [disabled]="isSubmitting()"
+                  />
+                </div>
+              </div>
+              <textarea
+                class="form-control"
+                rows="2"
+                placeholder="Delivery Notes"
+                [value]="deliveryNotes()"
+                (input)="onFieldInput('deliveryNotes', $event)"
+                [disabled]="isSubmitting()"
+              ></textarea>
+            </div>
+          }
+
+          <!-- Catering: Event Details -->
+          @if (diningType() === 'catering') {
+            <div class="form-section">
+              <div class="section-title">Catering Details</div>
+              <div class="row g-2 mb-2">
+                <div class="col-6">
+                  <label class="form-label small">Event Date *</label>
+                  <input
+                    type="date"
+                    class="form-control"
+                    [class.is-invalid]="hasValidationError('cateringInfo.eventDate')"
+                    [value]="eventDate()"
+                    (input)="onFieldInput('eventDate', $event)"
+                    [disabled]="isSubmitting()"
+                  />
+                  @if (hasValidationError('cateringInfo.eventDate')) {
+                    <div class="invalid-feedback d-block">Required</div>
+                  }
+                </div>
+                <div class="col-6">
+                  <label class="form-label small">Event Time</label>
+                  <input
+                    type="time"
+                    class="form-control"
+                    [value]="eventTime()"
+                    (input)="onFieldInput('eventTime', $event)"
+                    [disabled]="isSubmitting()"
+                  />
+                </div>
+              </div>
+              <div class="row g-2 mb-2">
+                <div class="col-6">
+                  <label class="form-label small">Headcount *</label>
+                  <input
+                    type="number"
+                    class="form-control"
+                    [class.is-invalid]="hasValidationError('cateringInfo.headcount')"
+                    placeholder="0"
+                    [value]="headcount()"
+                    (input)="onFieldInput('headcount', $event)"
+                    [disabled]="isSubmitting()"
+                    min="1"
+                  />
+                  @if (hasValidationError('cateringInfo.headcount')) {
+                    <div class="invalid-feedback d-block">Required</div>
+                  }
+                </div>
+                <div class="col-6">
+                  <label class="form-label small">Event Type</label>
+                  <input
+                    type="text"
+                    class="form-control"
+                    placeholder="Corporate, Wedding..."
+                    [value]="eventType()"
+                    (input)="onFieldInput('eventType', $event)"
+                    [disabled]="isSubmitting()"
+                  />
+                </div>
+              </div>
+              <div class="d-flex align-items-center gap-3 mb-2">
+                <div class="form-check">
+                  <input
+                    type="checkbox"
+                    class="form-check-input"
+                    id="setupRequired"
+                    [checked]="setupRequired()"
+                    (change)="onSetupRequiredChange($event)"
+                    [disabled]="isSubmitting()"
+                  />
+                  <label class="form-check-label" for="setupRequired">Setup Required</label>
+                </div>
+              </div>
+              <div>
+                <label class="form-label small">Deposit Amount</label>
+                <input
+                  type="number"
+                  class="form-control"
+                  placeholder="0.00"
+                  [value]="depositAmount()"
+                  (input)="onFieldInput('depositAmount', $event)"
+                  [disabled]="isSubmitting()"
+                  min="0"
+                  step="0.01"
+                />
+              </div>
+            </div>
+          }
+
+          <!-- Scheduled Orders: Promised Date -->
+          @if (diningType() !== 'dine-in') {
+            <div class="form-section">
+              <div class="section-title">Schedule for Later</div>
+              <input
+                type="datetime-local"
+                class="form-control"
+                [value]="promisedDate()"
+                (input)="onFieldInput('promisedDate', $event)"
+                [disabled]="isSubmitting()"
+              />
+            </div>
+          }
+
+          <!-- Validation Summary -->
+          @if (showValidation() && !validationResult().valid) {
+            <p class="text-danger small mb-3">Please fill in all required fields</p>
+          }
 
           <!-- Clear Cart -->
           <button
@@ -133,14 +460,18 @@
           <button
             type="button"
             class="btn btn-success btn-lg w-100"
-            [disabled]="isSubmitting() || !tableNumber()"
+            [disabled]="!canSubmit()"
             (click)="submitOrder()"
           >
             @if (isSubmitting()) {
               <span class="spinner-border spinner-border-sm me-2"></span>
-              Creating Order...
+              Sending...
             } @else {
-              Place Order & Pay
+              @if (diningType() === 'dine-in') {
+                Send to Kitchen
+              } @else {
+                Place Order
+              }
             }
           </button>
         </div>
@@ -202,63 +533,7 @@
       </div>
     }
 
-    <!-- STEP 3: SUCCESS -->
-    @if (paymentStep() === 'success') {
-      <div class="card-body text-center py-4">
-        <div class="success-icon mb-3">&#10003;</div>
-        <h5 class="mb-2">Payment Successful</h5>
-        <p class="text-muted mb-1">Order {{ orderNumber() }}</p>
-        <p class="fw-bold total-amount mb-0">{{ total() | currency }}</p>
-      </div>
-
-      @if (profitInsight(); as insight) {
-        <div class="profit-insight-panel card-body border-top">
-          <div class="d-flex justify-content-between align-items-start mb-2">
-            <h6 class="mb-0 profit-title">Profit Insight</h6>
-            <button
-              type="button"
-              class="btn-close btn-close-white btn-sm"
-              (click)="dismissProfitInsight()"
-            ></button>
-          </div>
-          <div class="d-flex flex-wrap gap-3 mb-2">
-            <div>
-              <span class="text-muted small">Cost</span>
-              <div class="fw-bold">{{ insight.totalCost | currency }}</div>
-            </div>
-            <div>
-              <span class="text-muted small">Revenue</span>
-              <div class="fw-bold">{{ insight.totalRevenue | currency }}</div>
-            </div>
-            <div>
-              <span class="text-muted small">Margin</span>
-              <div class="fw-bold" [class.text-success]="insight.profitMargin >= 60" [class.text-warning]="insight.profitMargin >= 40 && insight.profitMargin < 60" [class.text-danger]="insight.profitMargin < 40">
-                {{ insight.profitMargin }}%
-              </div>
-            </div>
-          </div>
-          @if (insight.starItem) {
-            <div class="small mb-1">
-              <span class="text-warning">&#9733;</span> Star Item: <strong>{{ insight.starItem }}</strong>
-            </div>
-          }
-          <p class="small text-muted mb-1">{{ insight.insightText }}</p>
-          <p class="small quick-tip mb-0">{{ insight.quickTip }}</p>
-        </div>
-      }
-
-      <div class="card-footer">
-        <button
-          type="button"
-          class="btn btn-primary btn-lg w-100"
-          (click)="closeAfterSuccess()"
-        >
-          Done
-        </button>
-      </div>
-    }
-
-    <!-- STEP 4: FAILED -->
+    <!-- STEP 3: FAILED -->
     @if (paymentStep() === 'failed') {
       <div class="card-body text-center py-4">
         <div class="failed-icon mb-3">&#10007;</div>

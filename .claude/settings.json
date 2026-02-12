@@ -1,9 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Read",
-      "Write",
-      "Edit",
+      "Read(*)",
+      "Read(~/development/Get-Order-Stack-Restaurant-Backend)",
+      "Write(*)",
+      "Edit(*)",
       "Bash(*)",
       "Bash(git commit:*)",
       "Bash(git push:*)",

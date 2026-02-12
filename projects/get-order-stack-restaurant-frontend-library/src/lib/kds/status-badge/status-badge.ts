@@ -1,5 +1,5 @@
 import { Component, input, computed, ChangeDetectionStrategy } from '@angular/core';
-import { OrderStatus } from '../../models';
+import { GuestOrderStatus } from '../../models';
 
 @Component({
   selector: 'get-order-stack-status-badge',
@@ -9,28 +9,26 @@ import { OrderStatus } from '../../models';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class StatusBadge {
-  status = input.required<OrderStatus>();
+  status = input.required<GuestOrderStatus>();
 
   readonly badgeClass = computed(() => {
     switch (this.status()) {
-      case 'pending': return 'bg-secondary';
-      case 'confirmed': return 'bg-info';
-      case 'preparing': return 'bg-warning text-dark';
-      case 'ready': return 'bg-success';
-      case 'completed': return 'bg-primary';
-      case 'cancelled': return 'bg-danger';
+      case 'RECEIVED': return 'bg-secondary';
+      case 'IN_PREPARATION': return 'bg-warning text-dark';
+      case 'READY_FOR_PICKUP': return 'bg-success';
+      case 'CLOSED': return 'bg-primary';
+      case 'VOIDED': return 'bg-danger';
       default: return 'bg-secondary';
     }
   });
 
   readonly statusLabel = computed(() => {
     switch (this.status()) {
-      case 'pending': return 'Pending';
-      case 'confirmed': return 'Confirmed';
-      case 'preparing': return 'Preparing';
-      case 'ready': return 'Ready';
-      case 'completed': return 'Completed';
-      case 'cancelled': return 'Cancelled';
+      case 'RECEIVED': return 'Received';
+      case 'IN_PREPARATION': return 'Preparing';
+      case 'READY_FOR_PICKUP': return 'Ready';
+      case 'CLOSED': return 'Completed';
+      case 'VOIDED': return 'Cancelled';
       default: return this.status();
     }
   });

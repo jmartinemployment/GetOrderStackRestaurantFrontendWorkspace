@@ -1,0 +1,148 @@
+<div class="ai-settings">
+  @if (showSaveSuccess()) {
+    <div class="alert alert-success mb-3">
+      AI settings saved successfully.
+    </div>
+  }
+
+  @if (!isManagerOrAbove()) {
+    <div class="text-muted small mb-3">Only managers and owners can modify AI settings.</div>
+  }
+
+  <!-- AI Order Approval -->
+  <div class="panel mb-3">
+    <div class="panel-title">AI Order Approval</div>
+    <div class="form-check form-switch mb-3">
+      <input
+        class="form-check-input"
+        type="checkbox"
+        id="approvalToggle"
+        [checked]="approvalEnabled()"
+        (change)="onApprovalToggle($event)"
+        [disabled]="!isManagerOrAbove()">
+      <label class="form-check-label" for="approvalToggle">Enable AI Order Approval</label>
+    </div>
+
+    @if (approvalEnabled()) {
+      <div class="row g-3 mb-3">
+        <div class="col-md-4">
+          <label class="form-label" for="timeThreshold">Time Threshold</label>
+          <div class="input-group">
+            <input
+              type="number"
+              class="form-control"
+              id="timeThreshold"
+              [value]="timeThresholdHours()"
+              (input)="onTimeThreshold($event)"
+              min="1"
+              max="168"
+              step="1"
+              [disabled]="!isManagerOrAbove()">
+            <span class="input-group-text">hours</span>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label" for="valueThreshold">Value Threshold</label>
+          <div class="input-group">
+            <span class="input-group-text">$</span>
+            <input
+              type="number"
+              class="form-control"
+              id="valueThreshold"
+              [value]="valueThresholdDollars()"
+              (input)="onValueThreshold($event)"
+              min="0"
+              step="10"
+              [disabled]="!isManagerOrAbove()">
+          </div>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label" for="quantityThreshold">Quantity Threshold</label>
+          <div class="input-group">
+            <input
+              type="number"
+              class="form-control"
+              id="quantityThreshold"
+              [value]="quantityThreshold()"
+              (input)="onQuantityThreshold($event)"
+              min="1"
+              step="1"
+              [disabled]="!isManagerOrAbove()">
+            <span class="input-group-text">items</span>
+          </div>
+        </div>
+      </div>
+      <p class="text-muted small mb-0">{{ thresholdDescription() }}</p>
+    } @else {
+      <p class="text-muted small mb-0">All orders will be auto-approved. Catering orders still require manual review.</p>
+    }
+  </div>
+
+  <!-- Catering Approval Timeout -->
+  <div class="panel mb-3">
+    <div class="panel-title">Catering Approval Timeout</div>
+    <div class="row g-3 mb-2">
+      <div class="col-md-4">
+        <label class="form-label" for="approvalTimeout">Auto-Reject After</label>
+        <div class="input-group">
+          <input
+            type="number"
+            class="form-control"
+            id="approvalTimeout"
+            [value]="approvalTimeoutHours()"
+            (input)="onApprovalTimeoutChange($event)"
+            min="1"
+            max="168"
+            step="1"
+            [disabled]="!isManagerOrAbove()">
+          <span class="input-group-text">hours</span>
+        </div>
+      </div>
+    </div>
+    <p class="text-muted small mb-0">{{ timeoutDescription() }}</p>
+  </div>
+
+  <!-- Expo Station -->
+  <div class="panel mb-3">
+    <div class="panel-title">Expo Station</div>
+    <div class="form-check form-switch mb-2">
+      <input class="form-check-input" type="checkbox" id="expoStationToggle"
+        [checked]="expoStationEnabled()" (change)="onExpoStationToggle($event)"
+        [disabled]="!isManagerOrAbove()">
+      <label class="form-check-label" for="expoStationToggle">Enable Expo Station in KDS</label>
+    </div>
+    @if (expoStationEnabled()) {
+      <p class="text-muted small mb-0">Orders bumped to READY enter an EXPO verification queue before printing and appearing in the READY column.</p>
+    } @else {
+      <p class="text-muted small mb-0">Orders bumped to READY print immediately and appear in the READY column with no expo verification.</p>
+    }
+  </div>
+
+  <!-- Course Pacing Mode -->
+  <div class="panel mb-3">
+    <div class="panel-title">Course Pacing Mode</div>
+    <select class="form-select"
+      [ngModel]="coursePacingMode()"
+      (ngModelChange)="onCoursePacingModeChange($event)"
+      [disabled]="!isManagerOrAbove()">
+      @for (opt of pacingModeOptions; track opt.value) {
+        <option [value]="opt.value">{{ opt.label }}</option>
+      }
+    </select>
+    <p class="text-muted small mt-2 mb-0">{{ currentModeDescription() }}</p>
+  </div>
+
+  <!-- Action bar -->
+  @if (hasUnsavedChanges() && isManagerOrAbove()) {
+    <div class="d-flex gap-2">
+      <button class="btn btn-primary" (click)="save()" [disabled]="isSaving()">
+        @if (isSaving()) {
+          Saving...
+        } @else {
+          Save Changes
+        }
+      </button>
+      <button class="btn btn-outline-light" (click)="discard()" [disabled]="isSaving()">Discard</button>
+    </div>
+  }
+</div>

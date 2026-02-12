@@ -6,6 +6,9 @@
       @if (isRushed()) {
         <span class="badge bg-danger rush-badge">RUSH</span>
       }
+      @if (isExpoQueue()) {
+        <span class="badge bg-expo expo-badge">EXPO</span>
+      }
     </div>
     <div class="d-flex align-items-center gap-2">
       <span class="elapsed-time" [class]="prepColorClass()">
@@ -20,7 +23,18 @@
           }
         </span>
       }
-      <get-order-stack-status-badge [status]="order().status" />
+      <get-order-stack-status-badge [status]="order().guestOrderStatus" />
+      @if (order().guestOrderStatus === 'READY_FOR_PICKUP' && printStatus() !== 'none') {
+        <span class="print-status-badge badge ms-1" [class]="'print-' + printStatus()">
+          @switch (printStatus()) {
+            @case ('printing') {
+              <span class="spinner-border spinner-border-sm me-1"></span> Printing
+            }
+            @case ('printed') { &#10003; Printed }
+            @case ('failed') { &#9888; Print Failed }
+          }
+        </span>
+      }
     </div>
   </div>
 
@@ -36,35 +50,190 @@
   }
 
   <div class="card-body">
-    @if (order().tableId) {
+    @if (order().table) {
       <div class="table-info mb-2">
         <small class="text-muted">Table:</small>
-        <span class="fw-bold ms-1">{{ order().tableId }}</span>
+        <span class="fw-bold ms-1">{{ order().table!.name }}</span>
       </div>
     }
 
-    <ul class="order-items list-unstyled mb-0">
-      @for (item of order().items; track item.id) {
-        <li class="order-item d-flex justify-content-between">
-          <div>
-            <span class="quantity badge bg-secondary me-2">{{ item.quantity }}x</span>
-            <span class="item-name">{{ item.name }}</span>
-            @if (item.modifiers.length > 0) {
-              <div class="modifiers ms-4">
-                @for (mod of item.modifiers; track mod.id) {
-                  <small class="text-muted d-block">+ {{ mod.name }}</small>
-                }
-              </div>
+    @if (order().customer?.firstName && order().diningOption.type !== 'dine-in') {
+      <div class="customer-info mb-2">
+        <small class="text-muted">Customer:</small>
+        <span class="fw-bold ms-1">{{ order().customer!.firstName }} {{ order().customer!.lastName }}</span>
+        @if (order().customer!.phone) {
+          <span class="ms-2 small text-muted">{{ order().customer!.phone }}</span>
+        }
+      </div>
+    }
+
+    @if (order().deliveryInfo) {
+      <div class="dining-info delivery-info mb-2 small">
+        <span class="badge bg-info me-1">Delivery</span>
+        {{ order().deliveryInfo!.address }}
+        @if (order().deliveryInfo!.city) {
+          , {{ order().deliveryInfo!.city }}
+        }
+      </div>
+    }
+
+    @if (order().curbsideInfo) {
+      <div class="dining-info curbside-info mb-2 small">
+        <span class="badge bg-warning text-dark me-1">Curbside</span>
+        {{ order().curbsideInfo!.vehicleDescription }}
+        @if (order().curbsideInfo!.arrivalNotified) {
+          <span class="badge bg-success ms-1">Customer Arrived</span>
+        }
+      </div>
+    }
+
+    @if (order().cateringInfo) {
+      <div class="dining-info catering-info mb-2 small">
+        <span class="badge bg-purple me-1">Catering</span>
+        {{ order().cateringInfo!.headcount }} guests
+        @if (order().cateringInfo!.eventType) {
+          &mdash; {{ order().cateringInfo!.eventType }}
+        }
+      </div>
+    }
+
+    @if (order().approvalStatus && order().approvalStatus !== 'APPROVED') {
+      <div class="approval-status mb-2">
+        <span class="badge"
+          [class.bg-warning]="order().approvalStatus === 'NEEDS_APPROVAL'"
+          [class.bg-danger]="order().approvalStatus === 'NOT_APPROVED'">
+          {{ order().approvalStatus === 'NEEDS_APPROVAL' ? 'Awaiting Approval' : 'Rejected' }}
+        </span>
+      </div>
+    }
+
+    <!-- Course-grouped items OR prep-time-only stagger -->
+    @if (showGroupedView()) {
+      @for (group of courseGroups(); track group.label) {
+        <div class="course-group mb-2">
+          <!-- Hide header when single "Immediate" group with no actual courses -->
+          @if (hasCourses() || courseGroups().length > 1) {
+            <div class="course-header d-flex align-items-center gap-2 mb-1">
+              <span class="course-label fw-semibold">{{ group.label }}</span>
+              <span
+                class="badge course-status-badge"
+                [class.bg-secondary]="group.fireStatus === 'PENDING'"
+                [class.bg-primary]="group.fireStatus === 'FIRED'"
+                [class.bg-success]="group.fireStatus === 'READY'"
+              >
+                {{ group.fireStatus }}
+              </span>
+
+              <!-- Server fires: Fire button for pending courses -->
+              @if (coursePacingMode() === 'server_fires' && group.fireStatus === 'PENDING' && group.course) {
+                <button
+                  type="button"
+                  class="btn btn-sm btn-outline-warning ms-auto fire-course-btn"
+                  (click)="onFireCourse(group.course.guid)"
+                >
+                  Fire {{ group.label }}
+                </button>
+              }
+
+              <!-- Auto-fire: Countdown display -->
+              @if (coursePacingMode() === 'auto_fire_timed' && group.fireStatus === 'PENDING' && group.course) {
+                <span class="auto-fire-countdown ms-auto small text-warning">
+                  @if (getCountdownDisplay(group.course.guid)) {
+                    Fires in {{ getCountdownDisplay(group.course.guid) }}
+                  } @else {
+                    Waiting
+                  }
+                </span>
+              }
+            </div>
+          }
+
+          <ul class="order-items list-unstyled mb-0">
+            @for (item of group.selections; track item.selection.guid) {
+              @let courseStart = getCourseStartTime(group.course);
+              @let fireState = getItemFireState(item, courseStart ?? undefined);
+
+              <li
+                class="order-item d-flex justify-content-between"
+                [class.held-item]="fireState !== 'active'"
+                [class.item-firing]="fireState === 'active' && item.fireDelaySeconds > 0"
+              >
+                <div>
+                  <span class="quantity badge bg-secondary me-2">{{ item.selection.quantity }}x</span>
+                  <span class="item-name">{{ item.selection.menuItemName }}</span>
+                  @if (item.selection.modifiers.length > 0) {
+                    <div class="modifiers ms-4">
+                      @for (mod of item.selection.modifiers; track mod.guid) {
+                        <small class="text-muted d-block">+ {{ mod.name }}</small>
+                      }
+                    </div>
+                  }
+                  @if (item.selection.specialInstructions) {
+                    <div class="special-instructions ms-4">
+                      <small class="text-warning fst-italic">{{ item.selection.specialInstructions }}</small>
+                    </div>
+                  }
+
+                  <!-- Fire delay info (only when prep firing enabled and item has a delay) -->
+                  @if (prepTimeFiringEnabled() && item.fireDelaySeconds > 0) {
+                    @switch (fireState) {
+                      @case ('countdown') {
+                        <div class="item-fire-info d-flex align-items-center gap-2">
+                          <span class="item-countdown badge bg-warning text-dark">
+                            Fires in {{ formatCountdown(getItemCountdownSeconds(item, courseStart ?? undefined)) }}
+                          </span>
+                          <button
+                            type="button"
+                            class="btn btn-xs btn-outline-light fire-now-btn"
+                            (click)="onFireItemNow(item.selection.guid)"
+                          >
+                            Fire Now
+                          </button>
+                        </div>
+                      }
+                      @case ('waiting') {
+                        <div class="item-fire-info">
+                          <span class="fire-delay-badge badge bg-secondary">
+                            {{ getFireDelayDisplay(item.fireDelaySeconds) }}
+                          </span>
+                        </div>
+                      }
+                      @case ('active') {
+                        <span class="badge bg-success">Firing</span>
+                      }
+                    }
+                  }
+                </div>
+              </li>
             }
-            @if (item.specialInstructions) {
-              <div class="special-instructions ms-4">
-                <small class="text-warning fst-italic">{{ item.specialInstructions }}</small>
-              </div>
-            }
-          </div>
-        </li>
+          </ul>
+        </div>
       }
-    </ul>
+    } @else {
+      <!-- Default flat list (no courses / pacing disabled) -->
+      <ul class="order-items list-unstyled mb-0">
+        @for (sel of allSelections(); track sel.guid) {
+          <li class="order-item d-flex justify-content-between">
+            <div>
+              <span class="quantity badge bg-secondary me-2">{{ sel.quantity }}x</span>
+              <span class="item-name">{{ sel.menuItemName }}</span>
+              @if (sel.modifiers.length > 0) {
+                <div class="modifiers ms-4">
+                  @for (mod of sel.modifiers; track mod.guid) {
+                    <small class="text-muted d-block">+ {{ mod.name }}</small>
+                  }
+                </div>
+              }
+              @if (sel.specialInstructions) {
+                <div class="special-instructions ms-4">
+                  <small class="text-warning fst-italic">{{ sel.specialInstructions }}</small>
+                </div>
+              }
+            </div>
+          </li>
+        }
+      </ul>
+    }
 
     @if (order().specialInstructions) {
       <div class="order-instructions mt-3 p-2 bg-warning-subtle rounded">
@@ -74,14 +243,16 @@
     }
   </div>
 
-  @if (nextAction()) {
+  @if (nextAction() || isExpoQueue()) {
     <div class="card-footer d-flex gap-2">
       <button
         type="button"
-        class="btn btn-primary flex-grow-1 bump-button"
+        class="btn flex-grow-1 bump-button"
+        [class.btn-primary]="!isExpoQueue()"
+        [class.btn-expo-check]="isExpoQueue()"
         (click)="onBump()"
       >
-        {{ nextAction()!.label }}
+        {{ bumpLabel() }}
       </button>
       <button
         type="button"
@@ -93,6 +264,17 @@
       >
         !
       </button>
+      @if (printStatus() === 'failed') {
+        <button type="button" class="btn btn-sm btn-outline-warning retry-print-btn"
+          (click)="onRetryPrint()">Retry Print</button>
+      }
+      @if (canRecall()) {
+        <button type="button" class="btn btn-sm recall-btn btn-outline-warning"
+          (click)="onRecall()"
+          title="Recall to previous status">
+          &#x21A9;
+        </button>
+      }
     </div>
   }
 </div>

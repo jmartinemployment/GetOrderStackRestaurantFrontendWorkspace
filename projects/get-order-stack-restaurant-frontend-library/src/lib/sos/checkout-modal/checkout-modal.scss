@@ -28,7 +28,7 @@
     border-bottom: 1px solid var(--deep-lake, #1D3273);
 
     h4 {
-      color: var(--pale-turquoise, #A7F2F2);
+      color: var(--dark-teal, #0E7490);
     }
   }
 
@@ -39,7 +39,7 @@
 }
 
 .form-label {
-  color: var(--pale-turquoise, #A7F2F2);
+  color: var(--dark-teal, #0E7490);
   font-weight: 500;
   margin-bottom: 0.5rem;
 }
@@ -77,7 +77,7 @@
   border: 1px solid var(--deep-lake, #1D3273);
 
   h6 {
-    color: var(--pale-turquoise, #A7F2F2);
+    color: var(--dark-teal, #0E7490);
   }
 
   hr {
@@ -85,7 +85,7 @@
   }
 
   .total {
-    color: var(--pale-turquoise, #A7F2F2);
+    color: var(--dark-teal, #0E7490);
     font-size: 1.25rem;
   }
 }
@@ -194,20 +194,6 @@
   flex-grow: 2;
 }
 
-.profit-insight-panel {
-  background-color: rgba(29, 50, 115, 0.2);
-  border-top-color: var(--deep-lake, #1D3273) !important;
-
-  .profit-title {
-    color: var(--pale-turquoise, #A7F2F2);
-  }
-
-  .quick-tip {
-    color: var(--cerulean-periwinkle, #5CB9F2);
-    font-style: italic;
-  }
-}
-
 .alert-danger {
   background-color: rgba(220, 53, 69, 0.2);
   border-color: rgba(220, 53, 69, 0.5);
@@ -223,7 +209,7 @@
   }
 
   .total-amount {
-    color: var(--pale-turquoise, #A7F2F2);
+    color: var(--dark-teal, #0E7490);
     font-size: 1.1rem;
   }
 }
@@ -237,7 +223,7 @@
   color: #fff;
 
   .total-amount {
-    color: var(--pale-turquoise, #A7F2F2);
+    color: var(--dark-teal, #0E7490);
   }
 }
 
@@ -249,19 +235,7 @@
   }
 }
 
-// Success / Failed icons
-.success-icon {
-  font-size: 3rem;
-  color: #28a745;
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  background-color: rgba(40, 167, 69, 0.15);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
+// Failed icon
 .failed-icon {
   font-size: 3rem;
   color: #dc3545;
@@ -287,4 +261,57 @@
   &.payment-failed { background-color: #dc3545; color: #fff; }
   &.payment-refunded { background-color: #6c757d; color: #fff; }
   &.payment-cancelled { background-color: #6c757d; color: #fff; }
+}
+
+// Dining option pills
+.dining-pills {
+  .btn { font-size: 0.85rem; }
+}
+
+// Form sections (dining option forms)
+.form-section {
+  border: 1px solid var(--deep-lake, #1D3273);
+  border-radius: 0.375rem;
+  padding: 0.75rem;
+  margin-bottom: 0.75rem;
+
+  .section-title {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--dark-teal, #0E7490);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.5rem;
+  }
+}
+
+// Validation error state
+.form-control.is-invalid,
+.form-select.is-invalid {
+  border-color: #dc3545;
+  &:focus { box-shadow: 0 0 0 0.25rem rgba(220, 53, 69, 0.25); }
+}
+
+.invalid-feedback {
+  color: #ff6b6b;
+  font-size: 0.75rem;
+}
+
+// Form check (checkbox) styling
+.form-check-input {
+  background-color: var(--midnight-black, #03020D);
+  border-color: var(--deep-lake, #1D3273);
+  &:checked {
+    background-color: var(--medium-slate-blue, #7E5EF2);
+    border-color: var(--medium-slate-blue, #7E5EF2);
+  }
+}
+
+.form-check-label { color: #fff; }
+
+// Course assignment dropdown
+.course-select {
+  max-width: 120px;
+  font-size: 0.75rem;
+  padding: 0.2rem 0.4rem;
 }

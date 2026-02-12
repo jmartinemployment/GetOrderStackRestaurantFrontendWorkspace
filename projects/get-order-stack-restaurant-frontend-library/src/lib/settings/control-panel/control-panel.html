@@ -16,6 +16,15 @@
     @if (activeTab() === 'printers') {
       <get-order-stack-printer-settings />
     }
+    @if (activeTab() === 'ai-settings') {
+      <get-order-stack-ai-settings />
+    }
+    @if (activeTab() === 'online-pricing') {
+      <get-order-stack-online-pricing />
+    }
+    @if (activeTab() === 'catering-calendar') {
+      <get-order-stack-catering-calendar />
+    }
   } @else {
     <div class="text-center text-muted py-5">
       <p>Please log in and select a restaurant to access settings.</p>

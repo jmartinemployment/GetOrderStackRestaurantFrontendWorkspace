@@ -6,7 +6,7 @@
 
 Get-Order-Stack is a restaurant operating system built to compete with Toast, Square, Clover POS. The **backend already has significant AI features built with Claude Sonnet 4** (cost estimation, menu engineering, sales insights, inventory predictions, order profit analysis). The frontend now surfaces all four tiers of features (T1–T4 complete). The system is deployed via WordPress at geekatyourspot.com with 18 feature pages.
 
-**Foundational Capabilities:** Dining Options (dine-in, takeout, curbside, delivery, catering) fully implemented with frontend workflows (Session 11) and production-ready backend validation via Zod (Session 12). Query filtering supports delivery status tracking and catering approval workflows. Control Panel fully implemented with 4 tabs: Printers, AI Settings, Online Pricing, Catering Calendar (Session 13). Course System UI implemented in PendingOrders (grouped items, fire status badges, manual fire controls) and OrderNotifications (course-ready audio chime + desktop alerts) (Session 13). Duplicate notification bug fixed (Session 14). Course Pacing Mode Selector complete (Session 15) — replaced boolean toggle with 3-way `CoursePacingMode` dropdown (disabled/server_fires/auto_fire_timed) that persists from AI Settings → KDS → PendingOrders with operator override. KDS Recall Ticket complete (Session 15) — backward status transitions with print status cleanup. Catering Approval Timeout complete (Session 16) — configurable auto-reject timer with countdown UI in PendingOrders and AI Settings panel. Offline Mode complete (Session 16) — localStorage order queue with auto-sync on reconnect, CheckoutModal routes through OrderService, PendingOrders shows "Queued" badge with disabled actions for offline orders.
+**Foundational Capabilities:** Dining Options (dine-in, takeout, curbside, delivery, catering) fully implemented with frontend workflows (Session 11) and production-ready backend validation via Zod (Session 12). Query filtering supports delivery status tracking and catering approval workflows. Control Panel fully implemented with 4 tabs: Printers, AI Settings, Online Pricing, Catering Calendar (Session 13). Course System UI implemented in PendingOrders (grouped items, fire status badges, manual fire controls) and OrderNotifications (course-ready audio chime + desktop alerts) (Session 13). Duplicate notification bug fixed (Session 14). Course Pacing Mode Selector complete (Session 15) — replaced boolean toggle with 3-way `CoursePacingMode` dropdown (disabled/server_fires/auto_fire_timed) that persists from AI Settings → KDS → PendingOrders with operator override. KDS Recall Ticket complete (Session 15) — backward status transitions with print status cleanup. Catering Approval Timeout complete (Session 16) — configurable auto-reject timer with countdown UI in PendingOrders and AI Settings panel. Offline Mode complete (Session 16) — localStorage order queue with auto-sync on reconnect, CheckoutModal routes through OrderService, PendingOrders shows "Queued" badge with disabled actions for offline orders. Expo Station complete (Session 17) — local verification layer in KDS with 4-column layout, AI Settings toggle + KDS header override, expo check triggers print, toggle-off safety prints unchecked orders.
 
 This plan maps every AI integration opportunity across all restaurant operations domains, organized by implementation effort.
 
@@ -175,7 +175,7 @@ One bundle serves all OrderStack pages. New custom elements are available on any
 | Domain | Current State | AI Priority |
 |--------|--------------|-------------|
 | Self-Order System (SOS) | ✅ Built (menu, cart, checkout, upsell, voice) | Complete |
-| Kitchen Display (KDS) | ✅ Built (prep times, rush, recall, course pacing) | Complete |
+| Kitchen Display (KDS) | ✅ Built (prep times, rush, recall, course pacing, expo station) | Complete |
 | Order Management | ✅ Built (pending, history, receipt, profit, offline queue) | Complete |
 | Menu Management | ✅ Built (CRUD, AI cost estimation, AI descriptions) | Complete |
 | Inventory | ✅ Built (dashboard, alerts, predictions, stock actions) | Complete |
@@ -295,11 +295,11 @@ Payment statuses: `pending`, `paid`, `failed`, `cancelled`, `partial_refund`, `r
 
 ### T2-01. Smart KDS with Prep Time Predictions & Station Routing
 **Domain:** KDS
-**Status:** ✅ COMPLETE (prep time + rush + recall ticket + course pacing)
-**What:** Show estimated prep time countdown on order cards, color escalation (green/amber/red by time), route items to kitchen stations, add station filter to KDS header, "Rush" button.
+**Status:** ✅ COMPLETE (prep time + rush + recall ticket + course pacing + expo station)
+**What:** Show estimated prep time countdown on order cards, color escalation (green/amber/red by time), route items to kitchen stations, add station filter to KDS header, "Rush" button. Expo Station adds a 4th KDS column for expediter verification before printing/serving.
 **Backend:** PARTIAL — `prepTimeMinutes` and `Station` model exist. Need prep estimate endpoint.
-**Frontend:** Prep time countdown with color escalation from MenuItem.prepTimeMinutes. Rush priority toggle. KDS stats header (active/overdue/avg wait). Recall ticket (backward status transitions). Course pacing mode from AI Settings with operator override. Station routing deferred until backend station-category mapping is built.
-**Impact:** Station routing cuts ticket times 15-20%.
+**Frontend:** Prep time countdown with color escalation from MenuItem.prepTimeMinutes. Rush priority toggle. KDS stats header (active/overdue/avg wait). Recall ticket (backward status transitions). Course pacing mode from AI Settings with operator override. Expo Station: local verification layer on READY_FOR_PICKUP orders — 4-column grid (NEW/COOKING/EXPO/READY), expo check triggers print, toggle-off safety prints unchecked orders, AI Settings + KDS header toggles with override pattern. Station routing deferred until backend station-category mapping is built.
+**Impact:** Station routing cuts ticket times 15-20%. Expo verification prevents incorrect plates reaching customers.
 
 ### T2-02. Intelligent 86 System (Auto-86 from Inventory)
 **Domain:** Menu / Inventory
@@ -431,6 +431,7 @@ Payment statuses: `pending`, `paid`, `failed`, `cancelled`, `partial_refund`, `r
 | T1-08 | Receipt Printing (CloudPRNT) | 2-3 days | 2 | CloudPRNT API | ✅ COMPLETE |
 | CP | Control Panel Tabs (AI Settings, Online Pricing, Catering Calendar) | 1 day | — | PATCH settings | ✅ COMPLETE |
 | CS | Course System UI (PendingOrders display + fire, OrderNotifications chime, duplicate notification bugfix, Course Pacing Mode Selector, KDS Recall Ticket) | 1 day | — | None | ✅ COMPLETE |
+| EX | Expo Station (KDS 4-column layout, AI Settings toggle, expo check → print trigger, toggle-off safety) | 0.5 day | — | None | ✅ COMPLETE |
 | EC | Edge Cases (Catering Approval Timeout, Offline Mode order queue) | 1 day | — | None | ✅ COMPLETE |
 | T1-02 | Menu Engineering Dashboard | 3-4 days | 2 | None | ✅ COMPLETE |
 | T1-03 | Sales Dashboard | 3-4 days | 3 | None | ✅ COMPLETE |

@@ -4,7 +4,7 @@
 
 .pending-orders {
   h2 {
-    color: var(--pale-turquoise, #A7F2F2);
+    color: var(--dark-teal, #0E7490);
   }
 }
 
@@ -30,9 +30,8 @@
       opacity: 0.7;
     }
 
-    &.pending .count { color: #ffc107; }
-    &.confirmed .count { color: #17a2b8; }
-    &.preparing .count { color: #fd7e14; }
+    &.received .count { color: #ffc107; }
+    &.in-preparation .count { color: #fd7e14; }
     &.ready .count { color: #28a745; }
   }
 }
@@ -49,17 +48,16 @@
   color: #fff;
   transition: border-color 0.2s;
 
-  &.status-pending { border-color: #ffc107; }
-  &.status-confirmed { border-color: #17a2b8; }
-  &.status-preparing { border-color: #fd7e14; }
-  &.status-ready { border-color: #28a745; }
+  &.status-RECEIVED { border-color: #ffc107; }
+  &.status-IN_PREPARATION { border-color: #fd7e14; }
+  &.status-READY_FOR_PICKUP { border-color: #28a745; }
 
   .card-header {
     background-color: var(--midnight-black, #03020D);
     border-bottom: 1px solid var(--deep-lake, #1D3273);
 
     h5 {
-      color: var(--pale-turquoise, #A7F2F2);
+      color: var(--dark-teal, #0E7490);
     }
 
     .time-ago {
@@ -74,7 +72,7 @@
 }
 
 .customer-name {
-  color: var(--pale-turquoise, #A7F2F2);
+  color: var(--dark-teal, #0E7490);
 }
 
 .order-items {
@@ -127,6 +125,75 @@
 .payment-failed { background-color: #dc3545; color: #fff; }
 .payment-refunded { background-color: #6c757d; color: #fff; }
 
+// Dining option detail blocks
+.delivery-detail,
+.curbside-detail,
+.catering-detail {
+  padding: 0.35rem 0.5rem;
+  border-radius: 0.25rem;
+  background-color: rgba(29, 50, 115, 0.15);
+  border-left: 3px solid var(--deep-lake, #1D3273);
+}
+
+.delivery-detail {
+  border-left-color: #0d6efd;
+}
+
+.curbside-detail {
+  border-left-color: #ffc107;
+}
+
+.catering-detail {
+  border-left-color: #6f42c1;
+}
+
+// Delivery state badges
+.delivery-preparing {
+  background-color: #6c757d;
+  color: #fff;
+}
+
+.delivery-out {
+  background-color: #0dcaf0;
+  color: #000;
+}
+
+.delivery-done {
+  background-color: #28a745;
+  color: #fff;
+}
+
+.approval-section {
+  padding: 0.5rem;
+  border-radius: 0.25rem;
+  background-color: rgba(111, 66, 193, 0.1);
+  border-left: 3px solid #6f42c1;
+}
+
+.approval-countdown {
+  font-size: 0.75rem;
+  color: #ffc107;
+  margin-bottom: 0.35rem;
+
+  &.urgent {
+    color: #dc3545;
+    font-weight: 600;
+    animation: pulse-text 1s ease-in-out infinite;
+  }
+}
+
+@keyframes pulse-text {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.approval-actions {
+  .btn-success {
+    background-color: #28a745;
+    border-color: #28a745;
+  }
+}
+
 .profit-badge {
   font-size: 0.7rem;
 }
@@ -149,4 +216,68 @@
     background-color: var(--lapis-lazuli, #3632A6);
     border-color: var(--lapis-lazuli, #3632A6);
   }
+}
+
+.print-status-badge {
+  font-size: 0.75rem;
+
+  &.print-printing {
+    background-color: rgba(255, 193, 7, 0.2);
+    color: #ffc107;
+  }
+
+  &.print-printed {
+    background-color: rgba(25, 135, 84, 0.2);
+    color: #198754;
+  }
+
+  &.print-failed {
+    background-color: rgba(220, 53, 69, 0.2);
+    color: #dc3545;
+  }
+}
+
+// Course System — PendingOrders
+.course-group {
+  border-left: 3px solid var(--deep-lake, #1D3273);
+  padding-left: 0.75rem;
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px dashed var(--deep-lake, #1D3273);
+
+  &:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+  }
+}
+
+.course-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.course-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--dark-teal, #0E7490);
+}
+
+.course-status-badge {
+  font-size: 0.6rem;
+  text-transform: uppercase;
+}
+
+.fire-course-btn {
+  font-size: 0.7rem;
+  padding: 0.15rem 0.5rem;
+}
+
+.held-item {
+  opacity: 0.45;
+  border-left: 2px dashed var(--deep-lake, #1D3273);
+  padding-left: 0.5rem;
 }

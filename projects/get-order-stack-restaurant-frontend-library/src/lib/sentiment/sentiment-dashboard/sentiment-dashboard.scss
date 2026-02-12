@@ -2,7 +2,7 @@
   display: block;
   --midnight-black: #03020D;
   --deep-lake: #1D3273;
-  --pale-turquoise: #A7F2F2;
+  --dark-teal: #0E7490;
   --medium-slate-blue: #7E5EF2;
   --cerulean-periwinkle: #5CB9F2;
   --hermes: #203B8C;
@@ -60,7 +60,7 @@
 .kpi-value {
   font-size: 1.5rem;
   font-weight: 700;
-  color: var(--pale-turquoise);
+  color: var(--dark-teal);
 }
 
 .kpi-label {
@@ -98,8 +98,8 @@
   gap: 0.4rem;
 
   &.active {
-    color: var(--pale-turquoise);
-    border-bottom-color: var(--pale-turquoise);
+    color: var(--dark-teal);
+    border-bottom-color: var(--dark-teal);
   }
 }
 
@@ -187,7 +187,7 @@
 }
 
 .keyword-count {
-  color: var(--pale-turquoise);
+  color: var(--dark-teal);
   font-weight: 700;
   margin-left: 0.2rem;
 }

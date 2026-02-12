@@ -23,6 +23,43 @@
           <span class="stat-label">Avg Wait</span>
         </span>
       </div>
+      <!-- Course Pacing Mode -->
+      <div class="d-flex align-items-center gap-2">
+        <label class="small text-muted mb-0">Courses:</label>
+        <select
+          class="form-select form-select-sm pacing-select"
+          [value]="coursePacingMode()"
+          (change)="setCoursePacingMode($event)"
+        >
+          @for (opt of pacingModeOptions; track opt.value) {
+            <option [value]="opt.value">{{ opt.label }}</option>
+          }
+        </select>
+      </div>
+      <!-- Prep Time Firing Toggle -->
+      <div class="d-flex align-items-center gap-2">
+        <div class="form-check form-switch">
+          <input
+            class="form-check-input"
+            type="checkbox"
+            [checked]="prepTimeFiringEnabled()"
+            (change)="togglePrepTimeFiring($event)"
+          />
+          <label class="form-check-label small text-muted">Stagger</label>
+        </div>
+      </div>
+      <!-- Expo Station Toggle -->
+      <div class="d-flex align-items-center gap-2">
+        <div class="form-check form-switch">
+          <input
+            class="form-check-input"
+            type="checkbox"
+            [checked]="expoStationEnabled()"
+            (change)="toggleExpoStation($event)"
+          />
+          <label class="form-check-label small text-muted">Expo</label>
+        </div>
+      </div>
       <get-order-stack-connection-status />
       <button type="button" class="btn btn-outline-light btn-sm" (click)="refresh()">
         Refresh
@@ -46,7 +83,7 @@
       <get-order-stack-loading-spinner message="Loading orders..." />
     </div>
   } @else {
-    <div class="kds-columns">
+    <div class="kds-columns" [class.kds-columns-4]="expoStationEnabled()">
       <!-- NEW Orders Column -->
       <div class="kds-column">
         <div class="column-header new">
@@ -54,13 +91,23 @@
           <span class="badge bg-light text-dark">{{ pendingOrders().length }}</span>
         </div>
         <div class="column-body">
-          @for (order of pendingOrders(); track order.id) {
+          @for (order of pendingOrders(); track order.guid) {
             <get-order-stack-order-card
               [order]="order"
               [estimatedPrepMinutes]="getEstimatedPrep(order)"
-              [isRushed]="isRushed(order.id)"
+              [isRushed]="isRushed(order.guid)"
+              [coursePacingMode]="coursePacingMode()"
+              [prepTimeMap]="prepTimeMap()"
+              [autoFireDelaySeconds]="autoFireDelay()"
+              [prepTimeFiringEnabled]="prepTimeFiringEnabled()"
+              [defaultPrepMinutes]="defaultPrepMinutes()"
+              [printStatus]="getPrintStatus(order.guid)"
               (statusChange)="onStatusChange($event)"
               (rushToggle)="toggleRush($event)"
+              (fireCourse)="onFireCourse($event)"
+              (fireItemNow)="onFireItemNow($event)"
+              (retryPrint)="onRetryPrint($event)"
+              (recallOrder)="onRecall($event)"
             />
           } @empty {
             <div class="empty-state text-center p-4">
@@ -77,13 +124,23 @@
           <span class="badge bg-light text-dark">{{ preparingOrders().length }}</span>
         </div>
         <div class="column-body">
-          @for (order of preparingOrders(); track order.id) {
+          @for (order of preparingOrders(); track order.guid) {
             <get-order-stack-order-card
               [order]="order"
               [estimatedPrepMinutes]="getEstimatedPrep(order)"
-              [isRushed]="isRushed(order.id)"
+              [isRushed]="isRushed(order.guid)"
+              [coursePacingMode]="coursePacingMode()"
+              [prepTimeMap]="prepTimeMap()"
+              [autoFireDelaySeconds]="autoFireDelay()"
+              [prepTimeFiringEnabled]="prepTimeFiringEnabled()"
+              [defaultPrepMinutes]="defaultPrepMinutes()"
+              [printStatus]="getPrintStatus(order.guid)"
               (statusChange)="onStatusChange($event)"
               (rushToggle)="toggleRush($event)"
+              (fireCourse)="onFireCourse($event)"
+              (fireItemNow)="onFireItemNow($event)"
+              (retryPrint)="onRetryPrint($event)"
+              (recallOrder)="onRecall($event)"
             />
           } @empty {
             <div class="empty-state text-center p-4">
@@ -93,20 +150,64 @@
         </div>
       </div>
 
+      <!-- EXPO Orders Column (only when expo enabled) -->
+      @if (expoStationEnabled()) {
+        <div class="kds-column">
+          <div class="column-header expo">
+            <h2 class="h5 mb-0">EXPO</h2>
+            <span class="badge bg-light text-dark">{{ expoQueueOrders().length }}</span>
+          </div>
+          <div class="column-body">
+            @for (order of expoQueueOrders(); track order.guid) {
+              <get-order-stack-order-card
+                [order]="order"
+                [estimatedPrepMinutes]="getEstimatedPrep(order)"
+                [isRushed]="isRushed(order.guid)"
+                [isExpoQueue]="true"
+                [coursePacingMode]="coursePacingMode()"
+                [prepTimeMap]="prepTimeMap()"
+                [autoFireDelaySeconds]="autoFireDelay()"
+                [prepTimeFiringEnabled]="prepTimeFiringEnabled()"
+                [defaultPrepMinutes]="defaultPrepMinutes()"
+                [printStatus]="getPrintStatus(order.guid)"
+                (expoCheck)="onExpoCheck($event)"
+                (rushToggle)="toggleRush($event)"
+                (retryPrint)="onRetryPrint($event)"
+                (recallOrder)="onRecall($event)"
+              />
+            } @empty {
+              <div class="empty-state text-center p-4">
+                <p class="text-muted mb-0">No orders to verify</p>
+              </div>
+            }
+          </div>
+        </div>
+      }
+
       <!-- READY Orders Column -->
       <div class="kds-column">
         <div class="column-header ready">
           <h2 class="h5 mb-0">READY</h2>
-          <span class="badge bg-light text-dark">{{ readyOrders().length }}</span>
+          <span class="badge bg-light text-dark">{{ expoCheckedOrders().length }}</span>
         </div>
         <div class="column-body">
-          @for (order of readyOrders(); track order.id) {
+          @for (order of expoCheckedOrders(); track order.guid) {
             <get-order-stack-order-card
               [order]="order"
               [estimatedPrepMinutes]="getEstimatedPrep(order)"
-              [isRushed]="isRushed(order.id)"
+              [isRushed]="isRushed(order.guid)"
+              [coursePacingMode]="coursePacingMode()"
+              [prepTimeMap]="prepTimeMap()"
+              [autoFireDelaySeconds]="autoFireDelay()"
+              [prepTimeFiringEnabled]="prepTimeFiringEnabled()"
+              [defaultPrepMinutes]="defaultPrepMinutes()"
+              [printStatus]="getPrintStatus(order.guid)"
               (statusChange)="onStatusChange($event)"
               (rushToggle)="toggleRush($event)"
+              (fireCourse)="onFireCourse($event)"
+              (fireItemNow)="onFireItemNow($event)"
+              (retryPrint)="onRetryPrint($event)"
+              (recallOrder)="onRecall($event)"
             />
           } @empty {
             <div class="empty-state text-center p-4">

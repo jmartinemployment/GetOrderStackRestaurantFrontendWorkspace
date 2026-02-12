@@ -239,17 +239,17 @@
         <!-- Active Orders -->
         <div class="detail-orders">
           <h6>Active Orders</h6>
-          @for (order of getTableOrders(table.id); track order.id) {
+          @for (order of getTableOrders(table.id); track order.guid) {
             <div class="order-mini-card mb-2">
               <div class="d-flex justify-content-between align-items-center">
-                <span class="fw-bold">#{{ order.orderNumber || order.id.slice(-4).toUpperCase() }}</span>
-                <span class="badge" [class]="getStatusBadgeClass(order.status === 'pending' ? 'reserved' : order.status === 'preparing' ? 'occupied' : 'available')">
-                  {{ order.status }}
+                <span class="fw-bold">#{{ order.orderNumber || order.guid.slice(-4).toUpperCase() }}</span>
+                <span class="badge" [class]="getStatusBadgeClass(order.guestOrderStatus === 'RECEIVED' ? 'reserved' : order.guestOrderStatus === 'IN_PREPARATION' ? 'occupied' : 'available')">
+                  {{ order.guestOrderStatus }}
                 </span>
               </div>
               <div class="d-flex justify-content-between mt-1">
-                <span class="text-muted small">{{ order.items.length }} items</span>
-                <span class="fw-bold">{{ order.total | currency }}</span>
+                <span class="text-muted small">{{ order.checks[0]?.selections?.length ?? 0 }} items</span>
+                <span class="fw-bold">{{ order.totalAmount | currency }}</span>
               </div>
             </div>
           } @empty {

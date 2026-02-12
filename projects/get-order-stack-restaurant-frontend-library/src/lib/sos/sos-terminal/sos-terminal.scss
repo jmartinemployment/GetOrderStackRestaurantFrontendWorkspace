@@ -41,11 +41,11 @@
   }
 
   h1 {
-    color: var(--pale-turquoise, #A7F2F2);
+    color: var(--dark-teal, #0E7490);
   }
 
   .restaurant-name {
-    color: var(--pale-turquoise, #A7F2F2);
+    color: var(--dark-teal, #0E7490);
     font-weight: 600;
     font-size: 1.25rem;
   }
@@ -93,7 +93,7 @@
   &:hover .hamburger-icon,
   &:hover .hamburger-icon::before,
   &:hover .hamburger-icon::after {
-    background-color: var(--pale-turquoise, #A7F2F2);
+    background-color: var(--dark-teal, #0E7490);
   }
 }
 
@@ -126,7 +126,7 @@
     border-bottom: 1px solid var(--deep-lake, #1D3273);
 
     .drawer-title {
-      color: var(--pale-turquoise, #A7F2F2);
+      color: var(--dark-teal, #0E7490);
       font-weight: 600;
       font-size: 1.1rem;
     }

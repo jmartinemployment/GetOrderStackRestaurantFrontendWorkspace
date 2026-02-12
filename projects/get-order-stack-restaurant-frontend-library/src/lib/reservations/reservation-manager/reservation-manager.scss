@@ -3,7 +3,7 @@
 }
 
 .reservation-manager {
-  h2 { color: var(--pale-turquoise, #A7F2F2); }
+  h2 { color: var(--dark-teal, #0E7490); }
 }
 
 // KPI strip
@@ -26,7 +26,7 @@
     .kpi-chip-value {
       font-size: 1.25rem;
       font-weight: 700;
-      color: var(--pale-turquoise, #A7F2F2);
+      color: var(--dark-teal, #0E7490);
     }
   }
 }
@@ -76,7 +76,7 @@
 
 .res-name {
   font-weight: 600;
-  color: var(--pale-turquoise, #A7F2F2);
+  color: var(--dark-teal, #0E7490);
 }
 
 // Status badges
@@ -118,7 +118,7 @@
   .card-header {
     background-color: var(--midnight-black, #03020D);
     border-bottom: 1px solid var(--deep-lake, #1D3273);
-    h4 { color: var(--pale-turquoise, #A7F2F2); }
+    h4 { color: var(--dark-teal, #0E7490); }
   }
 
   .card-footer {
@@ -129,7 +129,7 @@
 
 // Form
 .form-label {
-  color: var(--pale-turquoise, #A7F2F2);
+  color: var(--dark-teal, #0E7490);
   font-weight: 500;
   font-size: 0.85rem;
 }

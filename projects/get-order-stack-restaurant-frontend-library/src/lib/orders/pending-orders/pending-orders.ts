@@ -1,11 +1,19 @@
-import { Component, inject, computed, signal, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject, computed, signal, OnInit, OnDestroy, ChangeDetectionStrategy } from '@angular/core';
 import { CurrencyPipe } from '@angular/common';
 import { OrderService } from '../../services/order';
 import { AuthService } from '../../services/auth';
+import { RestaurantSettingsService } from '../../services/restaurant-settings';
 import { LoadingSpinner } from '../../shared/loading-spinner/loading-spinner';
 import { ErrorDisplay } from '../../shared/error-display/error-display';
 import { StatusBadge } from '../../kds/status-badge/status-badge';
-import { Order, ProfitInsight, getCustomerDisplayName, getOrderIdentifier, PrintStatus } from '../../models';
+import { Order, ProfitInsight, getCustomerDisplayName, getOrderIdentifier, PrintStatus, Course, Selection, CourseFireStatus } from '../../models';
+
+interface PendingCourseGroup {
+  course: Course | null;
+  label: string;
+  selections: Selection[];
+  fireStatus: CourseFireStatus;
+}
 
 @Component({
   selector: 'get-order-stack-pending-orders',
@@ -14,9 +22,10 @@ import { Order, ProfitInsight, getCustomerDisplayName, getOrderIdentifier, Print
   styleUrl: './pending-orders.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class PendingOrders implements OnInit {
+export class PendingOrders implements OnInit, OnDestroy {
   private readonly orderService = inject(OrderService);
   private readonly authService = inject(AuthService);
+  private readonly settingsService = inject(RestaurantSettingsService);
 
   readonly orders = this.orderService.orders;
   readonly isLoading = this.orderService.isLoading;
@@ -25,10 +34,29 @@ export class PendingOrders implements OnInit {
   private readonly _profitInsights = signal<Map<string, ProfitInsight>>(new Map());
   readonly profitInsights = this._profitInsights.asReadonly();
 
+  readonly coursePacingMode = computed(() => this.settingsService.aiSettings().coursePacingMode);
+  readonly coursePacingEnabled = computed(() => this.coursePacingMode() !== 'disabled');
+  private readonly _firingCourses = signal(new Set<string>());
+
+  // Approval timeout
+  private _approvalTimerRef: ReturnType<typeof setInterval> | null = null;
+  private readonly _tick = signal(0);
+  private readonly _autoRejectingIds = signal(new Set<string>());
+
   readonly pendingOrders = computed(() =>
     this.orders().filter(order =>
       ['RECEIVED', 'IN_PREPARATION', 'READY_FOR_PICKUP'].includes(order.guestOrderStatus)
     ).sort((a, b) => a.timestamps.createdDate.getTime() - b.timestamps.createdDate.getTime())
+  );
+
+  readonly approvalTimeoutHours = computed(() => this.settingsService.aiSettings().approvalTimeoutHours);
+
+  // Offline queue
+  readonly queuedCount = computed(() => this.orderService.queuedCount());
+  readonly isSyncing = computed(() => this.orderService.isSyncing());
+
+  readonly pendingApprovalOrders = computed(() =>
+    this.orders().filter(o => o.approvalStatus === 'NEEDS_APPROVAL')
   );
 
   readonly orderCounts = computed(() => {
@@ -42,6 +70,12 @@ export class PendingOrders implements OnInit {
 
   ngOnInit(): void {
     this.orderService.loadOrders();
+    this.settingsService.loadSettings();
+    this.startApprovalTimeoutChecker();
+  }
+
+  ngOnDestroy(): void {
+    this.stopApprovalTimeoutChecker();
   }
 
   getOrderNumber(order: Order): string {
@@ -114,8 +148,152 @@ export class PendingOrders implements OnInit {
     }
   }
 
+  orderHasCourses(order: Order): boolean {
+    if (!this.coursePacingEnabled()) return false;
+    const allSelections = order.checks.flatMap(c => c.selections);
+    return allSelections.some(sel => !!sel.course);
+  }
+
+  getCourseGroups(order: Order): PendingCourseGroup[] {
+    const allSelections = order.checks.flatMap(c => c.selections);
+    const groupMap = new Map<string, PendingCourseGroup>();
+
+    // Immediate group for items without a course
+    const immediateKey = '__immediate__';
+    for (const sel of allSelections) {
+      if (!sel.course) {
+        if (!groupMap.has(immediateKey)) {
+          groupMap.set(immediateKey, {
+            course: null,
+            label: 'Immediate',
+            selections: [],
+            fireStatus: 'FIRED',
+          });
+        }
+        groupMap.get(immediateKey)!.selections.push(sel);
+      } else {
+        const key = sel.course.guid;
+        if (!groupMap.has(key)) {
+          groupMap.set(key, {
+            course: sel.course,
+            label: sel.course.name,
+            selections: [],
+            fireStatus: sel.course.fireStatus,
+          });
+        }
+        groupMap.get(key)!.selections.push(sel);
+      }
+    }
+
+    const groups = Array.from(groupMap.values());
+    // Immediate group first, then sort by sortOrder
+    return groups.sort((a, b) => {
+      if (!a.course) return -1;
+      if (!b.course) return 1;
+      return a.course.sortOrder - b.course.sortOrder;
+    });
+  }
+
+  async fireCourse(orderId: string, courseGuid: string): Promise<void> {
+    this._firingCourses.update(set => {
+      const updated = new Set(set);
+      updated.add(courseGuid);
+      return updated;
+    });
+    try {
+      await this.orderService.fireCourse(orderId, courseGuid);
+    } finally {
+      this._firingCourses.update(set => {
+        const updated = new Set(set);
+        updated.delete(courseGuid);
+        return updated;
+      });
+    }
+  }
+
+  isFiringCourse(courseGuid: string): boolean {
+    return this._firingCourses().has(courseGuid);
+  }
+
+  getFireStatusClass(status: string): string {
+    switch (status) {
+      case 'PENDING': return 'bg-secondary';
+      case 'FIRED': return 'bg-primary';
+      case 'READY': return 'bg-success';
+      default: return 'bg-secondary';
+    }
+  }
+
   retry(): void {
     this.orderService.loadOrders();
+  }
+
+  // --- Approval timeout methods ---
+
+  private startApprovalTimeoutChecker(): void {
+    this._approvalTimerRef = setInterval(() => {
+      this._tick.update(t => t + 1);
+      this.checkAutoReject();
+    }, 60_000);
+  }
+
+  private stopApprovalTimeoutChecker(): void {
+    if (this._approvalTimerRef !== null) {
+      clearInterval(this._approvalTimerRef);
+      this._approvalTimerRef = null;
+    }
+  }
+
+  private checkAutoReject(): void {
+    const timeoutMs = this.approvalTimeoutHours() * 3600_000;
+    for (const order of this.pendingApprovalOrders()) {
+      const elapsed = Date.now() - order.timestamps.createdDate.getTime();
+      if (elapsed >= timeoutMs) {
+        this.autoRejectOrder(order);
+      }
+    }
+  }
+
+  private async autoRejectOrder(order: Order): Promise<void> {
+    if (this._autoRejectingIds().has(order.guid)) return;
+    this._autoRejectingIds.update(set => {
+      const updated = new Set(set);
+      updated.add(order.guid);
+      return updated;
+    });
+    await this.orderService.rejectOrder(order.guid);
+    this._autoRejectingIds.update(set => {
+      const updated = new Set(set);
+      updated.delete(order.guid);
+      return updated;
+    });
+  }
+
+  getApprovalRemainingMs(order: Order): number {
+    // Force reactivity via _tick
+    this._tick();
+    const timeoutMs = this.approvalTimeoutHours() * 3600_000;
+    const elapsed = Date.now() - order.timestamps.createdDate.getTime();
+    return Math.max(0, timeoutMs - elapsed);
+  }
+
+  getApprovalCountdown(order: Order): string {
+    const remainMs = this.getApprovalRemainingMs(order);
+    if (remainMs <= 0) return 'Auto-rejecting...';
+    const totalMinutes = Math.ceil(remainMs / 60_000);
+    const hours = Math.floor(totalMinutes / 60);
+    const mins = totalMinutes % 60;
+    if (hours > 0) return `${hours}h ${mins}m remaining`;
+    return `${mins}m remaining`;
+  }
+
+  isApprovalUrgent(order: Order): boolean {
+    const remainMs = this.getApprovalRemainingMs(order);
+    return remainMs > 0 && remainMs <= 3600_000;
+  }
+
+  isAutoRejecting(orderId: string): boolean {
+    return this._autoRejectingIds().has(orderId);
   }
 
   getPrintStatus(orderId: string): PrintStatus {

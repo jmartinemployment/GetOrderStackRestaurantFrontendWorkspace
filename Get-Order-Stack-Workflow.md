@@ -378,9 +378,9 @@ All items finish simultaneously.
 
 ## KDS WORKFLOW — ✅ IMPLEMENTED (T2-01)
 
-**Status:** KDS Display component complete with prep time tracking (color escalation green/amber/red), rush priority toggle, overdue alerts, average wait time stats, recall ticket (backward status transitions with print status cleanup), and course pacing mode synced from AI Settings (with operator override for per-session changes). Expo Station toggle exists in data model but UI not yet surfaced in Control Panel.
+**Status:** KDS Display component complete with prep time tracking (color escalation green/amber/red), rush priority toggle, overdue alerts, average wait time stats, recall ticket (backward status transitions with print status cleanup), course pacing mode synced from AI Settings (with operator override for per-session changes), and Expo Station (local verification layer with 4-column KDS layout).
 
-**Control Panel Setting:** `Enable Expo Station` (On/Off, default: Off) — 📋 PLANNED (UI pending)
+**Control Panel Setting:** `Enable Expo Station` (On/Off, default: Off) — ✅ IMPLEMENTED (Session 17)
 
 ### Prep Station Flow
 1. Order SENT → Ticket appears on KDS
@@ -389,11 +389,15 @@ All items finish simultaneously.
 4. **Notification sent to device that placed order**
 5. Ticket disappears from KDS
 
-### [FUTURE] Expo Station
-*For larger operations - not in initial release*
-- Control Panel toggle: `Enable Expo Station`
-- Adds verification step between kitchen and server notification
-- Two-level expediter option for high-volume restaurants
+### Expo Station — ✅ IMPLEMENTED (Session 17)
+*For larger operations with an expediter*
+- **AI Settings toggle:** `Enable Expo Station in KDS` (persists via RestaurantSettingsService)
+- **KDS header toggle:** Per-session override (same pattern as course pacing)
+- When **OFF** (default): 3-column KDS (NEW → COOKING → READY), print triggers on READY
+- When **ON**: 4-column KDS (NEW → COOKING → EXPO → READY), print triggers on expo check
+- No new `GuestOrderStatus` — EXPO is a local verification layer on `READY_FOR_PICKUP` orders
+- Toggle-off safety: unchecked expo orders get prints before EXPO column is removed
+- Responsive grid: 4 columns at desktop, 2 at 1200px, 1 at 768px
 
 ---
 
@@ -423,8 +427,8 @@ All items finish simultaneously.
 ### Phase 4: Kitchen
 - Cook prepares order
 - Cook taps "Done" → fulfillmentStatus → READY
-- **If Expo DISABLED (default):** Notification sent to server's device
-- **If Expo ENABLED [FUTURE]:** Ticket routes to Expo → Expo bumps → Notification sent to server's device
+- **If Expo DISABLED (default):** Receipt prints immediately, notification sent to server's device
+- **If Expo ENABLED:** Ticket routes to EXPO column (no print) → Expo taps "CHECKED" → Receipt prints, order moves to READY column → Notification sent to server's device
 
 ### Phase 5: Food Delivery
 - Server retrieves food
@@ -586,12 +590,13 @@ OPEN → PAID → CLOSED
 |---------|------|---------|-------------|
 | Enable AI Order Approval | Toggle | On | Master switch for AI approval system |
 | **Course Pacing Mode** | Dropdown | Disabled | 3-way selector: Disabled (all items fire immediately), Server Fires (manual per-course fire), Auto-Fire Timed (auto-fire after delay when previous course completes) |
+| **Enable Expo Station** | Toggle | Off | Adds EXPO verification column to KDS between COOKING and READY |
 | **Catering Approval Timeout** | Hours | 24 | Auto-reject catering orders awaiting approval after this many hours |
 | Time threshold | Hours | 12 | Orders scheduled beyond this require AI review |
 | Value threshold | Currency | $200 | Orders over this value require AI review |
 | Quantity threshold | Number | 20 | Orders over this item count require AI review |
 
-**Frontend:** `AiSettings` component in `settings/ai-settings/`. Three panels (AI Order Approval with 3 threshold inputs, Catering Approval Timeout with hours input, Course Pacing Mode dropdown with dynamic description). Computed threshold and timeout descriptions. Save/Discard action bar. Role-based view-only for staff.
+**Frontend:** `AiSettings` component in `settings/ai-settings/`. Four panels (AI Order Approval with 3 threshold inputs, Catering Approval Timeout with hours input, Expo Station toggle with descriptive text, Course Pacing Mode dropdown with dynamic description). Computed threshold and timeout descriptions. Save/Discard action bar. Role-based view-only for staff.
 
 ### Control Panel - Online Order Pricing — ✅ IMPLEMENTED (Session 13)
 
@@ -629,8 +634,12 @@ OPEN → PAID → CLOSED
 | Food delivery method | Server delivers / Bartender delivers / Expo calls |
 | Tip allocation | Bar only / Split with server / Pool |
 
-### [FUTURE] Expo Settings
-*Not in initial release - for larger operations*
+### Expo Settings — ✅ IMPLEMENTED (Session 17)
+*Available in AI Settings tab and KDS header toggle*
+
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| Enable Expo Station in KDS | Toggle | Off | Adds EXPO verification column between COOKING and READY |
 
 ### KDS Actions
 - **Bump ticket** → fulfillmentStatus = READY → Notification to device that placed order
@@ -1014,8 +1023,8 @@ GetOrderStack Applications
 
 ---
 
-*Document Version: 4.8*
-*Last Updated: 2026-02-12 (Status refresh — all statuses verified against codebase)*
+*Document Version: 4.9*
+*Last Updated: 2026-02-12 (Session 17 — Expo Station implemented)*
 *Location: Get-Order-Stack-Restaurant-Frontend-Workspace/Get-Order-Stack-Workflow.md*
 
 ## IMPLEMENTATION SUMMARY
@@ -1038,7 +1047,6 @@ GetOrderStack Applications
 **Remaining:**
 - 🚧 AI auto-fire course pacing — backend execution pending (frontend UI complete: mode selector, manual fire, course notifications, recall ticket)
 - 📋 Order throttling — not yet implemented
-- 📋 Expo Station UI — toggle exists in data model, UI not yet surfaced in Control Panel
 - 🔬 Third-party delivery, loyalty, accounting/payroll integrations (research phase)
 - 📋 PayPal Zettle switch (currently Stripe)
 - 📋 Tip pooling, tip-out rules, compliance reporting (Pro tier)

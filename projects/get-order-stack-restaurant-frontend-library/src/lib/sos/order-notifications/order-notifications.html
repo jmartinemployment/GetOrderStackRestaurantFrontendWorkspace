@@ -70,8 +70,8 @@
       </div>
       <div class="toast-body">
         <div class="notification-message">{{ notification.message }}</div>
-        @if (notification.order.orderType) {
-          <span class="badge order-type-badge mt-1">{{ notification.order.orderType }}</span>
+        @if (notification.order.diningOption) {
+          <span class="badge order-type-badge mt-1">{{ notification.order.diningOption.name }}</span>
         }
       </div>
     </div>

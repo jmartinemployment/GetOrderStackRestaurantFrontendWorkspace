@@ -1,10 +1,10 @@
 import { Component, input, signal, ChangeDetectionStrategy } from '@angular/core';
-import { CurrencyPipe, TitleCasePipe } from '@angular/common';
-import { Order } from '../../models';
+import { CurrencyPipe } from '@angular/common';
+import { Order, getOrderIdentifier, getCustomerDisplayName } from '../../models';
 
 @Component({
   selector: 'get-order-stack-receipt-printer',
-  imports: [CurrencyPipe, TitleCasePipe],
+  imports: [CurrencyPipe],
   templateUrl: './receipt-printer.html',
   styleUrl: './receipt-printer.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -20,14 +20,16 @@ export class ReceiptPrinter {
   readonly isPrinting = this._isPrinting.asReadonly();
 
   getOrderNumber(): string {
-    const order = this.order();
-    return order.orderNumber || order.id.slice(-4).toUpperCase();
+    return getOrderIdentifier(this.order());
+  }
+
+  getCustomerName(): string {
+    return getCustomerDisplayName(this.order());
   }
 
   print(): void {
     this._isPrinting.set(true);
 
-    // Use the browser's print functionality
     setTimeout(() => {
       window.print();
       this._isPrinting.set(false);

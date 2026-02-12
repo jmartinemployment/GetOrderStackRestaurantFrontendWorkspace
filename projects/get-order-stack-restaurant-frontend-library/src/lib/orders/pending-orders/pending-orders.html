@@ -2,16 +2,12 @@
   <div class="d-flex justify-content-between align-items-center mb-4">
     <h2 class="h4 mb-0">Pending Orders</h2>
     <div class="order-counts d-flex gap-3">
-      <span class="badge-count pending">
-        <span class="count">{{ orderCounts().pending }}</span>
+      <span class="badge-count received">
+        <span class="count">{{ orderCounts().received }}</span>
         <span class="label">New</span>
       </span>
-      <span class="badge-count confirmed">
-        <span class="count">{{ orderCounts().confirmed }}</span>
-        <span class="label">Confirmed</span>
-      </span>
-      <span class="badge-count preparing">
-        <span class="count">{{ orderCounts().preparing }}</span>
+      <span class="badge-count in-preparation">
+        <span class="count">{{ orderCounts().inPreparation }}</span>
         <span class="label">Cooking</span>
       </span>
       <span class="badge-count ready">
@@ -35,41 +31,150 @@
     </div>
   } @else {
     <div class="orders-grid">
-      @for (order of pendingOrders(); track order.id) {
-        <div class="order-card card" [class]="'status-' + order.status">
+      @for (order of pendingOrders(); track order.guid) {
+        <div class="order-card card" [class]="'status-' + order.guestOrderStatus">
           <div class="card-header d-flex justify-content-between align-items-center">
             <div>
               <h5 class="mb-0">#{{ getOrderNumber(order) }}</h5>
               <small class="time-ago">{{ getTimeSinceOrder(order) }}</small>
             </div>
-            <get-order-stack-status-badge [status]="order.status" />
+            <get-order-stack-status-badge [status]="order.guestOrderStatus" />
+            @if (order._queued) {
+              <span class="badge bg-warning text-dark ms-1">Queued</span>
+            }
+            @if (order.guestOrderStatus === 'READY_FOR_PICKUP' && getPrintStatus(order.guid) !== 'none') {
+              <span class="print-status-badge badge ms-1" [class]="'print-' + getPrintStatus(order.guid)">
+                @switch (getPrintStatus(order.guid)) {
+                  @case ('printing') {
+                    <span class="spinner-border spinner-border-sm me-1"></span> Printing
+                  }
+                  @case ('printed') { &#10003; Printed }
+                  @case ('failed') { &#9888; Print Failed }
+                }
+              </span>
+            }
           </div>
 
           <div class="card-body">
             <div class="order-meta mb-2">
-              <span class="badge bg-secondary me-2">{{ order.orderType }}</span>
-              <span class="badge me-2" [class]="getPaymentBadgeClass(order.paymentStatus)">{{ getPaymentLabel(order.paymentStatus) }}</span>
-              @if (order.tableId) {
-                <span class="badge bg-info">Table {{ order.tableId }}</span>
+              <span class="badge bg-secondary me-2">{{ order.diningOption.name }}</span>
+              <span class="badge me-2" [class]="getPaymentBadgeClass(order.checks[0]?.paymentStatus ?? 'OPEN')">{{ getPaymentLabel(order.checks[0]?.paymentStatus ?? 'OPEN') }}</span>
+              @if (order.table) {
+                <span class="badge bg-info">Table {{ order.table.name }}</span>
               }
-              @if (order.customer?.name) {
-                <span class="customer-name ms-2">{{ order.customer?.name }}</span>
+              @if (order.customer?.firstName || order.customer?.lastName) {
+                <span class="customer-name ms-2">{{ order.customer?.firstName }} {{ order.customer?.lastName }}</span>
               }
             </div>
 
-            <div class="order-items">
-              @for (item of order.items; track item.id) {
-                <div class="order-item">
-                  <span class="quantity">{{ item.quantity }}x</span>
-                  <span class="name">{{ item.name }}</span>
-                  @if (item.modifiers && item.modifiers.length > 0) {
-                    <div class="modifiers">
-                      @for (mod of item.modifiers; track mod.id) {
-                        <small class="modifier">+ {{ mod.name }}</small>
-                      }
-                    </div>
+            @if (order.deliveryInfo) {
+              <div class="delivery-detail small mb-2">
+                <div>
+                  {{ order.deliveryInfo.address }}
+                  @if (order.deliveryInfo.city) {
+                    , {{ order.deliveryInfo.city }}, {{ order.deliveryInfo.state }} {{ order.deliveryInfo.zip }}
                   }
                 </div>
+                @if (order.deliveryInfo.deliveryNotes) {
+                  <div class="text-warning fst-italic">{{ order.deliveryInfo.deliveryNotes }}</div>
+                }
+                <span class="badge" [class]="getDeliveryStateBadgeClass(order.deliveryInfo.deliveryState)">
+                  {{ getDeliveryStateLabel(order.deliveryInfo.deliveryState) }}
+                </span>
+              </div>
+            }
+
+            @if (order.curbsideInfo) {
+              <div class="curbside-detail small mb-2">
+                <strong>Vehicle:</strong> {{ order.curbsideInfo.vehicleDescription }}
+                @if (order.curbsideInfo.arrivalNotified) {
+                  <span class="badge bg-success ms-1">Arrived</span>
+                }
+              </div>
+            }
+
+            @if (order.cateringInfo) {
+              <div class="catering-detail small mb-2">
+                <div>
+                  <strong>Event:</strong> {{ order.cateringInfo.eventType ?? 'Event' }} &mdash; {{ order.cateringInfo.headcount }} guests
+                </div>
+                @if (order.cateringInfo.setupRequired) {
+                  <span class="badge bg-info">Setup Required</span>
+                }
+                @if (order.cateringInfo.depositPaid) {
+                  <span class="badge bg-success ms-1">Deposit Paid</span>
+                }
+              </div>
+            }
+
+            @if (order.approvalStatus === 'NEEDS_APPROVAL') {
+              <div class="approval-section mb-2">
+                <div class="approval-countdown" [class.urgent]="isApprovalUrgent(order)">
+                  {{ getApprovalCountdown(order) }}
+                </div>
+                <div class="approval-actions d-flex gap-2">
+                  @if (isAutoRejecting(order.guid)) {
+                    <span class="text-warning small">Auto-rejecting...</span>
+                  } @else {
+                    <button type="button" class="btn btn-success btn-sm" (click)="approveOrder(order)">Approve</button>
+                    <button type="button" class="btn btn-outline-danger btn-sm" (click)="rejectOrder(order)">Reject</button>
+                  }
+                </div>
+              </div>
+            }
+
+            <div class="order-items">
+              @if (orderHasCourses(order)) {
+                @for (group of getCourseGroups(order); track group.label) {
+                  <div class="course-group">
+                    <div class="course-header">
+                      <span class="course-label">{{ group.label }}</span>
+                      <span class="badge course-status-badge" [class]="getFireStatusClass(group.fireStatus)">
+                        {{ group.fireStatus }}
+                      </span>
+                      @if (coursePacingEnabled() && group.fireStatus === 'PENDING' && group.course) {
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-outline-warning ms-auto fire-course-btn"
+                          [disabled]="isFiringCourse(group.course.guid)"
+                          (click)="fireCourse(order.guid, group.course.guid)"
+                        >
+                          @if (isFiringCourse(group.course.guid)) {
+                            <span class="spinner-border spinner-border-sm me-1"></span>
+                          }
+                          Fire {{ group.label }}
+                        </button>
+                      }
+                    </div>
+                    @for (sel of group.selections; track sel.guid) {
+                      <div class="order-item" [class.held-item]="group.fireStatus === 'PENDING'">
+                        <span class="quantity">{{ sel.quantity }}x</span>
+                        <span class="name">{{ sel.menuItemName }}</span>
+                        @if (sel.modifiers && sel.modifiers.length > 0) {
+                          <div class="modifiers">
+                            @for (mod of sel.modifiers; track mod.guid) {
+                              <small class="modifier">+ {{ mod.name }}</small>
+                            }
+                          </div>
+                        }
+                      </div>
+                    }
+                  </div>
+                }
+              } @else {
+                @for (sel of order.checks[0]?.selections ?? []; track sel.guid) {
+                  <div class="order-item">
+                    <span class="quantity">{{ sel.quantity }}x</span>
+                    <span class="name">{{ sel.menuItemName }}</span>
+                    @if (sel.modifiers && sel.modifiers.length > 0) {
+                      <div class="modifiers">
+                        @for (mod of sel.modifiers; track mod.guid) {
+                          <small class="modifier">+ {{ mod.name }}</small>
+                        }
+                      </div>
+                    }
+                  </div>
+                }
               }
             </div>
 
@@ -81,7 +186,7 @@
 
             <div class="order-total mt-2 d-flex justify-content-between align-items-center">
               <div>
-                @if (getInsight(order.id); as insight) {
+                @if (getInsight(order.guid); as insight) {
                   <span class="profit-badge badge" [class.bg-success]="insight.profitMargin >= 60" [class.bg-warning]="insight.profitMargin >= 40 && insight.profitMargin < 60" [class.bg-danger]="insight.profitMargin < 40">
                     {{ insight.profitMargin }}% margin
                   </span>
@@ -98,55 +203,74 @@
                   </button>
                 }
               </div>
-              <strong>{{ order.total | currency }}</strong>
+              <strong>{{ order.totalAmount | currency }}</strong>
             </div>
           </div>
 
           <div class="card-footer">
             <div class="d-flex gap-2">
-              @switch (order.status) {
-                @case ('pending') {
-                  <button
-                    type="button"
-                    class="btn btn-success btn-sm flex-fill"
-                    (click)="confirmOrder(order)"
-                  >
-                    Confirm
-                  </button>
-                  <button
-                    type="button"
-                    class="btn btn-outline-danger btn-sm"
-                    (click)="cancelOrder(order)"
-                  >
-                    Cancel
-                  </button>
-                }
-                @case ('confirmed') {
-                  <button
-                    type="button"
-                    class="btn btn-primary btn-sm flex-fill"
-                    (click)="startPreparing(order)"
-                  >
-                    Start Cooking
-                  </button>
-                }
-                @case ('preparing') {
-                  <button
-                    type="button"
-                    class="btn btn-success btn-sm flex-fill"
-                    (click)="markReady(order)"
-                  >
-                    Mark Ready
-                  </button>
-                }
-                @case ('ready') {
-                  <button
-                    type="button"
-                    class="btn btn-primary btn-sm flex-fill"
-                    (click)="completeOrder(order)"
-                  >
-                    Complete / Picked Up
-                  </button>
+              @if (order._queued) {
+                <span class="text-muted small">
+                  <span class="spinner-border spinner-border-sm me-1"></span>
+                  Waiting for connection...
+                </span>
+              } @else {
+                @switch (order.guestOrderStatus) {
+                  @case ('RECEIVED') {
+                    <button
+                      type="button"
+                      class="btn btn-success btn-sm flex-fill"
+                      (click)="confirmOrder(order)"
+                    >
+                      Start Cooking
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn-outline-danger btn-sm"
+                      (click)="cancelOrder(order)"
+                    >
+                      Cancel
+                    </button>
+                  }
+                  @case ('IN_PREPARATION') {
+                    <button
+                      type="button"
+                      class="btn btn-success btn-sm flex-fill"
+                      (click)="markReady(order)"
+                    >
+                      Mark Ready
+                    </button>
+                  }
+                  @case ('READY_FOR_PICKUP') {
+                    <button
+                      type="button"
+                      class="btn btn-primary btn-sm flex-fill"
+                      (click)="completeAndPrint(order)"
+                    >
+                      {{ getActionLabel(order) }}
+                    </button>
+                    @if (order.deliveryInfo && order.deliveryInfo.deliveryState !== 'DELIVERED') {
+                      <button type="button" class="btn btn-outline-info btn-sm"
+                        (click)="advanceDelivery(order)">
+                        {{ getNextDeliveryAction(order.deliveryInfo.deliveryState) }}
+                      </button>
+                    }
+                    @if (order.curbsideInfo && !order.curbsideInfo.arrivalNotified) {
+                      <button type="button" class="btn btn-outline-warning btn-sm"
+                        (click)="notifyArrival(order)">
+                        Customer Arrived
+                      </button>
+                    }
+                    @if (getPrintStatus(order.guid) === 'failed') {
+                      <button
+                        type="button"
+                        class="btn btn-outline-warning btn-sm"
+                        (click)="retryPrint(order)"
+                      >
+                        Retry Print
+                      </button>
+                    }
+                  }
                 }
               }
             </div>

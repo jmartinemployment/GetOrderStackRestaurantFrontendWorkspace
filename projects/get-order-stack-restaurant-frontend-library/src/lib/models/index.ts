@@ -12,6 +12,7 @@ export * from './payment.model';
 export * from './printer.model';
 export * from './pricing.model';
 export * from './reservation.model';
+export * from './settings.model';
 export * from './restaurant.model';
 export * from './sentiment.model';
 export * from './table.model';

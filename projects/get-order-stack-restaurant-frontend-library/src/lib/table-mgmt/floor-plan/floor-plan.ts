@@ -14,7 +14,7 @@ import { OrderService } from '../../services/order';
 import { LoadingSpinner } from '../../shared/loading-spinner/loading-spinner';
 import { ErrorDisplay } from '../../shared/error-display/error-display';
 import { RestaurantTable, TableFormData, TableStatus } from '../../models';
-import { Order } from '../../models';
+import { Order, getOrderIdentifier } from '../../models';
 
 @Component({
   selector: 'get-order-stack-floor-plan',
@@ -359,12 +359,12 @@ export class FloorPlan implements OnInit {
 
   getTableOrders(tableId: string): Order[] {
     return this.orders().filter(
-      o => o.tableId === tableId && o.status !== 'completed' && o.status !== 'cancelled'
+      o => o.table?.guid === tableId && o.guestOrderStatus !== 'CLOSED' && o.guestOrderStatus !== 'VOIDED'
     );
   }
 
   getTableOrderTotal(tableId: string): number {
-    return this.getTableOrders(tableId).reduce((sum, o) => sum + o.total, 0);
+    return this.getTableOrders(tableId).reduce((sum, o) => sum + o.totalAmount, 0);
   }
 
   retry(): void {

@@ -1,11 +1,10 @@
 import { Component, inject, output, signal, computed, ChangeDetectionStrategy, ElementRef, viewChild } from '@angular/core';
 import { CurrencyPipe } from '@angular/common';
-import { HttpClient } from '@angular/common/http';
-import { firstValueFrom } from 'rxjs';
 import { CartService } from '../../services/cart';
 import { AuthService } from '../../services/auth';
 import { SocketService } from '../../services/socket';
 import { PaymentService } from '../../services/payment';
+import { OrderService } from '../../services/order';
 import { Modifier, CustomerInfo, Course } from '../../models';
 import {
   DiningOptionType,
@@ -16,8 +15,6 @@ import {
   CurbsideInfo,
   CateringInfo,
 } from '../../models/dining-option.model';
-import { environment } from '../../environments/environment';
-
 @Component({
   selector: 'get-order-stack-checkout-modal',
   imports: [CurrencyPipe],
@@ -26,12 +23,11 @@ import { environment } from '../../environments/environment';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class CheckoutModal {
-  private readonly http = inject(HttpClient);
   private readonly cartService = inject(CartService);
   private readonly authService = inject(AuthService);
   private readonly socketService = inject(SocketService);
   private readonly paymentService = inject(PaymentService);
-  private readonly apiUrl = environment.apiUrl;
+  private readonly orderService = inject(OrderService);
 
   orderPlaced = output<string>();
 
@@ -418,17 +414,12 @@ export class CheckoutModal {
       // Dining option object
       orderData['diningOption'] = option;
 
-      const response = await firstValueFrom(
-        this.http.post<any>(`${this.apiUrl}/restaurant/${restaurantId}/orders`, orderData)
-      );
+      const order = await this.orderService.createOrder(orderData);
 
-      if (response) {
-        const oId = response.id;
-        const oNum = response.orderNumber ?? response.id;
-        this._orderId.set(oId);
-        this._orderNumber.set(oNum);
-
-        this.orderPlaced.emit(oNum);
+      if (order) {
+        this._orderId.set(order.guid);
+        this._orderNumber.set(order.orderNumber);
+        this.orderPlaced.emit(order.orderNumber);
         this.resetForm();
         this.cartService.clear();
         this.close();

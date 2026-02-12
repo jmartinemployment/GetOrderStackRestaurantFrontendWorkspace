@@ -4,7 +4,7 @@ import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { AuthService } from '../../services/auth';
 import { environment } from '../../environments/environment';
-import { Order } from '../../models/order.model';
+// Uses raw backend response (any[]) — avoids depending on the mapped Order model
 import {
   SentimentEntry,
   SentimentCategory,
@@ -123,7 +123,7 @@ export class SentimentDashboard {
 
     try {
       const orders = await firstValueFrom(
-        this.http.get<Order[]>(`${environment.apiUrl}/restaurant/${restaurantId}/orders`)
+        this.http.get<any[]>(`${environment.apiUrl}/restaurant/${restaurantId}/orders`)
       );
 
       const entries: SentimentEntry[] = [];

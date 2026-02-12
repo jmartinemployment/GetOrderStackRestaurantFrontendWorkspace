@@ -6,7 +6,7 @@
   --lapis-lazuli: #3632A6;
   --medium-slate-blue: #7E5EF2;
   --cerulean-periwinkle: #5CB9F2;
-  --pale-turquoise: #A7F2F2;
+  --dark-teal: #0E7490;
 }
 
 html, body {
@@ -14,4 +14,9 @@ html, body {
   margin: 0;
   padding: 0;
   background-color: var(--midnight-black);
+}
+
+/* Override Bootstrap text-muted for dark backgrounds */
+.text-muted {
+  color: #9ca3af !important;
 }

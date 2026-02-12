@@ -3,7 +3,7 @@
 }
 
 .command-center {
-  h2 { color: var(--pale-turquoise, #A7F2F2); }
+  h2 { color: var(--dark-teal, #0E7490); }
 }
 
 // Tabs
@@ -57,7 +57,7 @@
   .kpi-value {
     font-size: 1.5rem;
     font-weight: 700;
-    color: var(--pale-turquoise, #A7F2F2);
+    color: var(--dark-teal, #0E7490);
     line-height: 1.2;
   }
 
@@ -83,7 +83,7 @@
   padding: 1rem;
 
   .panel-title {
-    color: var(--pale-turquoise, #A7F2F2);
+    color: var(--dark-teal, #0E7490);
     font-size: 0.95rem;
     margin-bottom: 0.75rem;
   }
@@ -173,7 +173,7 @@
 .days-badge {
   font-size: 0.8rem;
   font-weight: 700;
-  color: var(--pale-turquoise, #A7F2F2);
+  color: var(--dark-teal, #0E7490);
 }
 
 // Alert items
