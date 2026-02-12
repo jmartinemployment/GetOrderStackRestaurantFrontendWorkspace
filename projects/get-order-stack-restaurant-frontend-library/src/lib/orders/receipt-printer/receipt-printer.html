@@ -35,38 +35,63 @@
     <div class="order-info mb-3">
       <div class="d-flex justify-content-between">
         <span>Order #{{ getOrderNumber() }}</span>
-        <span>{{ order().orderType | titlecase }}</span>
+        <span>{{ order().diningOption.name }}</span>
       </div>
       <div class="text-muted small">
-        {{ getFormattedDate(order().createdAt) }}
+        {{ getFormattedDate(order().timestamps.createdDate) }}
       </div>
-      @if (order().customer?.name) {
+      @if (getCustomerName()) {
         <div class="mt-1">
-          <strong>Customer:</strong> {{ order().customer?.name }}
+          <strong>Customer:</strong> {{ getCustomerName() }}
         </div>
       }
-      @if (order().tableId) {
+      @if (order().table) {
         <div>
-          <strong>Table:</strong> {{ order().tableId }}
+          <strong>Table:</strong> {{ order().table!.name }}
         </div>
       }
     </div>
+
+    <!-- Dining-specific info -->
+    @if (order().deliveryInfo) {
+      <div class="dining-detail mb-2">
+        <div><strong>Deliver to:</strong> {{ order().deliveryInfo!.address }}@if (order().deliveryInfo!.address2) {, {{ order().deliveryInfo!.address2 }}}@if (order().deliveryInfo!.city) {, {{ order().deliveryInfo!.city }}, {{ order().deliveryInfo!.state }} {{ order().deliveryInfo!.zip }}}</div>
+        @if (order().deliveryInfo!.deliveryNotes) {
+          <div class="small fst-italic">{{ order().deliveryInfo!.deliveryNotes }}</div>
+        }
+      </div>
+    }
+
+    @if (order().curbsideInfo) {
+      <div class="dining-detail mb-2">
+        <div><strong>Curbside:</strong> {{ order().curbsideInfo!.vehicleDescription }}</div>
+      </div>
+    }
+
+    @if (order().cateringInfo) {
+      <div class="dining-detail mb-2">
+        <div><strong>Catering:</strong> {{ order().cateringInfo!.eventType ?? 'Event' }} &mdash; {{ order().cateringInfo!.headcount }} guests</div>
+        @if (order().cateringInfo!.specialInstructions) {
+          <div class="small fst-italic">{{ order().cateringInfo!.specialInstructions }}</div>
+        }
+      </div>
+    }
 
     <div class="divider"></div>
 
     <!-- Items -->
     <div class="receipt-items mb-3">
-      @for (item of order().items; track item.id) {
+      @for (sel of order().checks[0]?.selections ?? []; track sel.guid) {
         <div class="receipt-item mb-2">
           <div class="d-flex justify-content-between">
             <span>
-              <strong>{{ item.quantity }}x</strong> {{ item.name }}
+              <strong>{{ sel.quantity }}x</strong> {{ sel.menuItemName }}
             </span>
-            <span>{{ item.totalPrice | currency }}</span>
+            <span>{{ sel.totalPrice | currency }}</span>
           </div>
-          @if (item.modifiers && item.modifiers.length > 0) {
+          @if (sel.modifiers && sel.modifiers.length > 0) {
             <div class="item-modifiers ps-3 small text-muted">
-              @for (mod of item.modifiers; track mod.id) {
+              @for (mod of sel.modifiers; track mod.guid) {
                 <div class="d-flex justify-content-between">
                   <span>+ {{ mod.name }}</span>
                   @if (mod.priceAdjustment > 0) {
@@ -76,9 +101,9 @@
               }
             </div>
           }
-          @if (item.specialInstructions) {
+          @if (sel.specialInstructions) {
             <div class="item-note small text-muted fst-italic ps-3">
-              Note: {{ item.specialInstructions }}
+              Note: {{ sel.specialInstructions }}
             </div>
           }
         </div>
@@ -95,18 +120,18 @@
       </div>
       <div class="d-flex justify-content-between text-muted">
         <span>Tax</span>
-        <span>{{ order().tax | currency }}</span>
+        <span>{{ order().taxAmount | currency }}</span>
       </div>
-      @if (order().tip && order().tip! > 0) {
+      @if (order().tipAmount > 0) {
         <div class="d-flex justify-content-between text-muted">
           <span>Tip</span>
-          <span>{{ order().tip | currency }}</span>
+          <span>{{ order().tipAmount | currency }}</span>
         </div>
       }
       <div class="divider my-2"></div>
       <div class="d-flex justify-content-between total">
         <strong>Total</strong>
-        <strong>{{ order().total | currency }}</strong>
+        <strong>{{ order().totalAmount | currency }}</strong>
       </div>
     </div>
 

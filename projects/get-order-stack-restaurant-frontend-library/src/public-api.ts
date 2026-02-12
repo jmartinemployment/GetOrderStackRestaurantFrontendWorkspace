@@ -16,7 +16,9 @@ export { PaymentService } from './lib/services/payment';
 export { MenuService } from './lib/services/menu';
 export { CartService } from './lib/services/cart';
 export { OrderService } from './lib/services/order';
+export type { MappedOrderEvent } from './lib/services/order';
 export { TableService } from './lib/services/table';
+export { PrinterService } from './lib/services/printer';
 export { SocketService } from './lib/services/socket';
 export type { SocketConnectionStatus, OrderEvent } from './lib/services/socket';
 
@@ -62,6 +64,9 @@ export { ItemManagement } from './lib/menu-mgmt/item-management/item-management'
 
 // Table Management components
 export { FloorPlan } from './lib/table-mgmt/floor-plan/floor-plan';
+
+// Settings components
+export { ControlPanel } from './lib/settings/control-panel';
 
 // CRM components
 export { CustomerDashboard } from './lib/crm/customer-dashboard/customer-dashboard';

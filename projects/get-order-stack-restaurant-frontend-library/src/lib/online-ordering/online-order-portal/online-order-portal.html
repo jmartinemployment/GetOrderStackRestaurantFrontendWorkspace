@@ -176,7 +176,7 @@
         <!-- Order Type -->
         <div class="mb-3">
           <label class="form-label">Order Type</label>
-          <div class="order-type-toggle d-flex gap-2">
+          <div class="order-type-toggle d-flex gap-2 flex-wrap">
             <button
               type="button"
               class="btn flex-fill"
@@ -194,6 +194,13 @@
             <button
               type="button"
               class="btn flex-fill"
+              [class.btn-primary]="orderType() === 'curbside'"
+              [class.btn-outline-light]="orderType() !== 'curbside'"
+              (click)="setOrderType('curbside')"
+            >Curbside</button>
+            <button
+              type="button"
+              class="btn flex-fill"
               [class.btn-primary]="orderType() === 'dine-in'"
               [class.btn-outline-light]="orderType() !== 'dine-in'"
               (click)="setOrderType('dine-in')"
@@ -202,9 +209,15 @@
         </div>
 
         <!-- Customer Info -->
-        <div class="mb-3">
-          <label class="form-label">Name *</label>
-          <input type="text" class="form-control" [value]="customerName()" (input)="onFieldInput('name', $event)" placeholder="Your name" />
+        <div class="row mb-3">
+          <div class="col-6">
+            <label class="form-label">First Name *</label>
+            <input type="text" class="form-control" [value]="customerFirstName()" (input)="onFieldInput('firstName', $event)" placeholder="First name" />
+          </div>
+          <div class="col-6">
+            <label class="form-label">Last Name *</label>
+            <input type="text" class="form-control" [value]="customerLastName()" (input)="onFieldInput('lastName', $event)" placeholder="Last name" />
+          </div>
         </div>
         <div class="mb-3">
           <label class="form-label">Phone *</label>
@@ -217,8 +230,38 @@
 
         @if (orderType() === 'delivery') {
           <div class="mb-3">
-            <label class="form-label">Delivery Address *</label>
-            <input type="text" class="form-control" [value]="deliveryAddress()" (input)="onFieldInput('address', $event)" placeholder="123 Main St, City, State" />
+            <label class="form-label">Street Address *</label>
+            <input type="text" class="form-control" [value]="deliveryAddress()" (input)="onFieldInput('address', $event)" placeholder="123 Main St" />
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Apt / Suite</label>
+            <input type="text" class="form-control" [value]="deliveryAddress2()" (input)="onFieldInput('address2', $event)" placeholder="Apt 4B" />
+          </div>
+          <div class="row mb-3">
+            <div class="col-5">
+              <label class="form-label">City *</label>
+              <input type="text" class="form-control" [value]="deliveryCity()" (input)="onFieldInput('city', $event)" placeholder="City" />
+            </div>
+            <div class="col-3">
+              <label class="form-label">State *</label>
+              <input type="text" class="form-control" [value]="deliveryStateUS()" (input)="onFieldInput('stateUS', $event)" placeholder="FL" maxlength="2" />
+            </div>
+            <div class="col-4">
+              <label class="form-label">ZIP *</label>
+              <input type="text" class="form-control" [value]="deliveryZip()" (input)="onFieldInput('zip', $event)" placeholder="33301" maxlength="10" />
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Delivery Notes</label>
+            <input type="text" class="form-control" [value]="deliveryNotes()" (input)="onFieldInput('deliveryNotes', $event)" placeholder="Gate code, building entrance, etc." />
+          </div>
+        }
+
+        @if (orderType() === 'curbside') {
+          <div class="mb-3">
+            <label class="form-label">Vehicle Description *</label>
+            <input type="text" class="form-control" [value]="vehicleDescription()" (input)="onFieldInput('vehicle', $event)" placeholder="Red Toyota Camry" />
+            <small class="form-text text-muted">Help us find you — color, make, and model</small>
           </div>
         }
 
@@ -269,12 +312,69 @@
           @if (orderType() === 'pickup') {
             We'll have your order ready for pickup soon.
           } @else if (orderType() === 'delivery') {
-            Your order is on its way!
+            Your delivery is being prepared!
+          } @else if (orderType() === 'curbside') {
+            We'll bring your order to your vehicle when it's ready.
           } @else {
             Your order has been placed. Please take a seat.
           }
         </p>
-        <button type="button" class="btn btn-primary mt-3" (click)="startNewOrder()">
+
+        <!-- Order Tracking -->
+        @if (submittedOrder(); as tracked) {
+          <div class="tracking-section mt-4 text-start">
+            <h5 class="tracking-title">Order Status</h5>
+            <div class="tracking-status">
+              <span class="badge tracking-badge" [class.bg-warning]="tracked.guestOrderStatus === 'RECEIVED'"
+                [class.bg-info]="tracked.guestOrderStatus === 'IN_PREPARATION'"
+                [class.bg-success]="tracked.guestOrderStatus === 'READY_FOR_PICKUP' || tracked.guestOrderStatus === 'CLOSED'">
+                @switch (tracked.guestOrderStatus) {
+                  @case ('RECEIVED') { Order Received }
+                  @case ('IN_PREPARATION') { Being Prepared }
+                  @case ('READY_FOR_PICKUP') { Ready! }
+                  @case ('CLOSED') { Complete }
+                  @default { {{ tracked.guestOrderStatus }} }
+                }
+              </span>
+            </div>
+
+            @if (tracked.deliveryInfo) {
+              <div class="delivery-tracking mt-3">
+                <div class="tracking-steps">
+                  <div class="tracking-step" [class.active]="true">
+                    <span class="step-indicator"></span>
+                    <span>Preparing</span>
+                  </div>
+                  <div class="tracking-step" [class.active]="tracked.deliveryInfo.deliveryState === 'OUT_FOR_DELIVERY' || tracked.deliveryInfo.deliveryState === 'DELIVERED'">
+                    <span class="step-indicator"></span>
+                    <span>Out for Delivery</span>
+                  </div>
+                  <div class="tracking-step" [class.active]="tracked.deliveryInfo.deliveryState === 'DELIVERED'">
+                    <span class="step-indicator"></span>
+                    <span>Delivered</span>
+                  </div>
+                </div>
+              </div>
+            }
+
+            @if (tracked.curbsideInfo) {
+              <div class="curbside-tracking mt-3">
+                @if (!tracked.curbsideInfo.arrivalNotified) {
+                  <p class="small text-muted mb-2">When you arrive, let us know:</p>
+                  <button type="button" class="btn btn-warning w-100" (click)="notifyArrival()">
+                    I've Arrived
+                  </button>
+                } @else {
+                  <div class="arrival-confirmed">
+                    <span class="badge bg-success">Staff notified — bringing your order out!</span>
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        }
+
+        <button type="button" class="btn btn-primary mt-4" (click)="startNewOrder()">
           Order Again
         </button>
       </div>

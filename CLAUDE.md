@@ -8,6 +8,10 @@ This workspace contains Angular Elements (Web Components) for the Get-Order-Stac
 
 **Stack:** Angular 21, Bootstrap SCSS 5.3.8, Angular Elements, Socket.io-client. All code uses current, non-deprecated Angular APIs.
 
+**Related Documentation:**
+- **`Get-Order-Stack-Workflow.md`** — Complete business logic, workflows, data models, Control Panel settings, payment processing, and competitive analysis
+- **`plan.md`** — Feature roadmap with tier status (T1-T4)
+
 ## Architecture: Angular Elements Bundle
 
 This project follows the **Angular Elements multi-project workspace pattern** — an Angular library containing all components/services/models, paired with an Angular Elements app that registers selected components as Web Components.
@@ -90,7 +94,7 @@ Get-Order-Stack-Restaurant-Frontend-Workspace/
 
 **All custom element tags follow `get-order-stack-*` naming.** No exceptions.
 
-## Registered Web Components (20 in main.ts)
+## Registered Web Components (23 in main.ts)
 
 | Custom Element Tag | Source Component | Domain |
 |---|---|---|
@@ -105,6 +109,7 @@ Get-Order-Stack-Restaurant-Frontend-Workspace/
 | `get-order-stack-category-management` | `CategoryManagement` | Menu Mgmt |
 | `get-order-stack-item-management` | `ItemManagement` | Menu Mgmt |
 | `get-order-stack-floor-plan` | `FloorPlan` | Table Mgmt |
+| `get-order-stack-control-panel` | `ControlPanel` | Settings |
 | `get-order-stack-crm` | `CustomerDashboard` | CRM |
 | `get-order-stack-reservations` | `ReservationManager` | Reservations |
 | `get-order-stack-ai-chat` | `ChatAssistant` | AI Chat |
@@ -114,12 +119,15 @@ Get-Order-Stack-Restaurant-Frontend-Workspace/
 | `get-order-stack-dynamic-pricing` | `DynamicPricing` | Pricing |
 | `get-order-stack-waste-tracker` | `WasteTracker` | Waste Reduction |
 | `get-order-stack-sentiment` | `SentimentDashboard` | Sentiment |
+| `get-order-stack-pending-orders` | `PendingOrders` | Orders |
+| `get-order-stack-order-history` | `OrderHistory` | Orders |
 
 Internal (not registered as custom elements):
 - All `shared/` components — used internally by other components
 - `MenuDisplay`, `CartDrawer`, `CheckoutModal`, `UpsellBar`, `OrderNotifications`, `MenuItemCard` — used internally by `SosTerminal`
 - `OrderCard`, `StatusBadge` — used internally by `KdsDisplay`
-- `PendingOrders`, `OrderHistory`, `ReceiptPrinter` — used internally by other components
+- `PrinterSettings` — used internally by `ControlPanel`
+- `ReceiptPrinter` — used internally by other components
 
 ## Core Services
 
@@ -562,6 +570,34 @@ See **[plan.md](./plan.md)** for the comprehensive AI feature roadmap (22 featur
 - Build: Library + Elements compile with zero errors (773 kB main.js)
 - Next: commit, push, redeploy; WordPress needs `restaurant-slug="taipa"` attribute on online-ordering page
 
+**[February 12, 2026] (Session 11):**
+- Implemented: Dining Option Workflows (Phases 6-8) + T1-08 Phase 5 (Control Panel UI for Printer Management)
+- **Dining Options — Phase 7 (Online Portal):**
+  - Updated `dining-option.model.ts` — DeliveryInfo.deliveryState from 4 states to 3 (`PREPARING | OUT_FOR_DELIVERY | DELIVERED`)
+  - Modified `online-order-portal.ts` — added curbside type + vehicle signal, structured delivery signals (address2/city/state/zip/notes), order tracking with polling, `notifyArrival()`, `getDeliveryStateLabel()`
+  - Modified `online-order-portal.html` — curbside button, structured address fields, vehicle description field, order tracking section on confirm step
+  - Modified `online-order-portal.scss` — tracking styles
+  - Fixed `checkout-modal.ts` — changed `deliveryState: 'PENDING'` → `'PREPARING'` (2 occurrences)
+- **Dining Options — Phase 6 (OrderHistory):**
+  - Modified `order-history.html` — added Dining Details section to modal (delivery address, state badge, curbside vehicle, catering event info)
+  - Modified `order-history.ts` — added `getDeliveryStateLabel()` method
+  - Modified `order-history.scss` — dining-details and delivery state badge styles
+- **Dining Options — Phase 8 (ReceiptPrinter):**
+  - Modified `receipt-printer.html` — added dining-specific info blocks (delivery, curbside, catering)
+  - Modified `pending-orders.ts` — added diningRows to `printCheck()` inline HTML receipt
+- **T1-08 Phase 5 — Control Panel UI for Printer Management (8 steps, all complete):**
+  - Created `models/printer.model.ts` — `Printer`, `PrinterFormData`, `CloudPrntConfig`, `PrinterCreateResponse`, `TestPrintResponse` interfaces, `PrinterModel` and `ControlPanelTab` types
+  - Created `services/printer.ts` — `PrinterService` following TableService pattern (5 methods: load, create, update, delete, testPrint)
+  - Created `settings/printer-settings/` — 4 files (ts, html, scss, index.ts) — full printer CRUD UI with KPI strip, CloudPRNT config, MAC validation, online status dots, test print, delete confirmation modal
+  - Created `settings/control-panel/` — 4 files (ts, html, scss, index.ts) — tab-based settings hub shell with "Printers" as first tab
+  - Modified `models/index.ts` — added printer.model export
+  - Modified `public-api.ts` — added PrinterService export + ControlPanel export (new Settings section)
+  - Modified `elements/src/main.ts` — registered `get-order-stack-control-panel` (23 custom elements total)
+- Build: 864.93 kB main.js + 231.15 kB styles.css, zero errors (SCSS budget warnings only)
+- Custom elements: 23 total registered in main.ts
+- WordPress: needs new page `orderstack-control-panel` + PHP template + slug in `$orderstack_pages` array
+- Next: T1-08 backend phases (Prisma models, print service, CloudPRNT endpoints, printer CRUD API), then Dining Options backend phases
+
 ---
 
-*Last Updated: February 10, 2026*
+*Last Updated: February 12, 2026*

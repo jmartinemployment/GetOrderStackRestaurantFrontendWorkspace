@@ -5,7 +5,7 @@ import { PaymentService } from '../../services/payment';
 import { LoadingSpinner } from '../../shared/loading-spinner/loading-spinner';
 import { ErrorDisplay } from '../../shared/error-display/error-display';
 import { StatusBadge } from '../../kds/status-badge/status-badge';
-import { Order, OrderStatus, ProfitInsight } from '../../models';
+import { Order, GuestOrderStatus, ProfitInsight, getOrderIdentifier } from '../../models';
 
 @Component({
   selector: 'get-order-stack-order-history',
@@ -18,7 +18,7 @@ export class OrderHistory implements OnInit {
   private readonly orderService = inject(OrderService);
   private readonly paymentService = inject(PaymentService);
 
-  private readonly _statusFilter = signal<OrderStatus | 'all'>('all');
+  private readonly _statusFilter = signal<GuestOrderStatus | 'all'>('all');
   private readonly _selectedOrder = signal<Order | null>(null);
 
   private readonly _profitInsights = signal<Map<string, ProfitInsight>>(new Map());
@@ -34,24 +34,23 @@ export class OrderHistory implements OnInit {
   readonly filteredOrders = computed(() => {
     const filter = this._statusFilter();
     if (filter === 'all') return this.orders();
-    return this.orders().filter(order => order.status === filter);
+    return this.orders().filter(order => order.guestOrderStatus === filter);
   });
 
-  readonly statusOptions: { value: OrderStatus | 'all'; label: string }[] = [
+  readonly statusOptions: { value: GuestOrderStatus | 'all'; label: string }[] = [
     { value: 'all', label: 'All Orders' },
-    { value: 'pending', label: 'Pending' },
-    { value: 'confirmed', label: 'Confirmed' },
-    { value: 'preparing', label: 'Preparing' },
-    { value: 'ready', label: 'Ready' },
-    { value: 'completed', label: 'Completed' },
-    { value: 'cancelled', label: 'Cancelled' },
+    { value: 'RECEIVED', label: 'Received' },
+    { value: 'IN_PREPARATION', label: 'Preparing' },
+    { value: 'READY_FOR_PICKUP', label: 'Ready' },
+    { value: 'CLOSED', label: 'Completed' },
+    { value: 'VOIDED', label: 'Cancelled' },
   ];
 
   ngOnInit(): void {
     this.orderService.loadOrders();
   }
 
-  setStatusFilter(status: OrderStatus | 'all'): void {
+  setStatusFilter(status: GuestOrderStatus | 'all'): void {
     this._statusFilter.set(status);
   }
 
@@ -64,16 +63,16 @@ export class OrderHistory implements OnInit {
   }
 
   getOrderNumber(order: Order): string {
-    return order.orderNumber || order.id.slice(-4).toUpperCase();
+    return getOrderIdentifier(order);
   }
 
   async fetchProfitInsight(order: Order): Promise<void> {
-    if (this._profitInsights().has(order.id)) return;
-    const insight = await this.orderService.getProfitInsight(order.id);
+    if (this._profitInsights().has(order.guid)) return;
+    const insight = await this.orderService.getProfitInsight(order.guid);
     if (insight) {
       this._profitInsights.update(map => {
         const updated = new Map(map);
-        updated.set(order.id, insight);
+        updated.set(order.guid, insight);
         return updated;
       });
     }
@@ -93,22 +92,18 @@ export class OrderHistory implements OnInit {
 
   getPaymentBadgeClass(status: string): string {
     switch (status) {
-      case 'paid': return 'payment-paid';
-      case 'pending': return 'payment-pending';
-      case 'failed': return 'payment-failed';
-      case 'refunded':
-      case 'partial_refund': return 'payment-refunded';
+      case 'PAID': return 'payment-paid';
+      case 'OPEN': return 'payment-pending';
+      case 'CLOSED': return 'payment-refunded';
       default: return 'payment-pending';
     }
   }
 
   getPaymentLabel(status: string): string {
     switch (status) {
-      case 'paid': return 'Paid';
-      case 'pending': return 'Unpaid';
-      case 'failed': return 'Failed';
-      case 'refunded': return 'Refunded';
-      case 'partial_refund': return 'Partial Refund';
+      case 'PAID': return 'Paid';
+      case 'OPEN': return 'Unpaid';
+      case 'CLOSED': return 'Closed';
       default: return status;
     }
   }
@@ -118,7 +113,7 @@ export class OrderHistory implements OnInit {
     this._refundError.set(null);
     this._refundSuccess.set(false);
 
-    const result = await this.paymentService.requestRefund(order.id);
+    const result = await this.paymentService.requestRefund(order.guid);
 
     this._isRefunding.set(false);
 
@@ -136,5 +131,14 @@ export class OrderHistory implements OnInit {
 
   retry(): void {
     this.orderService.loadOrders();
+  }
+
+  getDeliveryStateLabel(state: string): string {
+    switch (state) {
+      case 'PREPARING': return 'Preparing';
+      case 'OUT_FOR_DELIVERY': return 'Out for Delivery';
+      case 'DELIVERED': return 'Delivered';
+      default: return state;
+    }
   }
 }

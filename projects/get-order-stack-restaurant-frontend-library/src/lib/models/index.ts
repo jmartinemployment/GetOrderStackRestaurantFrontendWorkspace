@@ -1,6 +1,7 @@
 export * from './analytics.model';
 export * from './auth.model';
 export * from './cart.model';
+export * from './dining-option.model';
 export * from './chat.model';
 export * from './customer.model';
 export * from './inventory.model';
@@ -8,6 +9,7 @@ export * from './menu.model';
 export * from './monitoring.model';
 export * from './order.model';
 export * from './payment.model';
+export * from './printer.model';
 export * from './pricing.model';
 export * from './reservation.model';
 export * from './restaurant.model';

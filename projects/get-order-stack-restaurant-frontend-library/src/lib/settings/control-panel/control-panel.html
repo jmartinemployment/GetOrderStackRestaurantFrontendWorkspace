@@ -1,0 +1,24 @@
+<div class="control-panel">
+  @if (isAuthenticated()) {
+    <h2 class="mb-3">Control Panel</h2>
+    <ul class="nav nav-tabs mb-3">
+      @for (tab of tabs; track tab.key) {
+        <li class="nav-item">
+          <button
+            class="nav-link"
+            [class.active]="activeTab() === tab.key"
+            (click)="setTab(tab.key)">
+            {{ tab.label }}
+          </button>
+        </li>
+      }
+    </ul>
+    @if (activeTab() === 'printers') {
+      <get-order-stack-printer-settings />
+    }
+  } @else {
+    <div class="text-center text-muted py-5">
+      <p>Please log in and select a restaurant to access settings.</p>
+    </div>
+  }
+</div>

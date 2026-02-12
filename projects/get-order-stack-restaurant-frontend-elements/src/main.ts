@@ -23,6 +23,9 @@ import {
   DynamicPricing,
   WasteTracker,
   SentimentDashboard,
+  PendingOrders,
+  OrderHistory,
+  ControlPanel,
 } from 'get-order-stack-restaurant-frontend-library';
 
 (async () => {
@@ -54,6 +57,9 @@ import {
     [DynamicPricing, 'get-order-stack-dynamic-pricing'],
     [WasteTracker, 'get-order-stack-waste-tracker'],
     [SentimentDashboard, 'get-order-stack-sentiment'],
+    [PendingOrders, 'get-order-stack-pending-orders'],
+    [OrderHistory, 'get-order-stack-order-history'],
+    [ControlPanel, 'get-order-stack-control-panel'],
   ];
 
   for (const [component, tag] of elements) {
