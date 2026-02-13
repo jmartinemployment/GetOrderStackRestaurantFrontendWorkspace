@@ -28,6 +28,9 @@
     @if (activeTab() === 'payments') {
       <get-order-stack-payment-settings />
     }
+    @if (activeTab() === 'tip-management') {
+      <get-order-stack-tip-management />
+    }
   } @else {
     <div class="text-center text-muted py-5">
       <p>Please log in and select a restaurant to access settings.</p>

@@ -1,5 +1,6 @@
 import { CoursePacingMode } from './order.model';
 import { PaymentProcessorType } from './payment.model';
+import { TipPoolRule, TipOutRule } from './tip.model';
 
 /**
  * AI Settings — Control Panel > AI Settings tab
@@ -126,4 +127,22 @@ export interface PaymentSettings {
 
 export function defaultPaymentSettings(): PaymentSettings {
   return { processor: 'none', requirePaymentBeforeKitchen: false };
+}
+
+export interface TipManagementSettings {
+  enabled: boolean;
+  minimumWage: number;
+  defaultHourlyRate: number;
+  poolRules: TipPoolRule[];
+  tipOutRules: TipOutRule[];
+}
+
+export function defaultTipManagementSettings(): TipManagementSettings {
+  return {
+    enabled: false,
+    minimumWage: 12,
+    defaultHourlyRate: 5.63,
+    poolRules: [],
+    tipOutRules: [],
+  };
 }

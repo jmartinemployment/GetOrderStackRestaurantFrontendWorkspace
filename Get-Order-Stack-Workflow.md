@@ -603,9 +603,9 @@ OPEN → PAID → CLOSED
 
 ---
 
-## SETTINGS TO IMPLEMENT — ✅ IMPLEMENTED (Sessions 11-13, 18)
+## SETTINGS TO IMPLEMENT — ✅ IMPLEMENTED (Sessions 11-13, 18-19)
 
-**Status:** Control Panel component complete with 5 tabs: Printers (T1-08 Session 11-12), AI Settings (Session 13), Online Pricing (Session 13), Catering Calendar (Session 13), Payments (Session 18). Backend CloudPRNT integration ✅ COMPLETE. All settings tabs fully implemented with role-based access (owner/manager/super_admin = edit, staff = view only), local form signals with save/discard pattern, localStorage + backend PATCH persistence.
+**Status:** Control Panel component complete with 6 tabs: Printers (T1-08 Session 11-12), AI Settings (Session 13), Online Pricing (Session 13), Catering Calendar (Session 13), Payments (Session 18), Tip Management (Session 19). Backend CloudPRNT integration ✅ COMPLETE. All settings tabs fully implemented with role-based access (owner/manager/super_admin = edit, staff = view only), local form signals with save/discard pattern, localStorage + backend PATCH persistence.
 
 ### Control Panel - AI Settings — ✅ IMPLEMENTED (Session 13)
 
@@ -718,7 +718,7 @@ GetOrderStack Applications
 │   ├── get-order-stack-sentiment         # Sentiment Analysis
 │   ├── get-order-stack-pending-orders   # Pending Order Management
 │   ├── get-order-stack-order-history    # Order History
-│   └── get-order-stack-control-panel    # Settings (Printers, AI, Pricing, Catering, Payments)
+│   └── get-order-stack-control-panel    # Settings (Printers, AI, Pricing, Catering, Payments, Tips)
 │
 ├── Restaurant Backend (Express.js + TypeScript)
 │   ├── REST API endpoints
@@ -1018,20 +1018,42 @@ GetOrderStack Applications
 
 ---
 
-## TIP MANAGEMENT — 🚧 PARTIALLY IMPLEMENTED
+## TIP MANAGEMENT — ✅ IMPLEMENTED (Session 19)
 
-**Status:** Basic tip capture implemented in Stripe payment flow (T1-07) and online checkout (T3-04). Tip pooling, tip-out rules, compliance reports, and payroll export not yet implemented (defined as Pro tier features).
+**Status:** Full tip management system implemented. TipService reactive computation engine with pool rules, tip-out rules, compliance checking. TipManagement 4-tab dashboard embedded in Control Panel (6th tab). CSV payroll export with escaped server names.
 
 ### Tier-Based Features
 
-| Feature | Starter | Growth | Pro |
-|---------|---------|--------|-----|
-| Tip capture (PayPal Zettle) | — | ✓ | ✓ |
-| Tip report by server | — | ✓ | ✓ |
-| Tip pooling | — | — | ✓ |
-| Tip-out rules | — | — | ✓ |
-| Tip compliance reports | — | — | ✓ |
-| Payroll export | — | — | ✓ |
+| Feature | Starter | Growth | Pro | Status |
+|---------|---------|--------|-----|--------|
+| Tip capture (PayPal Zettle/Stripe) | — | ✓ | ✓ | ✅ IMPLEMENTED |
+| Tip report by server | — | ✓ | ✓ | ✅ IMPLEMENTED |
+| Tip pooling (even/by hours/by sales) | — | — | ✓ | ✅ IMPLEMENTED |
+| Tip-out rules (% of tips or sales) | — | — | ✓ | ✅ IMPLEMENTED |
+| Tip compliance reports | — | — | ✓ | ✅ IMPLEMENTED |
+| Payroll export (CSV) | — | — | ✓ | ✅ IMPLEMENTED |
+
+### Implementation Details (Session 19)
+
+**TipService** (`services/tip.ts`):
+- Reactive computation engine using Angular signals + computed
+- Filters `completedOrders()` by date range and tip amount > 0
+- Groups entries by server, applies pool rules then tip-out rules sequentially
+- Pool methods: `even` (equal split), `by_hours` (proportional to hours worked), `by_sales` (proportional to sales volume)
+- Tip-out methods: `percentage_of_tips` or `percentage_of_sales` from source role to target role
+- Compliance checking: computes effective hourly rate (base wage + net tips / hours) vs minimum wage
+- CSV export with double-quote escaping for server names
+
+**TipManagement** (`tip-mgmt/tip-management/`):
+- 4-tab dashboard: Reports, Pool Rules, Tip-Out Rules, Compliance
+- Reports tab: date range picker (Today/This Week shortcuts), 3 KPI cards (total tips, total sales, avg tip %), 8-column server breakdown table, Export CSV button
+- Pool Rules tab: add/toggle/remove rules with method selector, role-based access
+- Tip-Out Rules tab: add/toggle/remove rules with percentage, source/target role
+- Compliance tab: hours input per server, total compensation, effective $/hr, compliant/below min wage badge
+- `complianceMap` computed signal for O(1) lookup (avoids O(n²) nested loop)
+- Settings persist via `RestaurantSettingsService.saveTipManagementSettings()` (localStorage + backend PATCH)
+
+**Settings:** `TipManagementSettings` interface in `settings.model.ts` — `enabled`, `minimumWage` ($12 default), `defaultHourlyRate` ($5.63 default), `poolRules[]`, `tipOutRules[]`
 
 ### Tip Scenarios
 
@@ -1049,20 +1071,20 @@ GetOrderStack Applications
 | Tip allocation | Bar only / Split with server / Pool |
 | Food delivery | Server delivers / Bartender delivers / Expo calls |
 
-### Premium Tip Features (Pro Tier)
+### Premium Tip Features (Pro Tier) — ✅ ALL IMPLEMENTED
 
-| Feature | Description |
-|---------|-------------|
-| Tip pooling | Combine tips, split evenly or by hours worked |
-| Tip-out rules | "Bar gets 10% of drink sales tips" |
-| Tip compliance | Track minimum wage + tips for labor law |
-| Tip reports | By server, shift, pay period |
-| Payroll export | Send tip data to payroll system |
+| Feature | Description | Status |
+|---------|-------------|--------|
+| Tip pooling | Combine tips, split evenly or by hours worked or by sales | ✅ IMPLEMENTED |
+| Tip-out rules | "Bar gets 10% of drink sales tips" — configurable % of tips or sales | ✅ IMPLEMENTED |
+| Tip compliance | Track minimum wage + tips for labor law (effective $/hr check) | ✅ IMPLEMENTED |
+| Tip reports | By server with date range, KPIs, pool/tip-out breakdowns | ✅ IMPLEMENTED |
+| Payroll export | CSV download with server name, orders, tips, sales, net tips | ✅ IMPLEMENTED |
 
 ---
 
-*Document Version: 5.0*
-*Last Updated: 2026-02-12 (Session 18 — PayPal Zettle provider-based payment abstraction)*
+*Document Version: 5.1*
+*Last Updated: 2026-02-12 (Session 19 — Tip pooling, tip-out rules, compliance, CSV payroll export)*
 *Location: Get-Order-Stack-Restaurant-Frontend-Workspace/Get-Order-Stack-Workflow.md*
 
 ## IMPLEMENTATION SUMMARY
@@ -1087,6 +1109,5 @@ GetOrderStack Applications
 - 📋 Order throttling — not yet implemented
 - 🔬 Third-party delivery, loyalty, accounting/payroll integrations (research phase)
 - 📋 PayPal Zettle backend endpoints — `POST /paypal-create` and `POST /paypal-capture` (frontend provider complete)
-- 📋 Tip pooling, tip-out rules, compliance reporting (Pro tier)
 - ⏭️ T2-04 Multi-Device KDS Routing — deferred (no backend station-category mapping)
 - ⏭️ T3-03 Labor Intelligence / Staff Scheduling — deferred (no backend schema)

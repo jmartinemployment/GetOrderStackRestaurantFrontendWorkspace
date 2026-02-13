@@ -16,5 +16,6 @@ export * from './settings.model';
 export * from './restaurant.model';
 export * from './sentiment.model';
 export * from './table.model';
+export * from './tip.model';
 export * from './voice.model';
 export * from './waste.model';

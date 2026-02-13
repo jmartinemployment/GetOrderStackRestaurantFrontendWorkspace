@@ -18,6 +18,7 @@ export { CartService } from './lib/services/cart';
 export { OrderService } from './lib/services/order';
 export type { MappedOrderEvent } from './lib/services/order';
 export { TableService } from './lib/services/table';
+export { TipService } from './lib/services/tip';
 export { PrinterService } from './lib/services/printer';
 export { RestaurantSettingsService } from './lib/services/restaurant-settings';
 export { SocketService } from './lib/services/socket';
@@ -70,6 +71,9 @@ export { FloorPlan } from './lib/table-mgmt/floor-plan/floor-plan';
 
 // Settings components
 export { ControlPanel } from './lib/settings/control-panel';
+
+// Tip Management components
+export { TipManagement } from './lib/tip-mgmt/tip-management';
 
 // CRM components
 export { CustomerDashboard } from './lib/crm/customer-dashboard/customer-dashboard';
