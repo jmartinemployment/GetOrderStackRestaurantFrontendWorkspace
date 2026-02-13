@@ -680,6 +680,59 @@ See **[plan.md](./plan.md)** for the comprehensive AI feature roadmap (22 featur
 - Backend endpoints needed: `POST /paypal-create` and `POST /paypal-capture` (not yet built)
 - Next: build PayPal backend endpoints, deploy updated bundle to WordPress
 
+**[February 13, 2026] (Session 19):**
+- Implemented: PayPal Zettle Backend Endpoints — 5 routes + service + Prisma migration + webhook
+- **Prisma schema** (`prisma/schema.prisma`): added `paypalOrderId` and `paypalCaptureId` to Order model
+- **New file:** `src/services/paypal.service.ts` — 7 methods: `getAccessToken` (cached token), `createOrder` (idempotent), `captureOrder` (extracts captureId), `getOrderStatus`, `cancelOrder` (no-op, auto-expires 3h), `refundCapture` (uses captureId), `handleWebhookEvent`
+- **Modified:** `src/app/app.routes.ts` — 1 import (`paypalService`), 2 new routes (`/paypal-create`, `/paypal-capture`), 3 shared routes made processor-agnostic:
+  - `/payment-status` — returns `processorData: { processor: 'stripe'|'paypal', ... }` instead of `stripe: {...}`
+  - `/cancel-payment` — detects Stripe vs PayPal vs neither
+  - `/refund` — uses `paypalCaptureId` for PayPal refunds, `stripePaymentIntentId` for Stripe
+- **Modified:** `src/app/app.ts` — added PayPal webhook handler (`POST /api/webhooks/paypal`) with signature verification before `express.json()` middleware
+- **Modified:** `.env` — added `PAYPAL_CLIENT_ID=sb`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_MODE=sandbox`, `PAYPAL_WEBHOOK_ID`
+- **Database:** `prisma db push --accept-data-loss` synced full schema (dropped stale ACORD CRM User/RefreshToken tables from shared Supabase)
+- **Seed data:** Created `scripts/seed-auth.ts` — exportable function + standalone runner
+  - Creates restaurant group (`taipa-group`), 4 users, 8 access records, 16 staff PINs, 10 kitchen stations
+  - Updated `scripts/seed-demo-data.ts` to include auth seeding
+  - Added npm scripts: `seed`, `seed:auth`, `seed:reset`
+- Build: zero TypeScript errors
+- No new npm dependencies (PayPal service uses native `fetch()`)
+
+## Seed Data & Login Credentials
+
+**Database (Supabase):** 2 restaurants, 251 menu items, 68 customers, 350 orders, 1137 order items, 24 tables, 30 inventory items, 24 reservations
+
+**Login credentials:**
+
+| Email | Password | Role |
+|-------|----------|------|
+| `admin@orderstack.com` | `admin123` | super_admin |
+| `owner@taipa.com` | `owner123` | owner |
+| `manager@taipa.com` | `manager123` | manager |
+| `staff@taipa.com` | `staff123` | staff |
+
+**Staff PINs (per restaurant):**
+
+| PIN | Name | Role |
+|-----|------|------|
+| `1234` | Carlos (Owner) | owner |
+| `5678` | Maria (Manager) | manager |
+| `1111` | Luis (Server) | staff |
+| `2222` | Ana (Server) | staff |
+| `3333` | Diego (Bartender) | staff |
+| `4444` | Sofia (Host) | staff |
+| `5555` | Miguel (Kitchen) | staff |
+| `6666` | Isabella (Expo) | staff |
+
+**Seed commands (backend repo):**
+```bash
+npm run seed          # Re-seed restaurants + all data (idempotent)
+npm run seed:auth     # Just auth/users/PINs/stations
+npm run seed:reset    # Nuclear: wipe DB, re-create schema, re-seed everything
+```
+
+- Next: deploy updated bundle + backend to WordPress/Render, get real PayPal sandbox secret
+
 ---
 
-*Last Updated: February 12, 2026 (Session 18)*
+*Last Updated: February 13, 2026 (Session 19)*

@@ -545,9 +545,9 @@ All items finish simultaneously.
 
 ---
 
-## PAYMENT FLOWS — ✅ IMPLEMENTED (T1-07, Session 18 PayPal)
+## PAYMENT FLOWS — ✅ IMPLEMENTED (T1-07, Frontend Session 18, Backend Session 19)
 
-**Status:** Provider-based payment abstraction complete. PayPal Zettle (recommended) and Stripe supported via `PaymentProvider` interface. Restaurants select processor in Control Panel → Payments tab. Cash flow supported (backend). Pre-paid online orders complete in Online Portal with tip capture at checkout.
+**Status:** Full-stack provider-based payment abstraction complete. PayPal Zettle (recommended) and Stripe supported via `PaymentProvider` interface. Restaurants select processor in Control Panel → Payments tab. Cash flow supported (backend). Pre-paid online orders complete in Online Portal with tip capture at checkout. Backend PayPal endpoints (`/paypal-create`, `/paypal-capture`, webhook) and processor-agnostic shared routes (`/payment-status`, `/cancel-payment`, `/refund`) all complete.
 
 ### Provider Architecture (Session 18)
 ```
@@ -807,7 +807,7 @@ GetOrderStack Applications
 
 ## INTEGRATION POINTS — 🚧 PARTIALLY IMPLEMENTED
 
-**Status:** KDS real-time sync (WebSocket) ✅, kitchen printers (T1-08 CloudPRNT ✅ COMPLETE — frontend PrinterSettings + Control Panel, backend all 8 phases), payment processor (PayPal Zettle ✅ frontend + Stripe ✅ — provider-based abstraction, Session 18; PayPal backend endpoints 📋 NEEDED), online ordering (T3-04) ✅, dining options (frontend + backend validation) ✅, offline mode (localStorage queue + auto-sync) ✅. Third-party delivery, loyalty, accounting, and payroll integrations not yet implemented.
+**Status:** KDS real-time sync (WebSocket) ✅, kitchen printers (T1-08 CloudPRNT ✅ COMPLETE — frontend PrinterSettings + Control Panel, backend all 8 phases), payment processor (PayPal Zettle + Stripe ✅ COMPLETE — full-stack provider-based abstraction, frontend Session 18, backend Session 19), online ordering (T3-04) ✅, dining options (frontend + backend validation) ✅, offline mode (localStorage queue + auto-sync) ✅. Third-party delivery, loyalty, accounting, and payroll integrations not yet implemented.
 
 | System | Method |
 |--------|--------|
@@ -901,9 +901,9 @@ GetOrderStack Applications
 
 ---
 
-## PAYMENT PROCESSING - PAYPAL ZETTLE — ✅ FRONTEND COMPLETE (Session 18)
+## PAYMENT PROCESSING - PAYPAL ZETTLE — ✅ COMPLETE (Frontend Session 18, Backend Session 19)
 
-**Status:** Provider-based payment abstraction implemented. `PayPalPaymentProvider` class handles PayPal Orders v2 flow (create → mount buttons → onApprove capture → confirm). `StripePaymentProvider` retained as fallback. Restaurants select processor via Control Panel → Payments tab. Backend endpoints (`/paypal-create`, `/paypal-capture`) still needed.
+**Status:** Full-stack payment integration complete. `PayPalPaymentProvider` class handles PayPal Orders v2 flow (create → mount buttons → onApprove capture → confirm). `StripePaymentProvider` retained as fallback. Restaurants select processor via Control Panel → Payments tab. Backend `paypal.service.ts` implements token caching, idempotent order creation, capture with captureId extraction, and refund via capture ID. Shared routes (`/payment-status`, `/cancel-payment`, `/refund`) are processor-agnostic. PayPal webhook handler with signature verification.
 
 **Why PayPal Zettle?**
 - Lowest flat-rate processing fees of any major processor
@@ -1102,12 +1102,11 @@ GetOrderStack Applications
   - ✅ Backend (Session 12): Zod validation, query filtering (deliveryStatus, approvalStatus), API documentation
 
 **Frontend:** 23 Web Components registered and deployed to WordPress (geekatyourspot.com)
-**Backend:** Claude AI services (Sonnet 4), PostgreSQL/Prisma, WebSocket + polling, PayPal Zettle + Stripe payment integration
+**Backend:** Claude AI services (Sonnet 4), PostgreSQL/Prisma, WebSocket + polling, PayPal Zettle + Stripe payment integration (full-stack complete — processor-agnostic routes, PayPal webhook)
 
 **Remaining:**
 - 🚧 AI auto-fire course pacing — backend execution pending (frontend UI complete: mode selector, manual fire, course notifications, recall ticket)
 - 📋 Order throttling — not yet implemented
 - 🔬 Third-party delivery, loyalty, accounting/payroll integrations (research phase)
-- 📋 PayPal Zettle backend endpoints — `POST /paypal-create` and `POST /paypal-capture` (frontend provider complete)
 - ⏭️ T2-04 Multi-Device KDS Routing — deferred (no backend station-category mapping)
 - ⏭️ T3-03 Labor Intelligence / Staff Scheduling — deferred (no backend schema)

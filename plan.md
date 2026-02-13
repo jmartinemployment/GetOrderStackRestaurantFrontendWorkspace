@@ -6,7 +6,7 @@
 
 Get-Order-Stack is a restaurant operating system built to compete with Toast, Square, Clover POS. The **backend already has significant AI features built with Claude Sonnet 4** (cost estimation, menu engineering, sales insights, inventory predictions, order profit analysis). The frontend now surfaces all four tiers of features (T1–T4 complete). The system is deployed via WordPress at geekatyourspot.com with 18 feature pages.
 
-**Foundational Capabilities:** Dining Options (dine-in, takeout, curbside, delivery, catering) fully implemented with frontend workflows (Session 11) and production-ready backend validation via Zod (Session 12). Query filtering supports delivery status tracking and catering approval workflows. Control Panel fully implemented with 6 tabs: Printers, AI Settings, Online Pricing, Catering Calendar, Payments, Tip Management (Sessions 13, 18, 19). Course System UI implemented in PendingOrders (grouped items, fire status badges, manual fire controls) and OrderNotifications (course-ready audio chime + desktop alerts) (Session 13). Duplicate notification bug fixed (Session 14). Course Pacing Mode Selector complete (Session 15) — replaced boolean toggle with 3-way `CoursePacingMode` dropdown (disabled/server_fires/auto_fire_timed) that persists from AI Settings → KDS → PendingOrders with operator override. KDS Recall Ticket complete (Session 15) — backward status transitions with print status cleanup. Catering Approval Timeout complete (Session 16) — configurable auto-reject timer with countdown UI in PendingOrders and AI Settings panel. Offline Mode complete (Session 16) — localStorage order queue with auto-sync on reconnect, CheckoutModal routes through OrderService, PendingOrders shows "Queued" badge with disabled actions for offline orders. Expo Station complete (Session 17) — local verification layer in KDS with 4-column layout, AI Settings toggle + KDS header override, expo check triggers print, toggle-off safety prints unchecked orders. PayPal Zettle integration complete (Session 18) — provider-based payment abstraction (`PaymentProvider` interface), PayPal recommended + Stripe fallback, restaurant selects processor via Payments tab in Control Panel. Tip Pooling & Tip-Out Rules complete (Session 19) — TipService reactive computation engine, TipManagement 4-tab dashboard (reports, pool rules, tip-out rules, compliance) in Control Panel 6th tab, CSV payroll export, minimum wage compliance checking.
+**Foundational Capabilities:** Dining Options (dine-in, takeout, curbside, delivery, catering) fully implemented with frontend workflows (Session 11) and production-ready backend validation via Zod (Session 12). Query filtering supports delivery status tracking and catering approval workflows. Control Panel fully implemented with 6 tabs: Printers, AI Settings, Online Pricing, Catering Calendar, Payments, Tip Management (Sessions 13, 18, 19). Course System UI implemented in PendingOrders (grouped items, fire status badges, manual fire controls) and OrderNotifications (course-ready audio chime + desktop alerts) (Session 13). Duplicate notification bug fixed (Session 14). Course Pacing Mode Selector complete (Session 15) — replaced boolean toggle with 3-way `CoursePacingMode` dropdown (disabled/server_fires/auto_fire_timed) that persists from AI Settings → KDS → PendingOrders with operator override. KDS Recall Ticket complete (Session 15) — backward status transitions with print status cleanup. Catering Approval Timeout complete (Session 16) — configurable auto-reject timer with countdown UI in PendingOrders and AI Settings panel. Offline Mode complete (Session 16) — localStorage order queue with auto-sync on reconnect, CheckoutModal routes through OrderService, PendingOrders shows "Queued" badge with disabled actions for offline orders. Expo Station complete (Session 17) — local verification layer in KDS with 4-column layout, AI Settings toggle + KDS header override, expo check triggers print, toggle-off safety prints unchecked orders. PayPal Zettle integration complete (Session 18 frontend, Session 19 backend) — provider-based payment abstraction (`PaymentProvider` interface), PayPal recommended + Stripe fallback, restaurant selects processor via Payments tab in Control Panel. Backend PayPal endpoints complete: `/paypal-create`, `/paypal-capture`, PayPal webhook handler, and shared routes (`/payment-status`, `/cancel-payment`, `/refund`) made processor-agnostic (Session 19). Tip Pooling & Tip-Out Rules complete (Session 19) — TipService reactive computation engine, TipManagement 4-tab dashboard (reports, pool rules, tip-out rules, compliance) in Control Panel 6th tab, CSV payroll export, minimum wage compliance checking.
 
 This plan maps every AI integration opportunity across all restaurant operations domains, organized by implementation effort.
 
@@ -244,9 +244,9 @@ One bundle serves all OrderStack pages. New custom elements are available on any
 
 ### T1-07. Payment Integration (PayPal Zettle + Stripe)
 **Domain:** Payments
-**Status:** ✅ COMPLETE (Session 5 Stripe, Session 18 PayPal Zettle + provider abstraction)
+**Status:** ✅ COMPLETE (Session 5 Stripe, Session 18 PayPal frontend, Session 19 PayPal backend)
 **What:** Processor-agnostic payment system with `PaymentProvider` interface. PayPal Zettle (recommended, lowest fees) and Stripe (fallback) as provider implementations. Restaurants select their processor in Control Panel → Payments tab. Card input, payment confirmation, refund capability in order management.
-**Backend:** Stripe endpoints READY. PayPal endpoints needed: `POST /paypal-create`, `POST /paypal-capture`.
+**Backend:** ✅ COMPLETE — Stripe endpoints + PayPal endpoints (`/paypal-create`, `/paypal-capture`, webhook). Shared routes (`/payment-status`, `/cancel-payment`, `/refund`) are processor-agnostic, detecting Stripe vs PayPal automatically. `paypal.service.ts` mirrors `stripe.service.ts` pattern with token caching, idempotent order creation, and capture ID extraction for refunds.
 **Frontend:** `PaymentService` orchestrator delegates to `StripePaymentProvider` or `PayPalPaymentProvider` plain classes. PayPal buttons auto-confirm; Stripe requires explicit Pay button. `PaymentSettingsComponent` in Control Panel for processor selection.
 **Impact:** Without this, the system cannot process real transactions. PayPal Zettle saves ~$3K/year vs Stripe on $80K/month volume.
 
@@ -259,8 +259,9 @@ One bundle serves all OrderStack pages. New custom elements are available on any
 | POST | `/restaurant/:id/orders/:orderId/cancel-payment` | None | `{ success, message }` | ✅ READY |
 | POST | `/restaurant/:id/orders/:orderId/refund` | `{ amount?: number }` | `{ success, refundId, amount, status }` | ✅ READY |
 | POST | `/api/webhooks/stripe` | Stripe webhook payload | `{ received: true }` | ✅ READY |
-| POST | `/restaurant/:id/orders/:orderId/paypal-create` | `{}` | `{ paypalOrderId }` | 📋 NEEDED |
-| POST | `/restaurant/:id/orders/:orderId/paypal-capture` | `{}` | `{ captureId, status }` | 📋 NEEDED |
+| POST | `/restaurant/:id/orders/:orderId/paypal-create` | `{}` | `{ paypalOrderId }` | ✅ READY |
+| POST | `/restaurant/:id/orders/:orderId/paypal-capture` | `{}` | `{ success }` | ✅ READY |
+| POST | `/api/webhooks/paypal` | PayPal webhook payload | `{ received: true }` | ✅ READY |
 
 Payment statuses: `pending`, `paid`, `failed`, `cancelled`, `partial_refund`, `refunded`
 
@@ -413,7 +414,7 @@ Payment statuses: `pending`, `paid`, `failed`, `cancelled`, `partial_refund`, `r
 | T1-01 | AI Upsell Bar | 1-2 days | 1 | None | ✅ COMPLETE |
 | T1-06 | AI Cost in Menu Mgmt | 1-2 days | 1 | None | ✅ COMPLETE |
 | T1-04 | Order Profit Insights | 1 day | 1 | None | ✅ COMPLETE |
-| T1-07 | Payment Integration (PayPal + Stripe) | 3-4 days | 2 | PayPal endpoints needed | ✅ COMPLETE |
+| T1-07 | Payment Integration (PayPal + Stripe) | 3-4 days | 2 | ✅ All endpoints ready | ✅ COMPLETE |
 | T1-08 | Receipt Printing (CloudPRNT) | 2-3 days | 2 | CloudPRNT API | ✅ COMPLETE |
 | CP | Control Panel Tabs (AI Settings, Online Pricing, Catering Calendar) | 1 day | — | PATCH settings | ✅ COMPLETE |
 | CS | Course System UI (PendingOrders display + fire, OrderNotifications chime, duplicate notification bugfix, Course Pacing Mode Selector, KDS Recall Ticket) | 1 day | — | None | ✅ COMPLETE |
@@ -466,6 +467,7 @@ Payment statuses: `pending`, `paid`, `failed`, `cancelled`, `partial_refund`, `r
 | Backend: `src/services/sales-insights.service.ts` | Defines sales report interfaces |
 | Backend: `src/services/inventory.service.ts` | Full inventory + predictions |
 | Backend: `src/services/stripe.service.ts` | Stripe payment processing |
+| Backend: `src/services/paypal.service.ts` | PayPal Orders v2 payment processing |
 | `library/src/lib/services/providers/` | PayPal + Stripe payment provider implementations |
 | `library/src/lib/settings/payment-settings/` | Payment processor selection UI |
 | `library/src/lib/services/tip.ts` | TipService — reactive tip pooling/compliance computation engine |
