@@ -51,6 +51,12 @@
               <div class="order-meta small text-muted d-flex align-items-center gap-2">
                 <span>{{ order.diningOption.name }}</span>
                 <span class="badge" [class]="getPaymentBadgeClass(order.checks[0]?.paymentStatus ?? 'OPEN')">{{ getPaymentLabel(order.checks[0]?.paymentStatus ?? 'OPEN') }}</span>
+                @if (order.loyaltyPointsEarned && order.loyaltyPointsEarned > 0) {
+                  <span class="badge loyalty-earned">+{{ order.loyaltyPointsEarned }} pts</span>
+                }
+                @if (order.loyaltyPointsRedeemed && order.loyaltyPointsRedeemed > 0) {
+                  <span class="badge loyalty-redeemed">-{{ order.loyaltyPointsRedeemed }} pts</span>
+                }
                 @if (order.customer?.firstName || order.customer?.lastName) {
                   <span>{{ order.customer?.firstName }} {{ order.customer?.lastName }}</span>
                 }
@@ -229,6 +235,18 @@
               <div class="d-flex justify-content-between mb-1 text-muted small">
                 <span>Tip</span>
                 <span>{{ selectedOrder()!.tipAmount | currency }}</span>
+              </div>
+            }
+            @if (selectedOrder()!.loyaltyPointsEarned && selectedOrder()!.loyaltyPointsEarned! > 0) {
+              <div class="d-flex justify-content-between mb-1 small" style="color: #28a745;">
+                <span>Points Earned</span>
+                <span>+{{ selectedOrder()!.loyaltyPointsEarned }}</span>
+              </div>
+            }
+            @if (selectedOrder()!.loyaltyPointsRedeemed && selectedOrder()!.loyaltyPointsRedeemed! > 0) {
+              <div class="d-flex justify-content-between mb-1 small" style="color: #ffc107;">
+                <span>Points Redeemed</span>
+                <span>-{{ selectedOrder()!.loyaltyPointsRedeemed }}</span>
               </div>
             }
             <hr />

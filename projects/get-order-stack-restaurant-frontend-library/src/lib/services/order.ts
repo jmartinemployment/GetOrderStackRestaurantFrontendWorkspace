@@ -790,6 +790,8 @@ export class OrderService implements OnDestroy {
         depositPaid: raw.depositPaid ?? false,
         specialInstructions: raw.cateringInstructions,
       } : undefined),
+      loyaltyPointsEarned: raw.loyaltyPointsEarned ?? 0,
+      loyaltyPointsRedeemed: raw.loyaltyPointsRedeemed ?? 0,
     };
   }
 

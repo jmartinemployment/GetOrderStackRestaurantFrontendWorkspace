@@ -315,3 +315,27 @@
   font-size: 0.75rem;
   padding: 0.2rem 0.4rem;
 }
+
+// Loyalty section
+.loyalty-section {
+  .tier-badge {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: 0.15rem 0.5rem;
+    border-radius: 0.25rem;
+    color: #000;
+    letter-spacing: 0.05em;
+  }
+
+  .redeem-input {
+    max-width: 100px;
+  }
+
+  .rewards-list {
+    .btn {
+      font-size: 0.8rem;
+      padding: 0.35rem 0.5rem;
+    }
+  }
+}

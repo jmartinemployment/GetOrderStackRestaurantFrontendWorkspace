@@ -4,8 +4,9 @@ import { MenuService } from '../../services/menu';
 import { CartService } from '../../services/cart';
 import { OrderService } from '../../services/order';
 import { AuthService } from '../../services/auth';
+import { LoyaltyService } from '../../services/loyalty';
 import { LoadingSpinner } from '../../shared/loading-spinner/loading-spinner';
-import { MenuItem, Order, OrderType, getOrderIdentifier } from '../../models';
+import { MenuItem, Order, OrderType, getOrderIdentifier, LoyaltyProfile, LoyaltyReward, getTierLabel, getTierColor, tierMeetsMinimum } from '../../models';
 
 type OnlineStep = 'menu' | 'cart' | 'info' | 'confirm';
 
@@ -21,6 +22,7 @@ export class OnlineOrderPortal implements OnDestroy {
   private readonly cartService = inject(CartService);
   private readonly orderService = inject(OrderService);
   private readonly authService = inject(AuthService);
+  private readonly loyaltyService = inject(LoyaltyService);
 
   readonly restaurantSlug = input<string>('');
 
@@ -86,6 +88,44 @@ export class OnlineOrderPortal implements OnDestroy {
   readonly cartTax = this.cartService.tax;
   readonly cartItemCount = this.cartService.itemCount;
 
+  // --- Loyalty ---
+  private readonly _loyaltyProfile = signal<LoyaltyProfile | null>(null);
+  private readonly _isLookingUpLoyalty = signal(false);
+  private readonly _loyaltyLookupDone = signal(false);
+  private readonly _pointsToRedeem = signal(0);
+  private readonly _earnedPointsMessage = signal('');
+  private _phoneLookupTimeout: ReturnType<typeof setTimeout> | undefined;
+
+  readonly loyaltyProfile = this._loyaltyProfile.asReadonly();
+  readonly isLookingUpLoyalty = this._isLookingUpLoyalty.asReadonly();
+  readonly loyaltyLookupDone = this._loyaltyLookupDone.asReadonly();
+  readonly pointsToRedeem = this._pointsToRedeem.asReadonly();
+  readonly earnedPointsMessage = this._earnedPointsMessage.asReadonly();
+  readonly loyaltyEnabled = computed(() => this.loyaltyService.config().enabled);
+  readonly loyaltyDiscount = this.cartService.loyaltyDiscount;
+
+  readonly estimatedPointsEarned = computed(() =>
+    this.loyaltyService.calculatePointsForOrder(this.cartSubtotal())
+  );
+
+  readonly availableRewards = computed(() => {
+    const profile = this._loyaltyProfile();
+    if (!profile) return [] as LoyaltyReward[];
+    return this.loyaltyService.rewards().filter(r =>
+      r.isActive && tierMeetsMinimum(profile.tier, r.minTier) && r.pointsCost <= profile.points
+    );
+  });
+
+  readonly tierLabel = computed(() => {
+    const profile = this._loyaltyProfile();
+    return profile ? getTierLabel(profile.tier) : '';
+  });
+
+  readonly tierColor = computed(() => {
+    const profile = this._loyaltyProfile();
+    return profile ? getTierColor(profile.tier) : '';
+  });
+
   readonly filteredItems = computed(() => {
     let items = this.menuService.allItems().filter(i => i.isActive !== false && !i.eightySixed);
     const catId = this._selectedCategory();
@@ -126,6 +166,8 @@ export class OnlineOrderPortal implements OnDestroy {
         this.resolveSlug(slug);
       } else if (authId) {
         this.menuService.loadMenuForRestaurant(authId);
+        this.loyaltyService.loadConfig();
+        this.loyaltyService.loadRewards();
       }
     });
   }
@@ -139,6 +181,8 @@ export class OnlineOrderPortal implements OnDestroy {
         this.cartService.setTaxRate(restaurant.taxRate);
       }
       this.menuService.loadMenuForRestaurant(restaurant.id);
+      this.loyaltyService.loadConfig();
+      this.loyaltyService.loadRewards();
     } else {
       this._resolveError.set(`Restaurant "${slug}" not found`);
     }
@@ -199,7 +243,7 @@ export class OnlineOrderPortal implements OnDestroy {
     switch (field) {
       case 'firstName': this._customerFirstName.set(value); break;
       case 'lastName': this._customerLastName.set(value); break;
-      case 'phone': this._customerPhone.set(value); break;
+      case 'phone': this._customerPhone.set(value); this.debouncedLoyaltyLookup(value); break;
       case 'email': this._customerEmail.set(value); break;
       case 'address': this._deliveryAddress.set(value); break;
       case 'address2': this._deliveryAddress2.set(value); break;
@@ -220,6 +264,56 @@ export class OnlineOrderPortal implements OnDestroy {
 
   goToInfo(): void {
     this._step.set('info');
+  }
+
+  // --- Loyalty methods ---
+
+  onPointsToRedeemInput(event: Event): void {
+    const value = Number.parseInt((event.target as HTMLInputElement).value, 10) || 0;
+    const maxPoints = this._loyaltyProfile()?.points ?? 0;
+    const clamped = Math.max(0, Math.min(value, maxPoints));
+    this._pointsToRedeem.set(clamped);
+    const discount = this.loyaltyService.calculateRedemptionDiscount(clamped);
+    this.cartService.setLoyaltyRedemption(clamped, discount);
+  }
+
+  redeemReward(reward: LoyaltyReward): void {
+    this._pointsToRedeem.set(reward.pointsCost);
+    const discount = reward.discountType === 'percentage'
+      ? Math.round(this.cartSubtotal() * (reward.discountValue / 100) * 100) / 100
+      : reward.discountValue;
+    this.cartService.setLoyaltyRedemption(reward.pointsCost, discount);
+  }
+
+  clearRedemption(): void {
+    this._pointsToRedeem.set(0);
+    this.cartService.clearLoyaltyRedemption();
+  }
+
+  private debouncedLoyaltyLookup(phone: string): void {
+    if (this._phoneLookupTimeout) clearTimeout(this._phoneLookupTimeout);
+    this._loyaltyProfile.set(null);
+    this._loyaltyLookupDone.set(false);
+    this._pointsToRedeem.set(0);
+    this.cartService.clearLoyaltyRedemption();
+
+    const digits = phone.replaceAll(/\D/g, '');
+    if (digits.length < 10) return;
+
+    this._phoneLookupTimeout = setTimeout(async () => {
+      this._isLookingUpLoyalty.set(true);
+      try {
+        const customer = await this.loyaltyService.lookupCustomerByPhone(digits);
+        if (customer) {
+          const profile = await this.loyaltyService.getCustomerLoyalty(customer.id);
+          this._loyaltyProfile.set(profile);
+          this.cartService.setEstimatedPointsEarned(this.estimatedPointsEarned());
+        }
+      } finally {
+        this._isLookingUpLoyalty.set(false);
+        this._loyaltyLookupDone.set(true);
+      }
+    }, 500);
   }
 
   async submitOrder(): Promise<void> {
@@ -277,12 +371,22 @@ export class OnlineOrderPortal implements OnDestroy {
         };
       }
 
+      // Loyalty redemption
+      if (this._pointsToRedeem() > 0) {
+        orderData['loyaltyPointsRedeemed'] = this._pointsToRedeem();
+      }
+
       const order = await this.orderService.createOrder(orderData as Partial<any>);
       if (order) {
         this._orderNumber.set(getOrderIdentifier(order));
         this._submittedOrder.set(order);
         this._orderConfirmed.set(true);
         this._step.set('confirm');
+        // Set earned points message before clearing cart
+        const earned = this.estimatedPointsEarned();
+        if (this.loyaltyEnabled() && earned > 0) {
+          this._earnedPointsMessage.set(`You earned ${earned} points on this order!`);
+        }
         this.cartService.clear();
         this.startTracking(order.guid);
       } else {
@@ -314,6 +418,11 @@ export class OnlineOrderPortal implements OnDestroy {
     this._vehicleDescription.set('');
     this._specialInstructions.set('');
     this._error.set(null);
+    this._loyaltyProfile.set(null);
+    this._loyaltyLookupDone.set(false);
+    this._pointsToRedeem.set(0);
+    this._earnedPointsMessage.set('');
+    this.cartService.clearLoyaltyRedemption();
   }
 
   ngOnDestroy(): void {

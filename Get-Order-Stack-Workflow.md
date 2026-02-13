@@ -605,7 +605,7 @@ OPEN → PAID → CLOSED
 
 ## SETTINGS TO IMPLEMENT — ✅ IMPLEMENTED (Sessions 11-13, 18-19)
 
-**Status:** Control Panel component complete with 6 tabs: Printers (T1-08 Session 11-12), AI Settings (Session 13), Online Pricing (Session 13), Catering Calendar (Session 13), Payments (Session 18), Tip Management (Session 19). Backend CloudPRNT integration ✅ COMPLETE. All settings tabs fully implemented with role-based access (owner/manager/super_admin = edit, staff = view only), local form signals with save/discard pattern, localStorage + backend PATCH persistence.
+**Status:** Control Panel component complete with 7 tabs: Printers (T1-08 Session 11-12), AI Settings (Session 13), Online Pricing (Session 13), Catering Calendar (Session 13), Payments (Session 18), Tip Management (Session 19), Loyalty (Session 20). Backend CloudPRNT integration ✅ COMPLETE. All settings tabs fully implemented with role-based access (owner/manager/super_admin = edit, staff = view only), local form signals with save/discard pattern, localStorage + backend PATCH persistence.
 
 ### Control Panel - AI Settings — ✅ IMPLEMENTED (Session 13)
 
@@ -689,7 +689,7 @@ OPEN → PAID → CLOSED
 
 ## APPLICATION ARCHITECTURE — ✅ IMPLEMENTED
 
-**Status:** All 23 frontend components registered as Web Components and deployed to WordPress. Backend API complete with Claude AI integration (Sonnet 4), PostgreSQL via Supabase/Prisma.
+**Status:** All 23 frontend components registered as Web Components and deployed to WordPress. Backend API complete with Claude AI integration (Sonnet 4), PostgreSQL via Supabase/Prisma. Loyalty program fully integrated (Session 20).
 
 **Stack:** Angular 21 (latest), Angular Elements packaged as Web Components, Bootstrap SCSS 5.3.8
 
@@ -718,7 +718,7 @@ GetOrderStack Applications
 │   ├── get-order-stack-sentiment         # Sentiment Analysis
 │   ├── get-order-stack-pending-orders   # Pending Order Management
 │   ├── get-order-stack-order-history    # Order History
-│   └── get-order-stack-control-panel    # Settings (Printers, AI, Pricing, Catering, Payments, Tips)
+│   └── get-order-stack-control-panel    # Settings (Printers, AI, Pricing, Catering, Payments, Tips, Loyalty)
 │
 ├── Restaurant Backend (Express.js + TypeScript)
 │   ├── REST API endpoints
@@ -807,19 +807,20 @@ GetOrderStack Applications
 
 ## INTEGRATION POINTS — 🚧 PARTIALLY IMPLEMENTED
 
-**Status:** KDS real-time sync (WebSocket) ✅, kitchen printers (T1-08 CloudPRNT ✅ COMPLETE — frontend PrinterSettings + Control Panel, backend all 8 phases), payment processor (PayPal Zettle + Stripe ✅ COMPLETE — full-stack provider-based abstraction, frontend Session 18, backend Session 19), online ordering (T3-04) ✅, dining options (frontend + backend validation) ✅, offline mode (localStorage queue + auto-sync) ✅. Third-party delivery, loyalty, accounting, and payroll integrations not yet implemented.
+**Status:** KDS real-time sync (WebSocket) ✅, kitchen printers (T1-08 CloudPRNT ✅ COMPLETE — frontend PrinterSettings + Control Panel, backend all 8 phases), payment processor (PayPal Zettle + Stripe ✅ COMPLETE — full-stack provider-based abstraction, frontend Session 18, backend Session 19), online ordering (T3-04) ✅, dining options (frontend + backend validation) ✅, offline mode (localStorage queue + auto-sync) ✅, loyalty program (full-stack: config, tiers, rewards, points earn/redeem, phone lookup — Session 20) ✅. Third-party delivery, accounting, and payroll integrations not yet implemented.
 
-| System | Method |
-|--------|--------|
-| KDS | Real-time sync |
-| Kitchen printers | Print on fire |
-| Payment processor | PayPal Zettle |
-| Online ordering | GetOrderStack Online |
-| Third-party delivery | DoorDash, Uber, Grubhub APIs |
-| Loyalty | API integration |
-| Reporting | Dashboard |
-| Accounting | See below |
-| Payroll | See below |
+| System | Method | Status |
+|--------|--------|--------|
+| KDS | Real-time sync | ✅ IMPLEMENTED |
+| Kitchen printers | Print on fire (CloudPRNT) | ✅ IMPLEMENTED |
+| Payment processor | PayPal Zettle + Stripe | ✅ IMPLEMENTED |
+| Online ordering | GetOrderStack Online | ✅ IMPLEMENTED |
+| Loyalty | Points, tiers, rewards, redemption | ✅ IMPLEMENTED |
+| Tip management | Pooling, tip-out, compliance, CSV export | ✅ IMPLEMENTED |
+| Reporting | Dashboard (sales, menu engineering, command center) | ✅ IMPLEMENTED |
+| Third-party delivery | DoorDash, Uber, Grubhub APIs | 📋 PLANNED |
+| Accounting | See below | 🔬 RESEARCH |
+| Payroll | See below | 🔬 RESEARCH |
 
 ---
 
@@ -1083,8 +1084,58 @@ GetOrderStack Applications
 
 ---
 
-*Document Version: 5.1*
-*Last Updated: 2026-02-12 (Session 19 — Tip pooling, tip-out rules, compliance, CSV payroll export)*
+## LOYALTY PROGRAM — ✅ IMPLEMENTED (Session 20)
+
+**Status:** Full-stack loyalty program complete. Backend Prisma models + 10 REST endpoints + Zod validators. Frontend LoyaltyService + LoyaltySettings/RewardsManagement in Control Panel (7th tab) + loyalty integration in Checkout, Online Portal, CRM, and Order History.
+
+### Configuration (Control Panel → Loyalty Tab)
+
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| Enable Loyalty Program | Toggle | Off | Master switch |
+| Points per Dollar | Number | 1 | Points earned per dollar spent |
+| Redemption Rate | Currency | $0.01 | Dollar value per point redeemed |
+| Tier Thresholds | Number (per tier) | Bronze: 0, Silver: 500, Gold: 2000, Platinum: 5000 | Lifetime points to reach tier |
+| Tier Multipliers | Number (per tier) | Bronze: 1x, Silver: 1.25x, Gold: 1.5x, Platinum: 2x | Points earning multiplier |
+
+### Loyalty Tiers
+
+| Tier | Min Points | Multiplier | Color |
+|------|-----------|------------|-------|
+| Bronze | 0 | 1x | #CD7F32 |
+| Silver | 500 | 1.25x | #C0C0C0 |
+| Gold | 2,000 | 1.5x | #FFD700 |
+| Platinum | 5,000 | 2x | #E5E4E2 |
+
+### Customer Touchpoints
+
+| Location | Feature |
+|----------|---------|
+| **Checkout (SOS)** | Phone lookup → tier badge + points balance → redeem points → available rewards → loyalty discount in totals |
+| **Online Portal** | Same as checkout + earned points message on confirm step |
+| **CRM Dashboard** | Tier badge in table, loyalty section in detail panel (tier progress, lifetime earned/redeemed, activity feed, admin points adjustment) |
+| **Order History** | Loyalty earned/redeemed badges in list view + points lines in detail modal |
+| **Rewards Management** | CRUD table for rewards (name, description, points cost, tier requirement, active toggle) |
+
+### Backend Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/loyalty/config` | Get restaurant loyalty config |
+| PUT | `/loyalty/config` | Save loyalty config |
+| GET | `/loyalty/rewards` | List rewards |
+| POST | `/loyalty/rewards` | Create reward |
+| PUT | `/loyalty/rewards/:id` | Update reward |
+| DELETE | `/loyalty/rewards/:id` | Delete reward |
+| GET | `/loyalty/customer/:id` | Get customer loyalty profile |
+| GET | `/loyalty/customer/:id/history` | Get points history |
+| POST | `/loyalty/customer/:id/adjust` | Admin points adjustment |
+| GET | `/loyalty/lookup?phone=` | Lookup customer by phone |
+
+---
+
+*Document Version: 5.2*
+*Last Updated: 2026-02-13 (Session 20 — Loyalty program full-stack integration)*
 *Location: Get-Order-Stack-Restaurant-Frontend-Workspace/Get-Order-Stack-Workflow.md*
 
 ## IMPLEMENTATION SUMMARY
@@ -1092,7 +1143,7 @@ GetOrderStack Applications
 **Completed (All 4 Tiers):**
 - ✅ **T1 (8/8):** AI Upsell, Menu Engineering, Sales Dashboard, Order Profit Insights, Inventory Dashboard, AI Cost Estimation, Stripe Payments, Receipt Printing (T1-08 ✅ COMPLETE)
 - ✅ **T2 (5/6):** Smart KDS, Auto-86, AI Menu Badges, Priority Notifications, Table Floor Plan (Multi-Device Routing deferred — no backend)
-- ✅ **T3 (6/6):** AI Command Center, Customer CRM, Online Ordering Portal, Reservation Manager, AI Chat Assistant
+- ✅ **T3 (6/6):** AI Command Center, Customer CRM, Online Ordering Portal, Reservation Manager, AI Chat Assistant (T3-03 Labor deferred)
 - ✅ **T4 (5/5):** Autonomous Monitoring, Voice AI, Dynamic Pricing, Waste Reduction, Sentiment Analysis
 - ✅ **T1-08 Receipt Printing (CloudPRNT) — COMPLETE (Session 12):**
   - ✅ Frontend: Control Panel + PrinterSettings UI (CRUD, CloudPRNT config, MAC validation, test print, status indicators)
@@ -1101,12 +1152,16 @@ GetOrderStack Applications
   - ✅ Frontend (Session 11): 5 dining types in Online Portal, OrderHistory, Checkout, ReceiptPrinter
   - ✅ Backend (Session 12): Zod validation, query filtering (deliveryStatus, approvalStatus), API documentation
 
+**Additional:**
+- ✅ **Loyalty Program (Session 20):** Full-stack — backend Prisma models + 10 REST endpoints + Zod validators; frontend LoyaltyService + LoyaltySettings/RewardsManagement in Control Panel + loyalty in Checkout, Online Portal, CRM, Order History
+- ✅ **Control Panel:** 7 tabs (Printers, AI Settings, Online Pricing, Catering Calendar, Payments, Tip Management, Loyalty)
+
 **Frontend:** 23 Web Components registered and deployed to WordPress (geekatyourspot.com)
-**Backend:** Claude AI services (Sonnet 4), PostgreSQL/Prisma, WebSocket + polling, PayPal Zettle + Stripe payment integration (full-stack complete — processor-agnostic routes, PayPal webhook)
+**Backend:** Claude AI services (Sonnet 4), PostgreSQL/Prisma, WebSocket + polling, PayPal Zettle + Stripe payment integration (full-stack complete — processor-agnostic routes, PayPal webhook), Loyalty program (full-stack complete)
 
 **Remaining:**
 - 🚧 AI auto-fire course pacing — backend execution pending (frontend UI complete: mode selector, manual fire, course notifications, recall ticket)
 - 📋 Order throttling — not yet implemented
-- 🔬 Third-party delivery, loyalty, accounting/payroll integrations (research phase)
+- 🔬 Third-party delivery, accounting/payroll integrations (research phase)
 - ⏭️ T2-04 Multi-Device KDS Routing — deferred (no backend station-category mapping)
 - ⏭️ T3-03 Labor Intelligence / Staff Scheduling — deferred (no backend schema)

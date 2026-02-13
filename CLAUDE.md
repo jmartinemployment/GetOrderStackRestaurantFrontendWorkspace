@@ -126,8 +126,7 @@ Internal (not registered as custom elements):
 - All `shared/` components — used internally by other components
 - `MenuDisplay`, `CartDrawer`, `CheckoutModal`, `UpsellBar`, `OrderNotifications`, `MenuItemCard` — used internally by `SosTerminal`
 - `OrderCard`, `StatusBadge` — used internally by `KdsDisplay`
-- `PrinterSettings` — used internally by `ControlPanel`
-- `PaymentSettingsComponent` — used internally by `ControlPanel`
+- `PrinterSettings`, `PaymentSettingsComponent`, `AiSettings`, `OnlinePricing`, `CateringCalendar`, `TipManagement`, `LoyaltySettings`, `RewardsManagement` — used internally by `ControlPanel`
 - `ReceiptPrinter` — used internally by other components
 
 ## Core Services
@@ -136,13 +135,21 @@ Internal (not registered as custom elements):
 |---|---|---|
 | `AnalyticsService` | AI upsell, menu engineering, sales reports | Signals, debounced fetch, `firstValueFrom()` |
 | `AuthService` | Authentication, session, restaurant selection | Signals, localStorage persistence |
+| `CartService` | Shopping cart state, tax/tip/loyalty calculation | Signals, configurable tax rate, loyalty discount |
+| `ChatService` | AI chat conversation management | Signals, `firstValueFrom()` |
+| `CustomerService` | Customer CRUD, segment calculation | Signals, `firstValueFrom()` |
 | `InventoryService` | Inventory CRUD, stock actions, AI predictions, reports | Signals, 10 HTTP methods, `firstValueFrom()` |
-| `PaymentService` | Processor-agnostic orchestrator (PayPal Zettle + Stripe), provider pattern, refunds | Signals, `firstValueFrom()`, delegates to `PaymentProvider` instances |
+| `LoyaltyService` | Loyalty config, rewards CRUD, points, phone lookup | Signals, `firstValueFrom()` |
 | `MenuService` | Menu CRUD, AI cost estimation, language support (en/es) | `firstValueFrom()`, HttpClient |
-| `CartService` | Shopping cart state, tax/tip calculation | Signals, 8.25% default tax |
-| `OrderService` | Order management, profit insights | `firstValueFrom()`, HttpClient |
-| `TableService` | Table CRUD, position/status updates | Signals, `firstValueFrom()` |
+| `MonitoringService` | Anomaly detection, configurable polling, alert feed | Signals, 8 built-in rules |
+| `OrderService` | Order management, profit insights, offline queue | `firstValueFrom()`, HttpClient |
+| `PaymentService` | Processor-agnostic orchestrator (PayPal Zettle + Stripe) | Signals, delegates to `PaymentProvider` instances |
+| `PrinterService` | Printer CRUD, test print | Signals, `firstValueFrom()` |
+| `ReservationService` | Reservation CRUD, status workflow | Signals, `firstValueFrom()` |
+| `RestaurantSettingsService` | Settings persistence (AI, pricing, payments, tips, loyalty) | Signals, localStorage + backend PATCH |
 | `SocketService` | Real-time WebSocket + polling fallback | socket.io-client, reconnection, heartbeat |
+| `TableService` | Table CRUD, position/status updates | Signals, `firstValueFrom()` |
+| `TipService` | Tip pooling, tip-out rules, compliance, CSV export | Signals, computed reactive engine |
 
 ### WebSocket Events
 
@@ -345,12 +352,13 @@ This ensures critical context survives compression and new sessions start with f
 
 ## AI Feature Roadmap
 
-See **[plan.md](./plan.md)** for the comprehensive AI feature roadmap (22 features across 4 tiers). Key points:
+See **[plan.md](./plan.md)** for the comprehensive AI feature roadmap. Key points:
 
-- **Tier 1 (7 features):** Backend AI services already built (Claude Sonnet 4) but not surfaced in frontend — cart-aware upselling, menu engineering quadrants, sales insights, order profit display, inventory dashboard, AI cost estimation, Stripe payments
-- **Tier 2 (6 features):** Enhance existing components — smart KDS routing, auto-86 from inventory, data-driven menu badges, table floor plan
-- **Tier 3 (6 features):** New modules to compete with Toast IQ — AI command center, CRM, labor scheduling, online ordering, reservations, AI chat assistant
-- **Tier 4 (5 features):** Differentiators — autonomous monitoring agent, voice ordering, dynamic pricing, waste reduction, sentiment analysis
+- **Tier 1 (8/8 COMPLETE):** AI upsell, menu engineering, sales dashboard, order profit, inventory, AI cost estimation, PayPal Zettle + Stripe payments, receipt printing (CloudPRNT)
+- **Tier 2 (5/6 COMPLETE):** Smart KDS + expo station, auto-86, AI menu badges, priority notifications, table floor plan (T2-04 multi-device routing deferred)
+- **Tier 3 (6/6 COMPLETE):** AI command center, CRM, online ordering, reservations, AI chat assistant (T3-03 labor scheduling deferred)
+- **Tier 4 (5/5 COMPLETE):** Autonomous monitoring, voice AI ordering, dynamic pricing, waste reduction, sentiment analysis
+- **Additional features COMPLETE:** Dining options (5 types), course system UI, expo station, offline mode, catering timeout, tip pooling/management, loyalty program
 
 ### Session Notes
 
@@ -733,6 +741,43 @@ npm run seed:reset    # Nuclear: wipe DB, re-create schema, re-seed everything
 
 - Next: deploy updated bundle + backend to WordPress/Render, get real PayPal sandbox secret
 
+**[February 13, 2026] (Session 20):**
+- Implemented: Loyalty Program — full frontend integration (Phase 2 Steps 6-8 + Phase 3 Steps 9-13 + Phase 4 Step 14)
+- Backend loyalty (Phase 1) was completed in a prior context window (same session)
+- **Phase 2 — Frontend Models + Service (Steps 6-8):**
+  - Created `models/loyalty.model.ts` — `LoyaltyTier`, `LoyaltyTransactionType`, `TIER_RANK`, `tierMeetsMinimum()`, `LoyaltyConfig`, `LoyaltyProfile`, `LoyaltyTransaction`, `LoyaltyReward`, `LoyaltyRedemption`, `defaultLoyaltyConfig()`, `getTierLabel()`, `getTierColor()`
+  - Created `services/loyalty.ts` — `LoyaltyService` with `loadConfig`, `saveConfig`, `loadRewards`, `createReward`, `updateReward`, `deleteReward`, `getCustomerLoyalty`, `getPointsHistory`, `adjustPoints`, `lookupCustomerByPhone`, `calculatePointsForOrder`, `calculateRedemptionDiscount`
+  - Extended `customer.model.ts` — added `loyaltyTier: LoyaltyTier`, `totalPointsEarned`, `totalPointsRedeemed`
+  - Extended `order.model.ts` — added `loyaltyPointsEarned?`, `loyaltyPointsRedeemed?`
+  - Extended `printer.model.ts` — added `'loyalty'` to `ControlPanelTab` union (now 7 values)
+  - Modified `services/order.ts` — `mapOrder()` includes loyalty fields
+- **Phase 3 — Frontend UI (Steps 9-13):**
+  - **Step 9 — Control Panel:** Created `settings/loyalty-settings/` (4 files) — enable toggle, pointsPerDollar, redemption rate with live preview, tier thresholds/multipliers, save/discard. Created `settings/rewards-management/` (4 files) — rewards CRUD table, add/edit modal, tier badges. Added 'Loyalty' tab to ControlPanel.
+  - **Step 10 — Cart + Checkout:** Extended `CartService` with loyalty signals (`_loyaltyPointsToRedeem`, `_loyaltyDiscount`, `_estimatedPointsEarned`), updated `total` computed with post-tax discount, added `setLoyaltyRedemption()`, `clearLoyaltyRedemption()`, `setEstimatedPointsEarned()`, updated `clear()` and `getOrderData()`. Modified `CheckoutModal` — injected LoyaltyService, debounced phone lookup (500ms, >=10 digits), tier badge + points balance display, redeem points input, available rewards list, loyalty discount in totals, `loyaltyPointsRedeemed` in order payload, dedicated loyalty phone field for dine-in.
+  - **Step 11 — Online Portal:** Modified `OnlineOrderPortal` — same loyalty pattern as checkout (debounced phone lookup, tier badge, points redemption, rewards, discount in cart/order summary), earned points message on confirm step (`"You earned X points!"`), loads loyalty config/rewards on restaurant resolution.
+  - **Step 12 — CRM Dashboard:** Modified `CustomerDashboard` — tier badge (color-coded) in Points column of customer table, loyalty section in detail panel (tier + progress bar to next tier, lifetime earned/redeemed, recent activity feed from points history, admin "Adjust Points" form with reason field).
+  - **Step 13 — Order History:** Added loyalty earned/redeemed badges in order card list view, added Points Earned/Redeemed lines in detail modal totals section.
+- **Phase 4 — Step 14:** Added `LoyaltyService` export to `public-api.ts`, verified all model exports in `models/index.ts`
+- **Files modified (17):**
+  - `models/loyalty.model.ts` (new), `models/customer.model.ts`, `models/order.model.ts`, `models/printer.model.ts`, `models/index.ts`
+  - `services/loyalty.ts` (new), `services/cart.ts`, `services/order.ts`
+  - `settings/loyalty-settings/` (new, 4 files), `settings/rewards-management/` (new, 4 files)
+  - `settings/control-panel/control-panel.ts`, `settings/control-panel/control-panel.html`
+  - `sos/checkout-modal/checkout-modal.ts`, `sos/checkout-modal/checkout-modal.html`, `sos/checkout-modal/checkout-modal.scss`
+  - `online-ordering/online-order-portal/online-order-portal.ts`, `online-order-portal.html`, `online-order-portal.scss`
+  - `crm/customer-dashboard/customer-dashboard.ts`, `customer-dashboard.html`, `customer-dashboard.scss`
+  - `orders/order-history/order-history.html`, `order-history.scss`
+  - `public-api.ts`
+- **Backend files (created in prior context, same session):**
+  - `prisma/schema.prisma` — 3 new models (LoyaltyTransaction, LoyaltyReward, RestaurantLoyaltyConfig), fields on Customer + Order
+  - `src/services/loyalty.service.ts` — 12 methods, TIER_RANK numeric comparison, prisma.$transaction for redemption
+  - `src/validators/loyalty.validator.ts` — 5 Zod schemas
+  - `src/app/loyalty.routes.ts` — 10 REST endpoints
+  - `src/app/app.routes.ts` — customer upsert by phone, order loyalty integration, cancellation reversal
+- Build: 989 kB main.js + 226 kB styles.css, zero errors
+- Control Panel tabs: Printers, AI Settings, Online Pricing, Catering Calendar, Payments, Tip Management, Loyalty (7 total)
+- Next: deploy updated bundle + backend, test loyalty flow end-to-end
+
 ---
 
-*Last Updated: February 13, 2026 (Session 19)*
+*Last Updated: February 13, 2026 (Session 21 — Status sync across CLAUDE.md, plan.md, Get-Order-Stack-Workflow.md)*

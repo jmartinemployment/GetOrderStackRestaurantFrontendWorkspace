@@ -2,9 +2,10 @@ import { Component, inject, signal, computed, effect, ChangeDetectionStrategy } 
 import { CurrencyPipe, DecimalPipe, DatePipe } from '@angular/common';
 import { CustomerService } from '../../services/customer';
 import { AuthService } from '../../services/auth';
+import { LoyaltyService } from '../../services/loyalty';
 import { LoadingSpinner } from '../../shared/loading-spinner/loading-spinner';
 import { ErrorDisplay } from '../../shared/error-display/error-display';
-import { Customer, CustomerSegment, CrmTab, CrmSortField } from '../../models';
+import { Customer, CustomerSegment, CrmTab, CrmSortField, LoyaltyTransaction, getTierLabel, getTierColor } from '../../models';
 
 @Component({
   selector: 'get-order-stack-crm',
@@ -16,6 +17,7 @@ import { Customer, CustomerSegment, CrmTab, CrmSortField } from '../../models';
 export class CustomerDashboard {
   private readonly customerService = inject(CustomerService);
   private readonly authService = inject(AuthService);
+  private readonly loyaltyService = inject(LoyaltyService);
 
   readonly isAuthenticated = this.authService.isAuthenticated;
 
@@ -26,12 +28,25 @@ export class CustomerDashboard {
   private readonly _sortAsc = signal(false);
   private readonly _selectedCustomer = signal<Customer | null>(null);
 
+  // Loyalty detail
+  private readonly _loyaltyHistory = signal<LoyaltyTransaction[]>([]);
+  private readonly _isLoadingLoyalty = signal(false);
+  private readonly _adjustPoints = signal(0);
+  private readonly _adjustReason = signal('');
+  private readonly _isAdjusting = signal(false);
+
   readonly activeTab = this._activeTab.asReadonly();
   readonly searchTerm = this._searchTerm.asReadonly();
   readonly segmentFilter = this._segmentFilter.asReadonly();
   readonly sortField = this._sortField.asReadonly();
   readonly sortAsc = this._sortAsc.asReadonly();
   readonly selectedCustomer = this._selectedCustomer.asReadonly();
+  readonly loyaltyHistory = this._loyaltyHistory.asReadonly();
+  readonly isLoadingLoyalty = this._isLoadingLoyalty.asReadonly();
+  readonly adjustPoints = this._adjustPoints.asReadonly();
+  readonly adjustReason = this._adjustReason.asReadonly();
+  readonly isAdjusting = this._isAdjusting.asReadonly();
+  readonly loyaltyConfig = this.loyaltyService.config;
 
   readonly customers = this.customerService.customers;
   readonly isLoading = this.customerService.isLoading;
@@ -107,6 +122,7 @@ export class CustomerDashboard {
     effect(() => {
       if (this.isAuthenticated() && this.authService.selectedRestaurantId()) {
         this.customerService.loadCustomers();
+        this.loyaltyService.loadConfig();
       }
     });
   }
@@ -135,10 +151,82 @@ export class CustomerDashboard {
 
   selectCustomer(customer: Customer): void {
     this._selectedCustomer.set(customer);
+    this._loyaltyHistory.set([]);
+    this._adjustPoints.set(0);
+    this._adjustReason.set('');
+    this.loadLoyaltyHistory(customer.id);
   }
 
   closeDetail(): void {
     this._selectedCustomer.set(null);
+    this._loyaltyHistory.set([]);
+  }
+
+  // --- Loyalty ---
+
+  getLoyaltyTierLabel(customer: Customer): string {
+    return getTierLabel(customer.loyaltyTier);
+  }
+
+  getLoyaltyTierColor(customer: Customer): string {
+    return getTierColor(customer.loyaltyTier);
+  }
+
+  getTierProgress(customer: Customer): number {
+    const config = this.loyaltyConfig();
+    const earned = customer.totalPointsEarned;
+    const tier = customer.loyaltyTier;
+    if (tier === 'platinum') return 100;
+    const thresholds = { bronze: 0, silver: config.tierSilverMin, gold: config.tierGoldMin, platinum: config.tierPlatinumMin };
+    const nextTier = tier === 'bronze' ? 'silver' : tier === 'silver' ? 'gold' : 'platinum';
+    const current = thresholds[tier];
+    const next = thresholds[nextTier];
+    if (next <= current) return 100;
+    return Math.min(100, Math.round(((earned - current) / (next - current)) * 100));
+  }
+
+  getNextTierLabel(customer: Customer): string {
+    const tier = customer.loyaltyTier;
+    if (tier === 'platinum') return '';
+    return tier === 'bronze' ? 'Silver' : tier === 'silver' ? 'Gold' : 'Platinum';
+  }
+
+  onAdjustPointsInput(event: Event): void {
+    this._adjustPoints.set(Number.parseInt((event.target as HTMLInputElement).value, 10) || 0);
+  }
+
+  onAdjustReasonInput(event: Event): void {
+    this._adjustReason.set((event.target as HTMLInputElement).value);
+  }
+
+  async submitAdjustment(): Promise<void> {
+    const customer = this._selectedCustomer();
+    const points = this._adjustPoints();
+    const reason = this._adjustReason().trim();
+    if (!customer || points === 0 || !reason) return;
+
+    this._isAdjusting.set(true);
+    try {
+      const success = await this.loyaltyService.adjustPoints(customer.id, points, reason);
+      if (success) {
+        this._adjustPoints.set(0);
+        this._adjustReason.set('');
+        await this.loadLoyaltyHistory(customer.id);
+        this.customerService.loadCustomers();
+      }
+    } finally {
+      this._isAdjusting.set(false);
+    }
+  }
+
+  private async loadLoyaltyHistory(customerId: string): Promise<void> {
+    this._isLoadingLoyalty.set(true);
+    try {
+      const history = await this.loyaltyService.getPointsHistory(customerId);
+      this._loyaltyHistory.set(history);
+    } finally {
+      this._isLoadingLoyalty.set(false);
+    }
   }
 
   getSegment(customer: Customer) {

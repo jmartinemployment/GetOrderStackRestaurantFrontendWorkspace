@@ -6,7 +6,8 @@ import { SocketService } from '../../services/socket';
 import { PaymentService } from '../../services/payment';
 import { OrderService } from '../../services/order';
 import { RestaurantSettingsService } from '../../services/restaurant-settings';
-import { Modifier, CustomerInfo, Course } from '../../models';
+import { LoyaltyService } from '../../services/loyalty';
+import { Modifier, CustomerInfo, Course, LoyaltyProfile, LoyaltyReward, getTierLabel, getTierColor, tierMeetsMinimum } from '../../models';
 import {
   DiningOptionType,
   DINING_OPTIONS,
@@ -30,6 +31,7 @@ export class CheckoutModal implements OnInit {
   private readonly paymentService = inject(PaymentService);
   private readonly orderService = inject(OrderService);
   private readonly settingsService = inject(RestaurantSettingsService);
+  private readonly loyaltyService = inject(LoyaltyService);
 
   orderPlaced = output<string>();
 
@@ -63,9 +65,54 @@ export class CheckoutModal implements OnInit {
 
   readonly stripeMount = viewChild<ElementRef>('stripeMount');
 
+  // --- Loyalty ---
+  private readonly _loyaltyProfile = signal<LoyaltyProfile | null>(null);
+  private readonly _isLookingUpLoyalty = signal(false);
+  private readonly _loyaltyLookupDone = signal(false);
+  private readonly _pointsToRedeem = signal(0);
+  private readonly _loyaltyPhone = signal('');
+  private _phoneLookupTimeout: ReturnType<typeof setTimeout> | undefined;
+
+  readonly loyaltyProfile = this._loyaltyProfile.asReadonly();
+  readonly isLookingUpLoyalty = this._isLookingUpLoyalty.asReadonly();
+  readonly loyaltyLookupDone = this._loyaltyLookupDone.asReadonly();
+  readonly pointsToRedeem = this._pointsToRedeem.asReadonly();
+  readonly loyaltyPhone = this._loyaltyPhone.asReadonly();
+
+  readonly loyaltyEnabled = computed(() => this.loyaltyService.config().enabled);
+  readonly loyaltyDiscount = this.cartService.loyaltyDiscount;
+
+  readonly estimatedPointsEarned = computed(() =>
+    this.loyaltyService.calculatePointsForOrder(this.subtotal())
+  );
+
+  readonly availableRewards = computed(() => {
+    const profile = this._loyaltyProfile();
+    if (!profile) return [] as LoyaltyReward[];
+    return this.loyaltyService.rewards().filter(r =>
+      r.isActive && tierMeetsMinimum(profile.tier, r.minTier) && r.pointsCost <= profile.points
+    );
+  });
+
+  readonly showLoyaltyPhoneField = computed(() =>
+    this.loyaltyEnabled() && !this.selectedDiningOption().requiresCustomer
+  );
+
+  readonly tierLabel = computed(() => {
+    const profile = this._loyaltyProfile();
+    return profile ? getTierLabel(profile.tier) : '';
+  });
+
+  readonly tierColor = computed(() => {
+    const profile = this._loyaltyProfile();
+    return profile ? getTierColor(profile.tier) : '';
+  });
+
   ngOnInit(): void {
     const processorType = this.settingsService.paymentSettings().processor;
     this.paymentService.setProcessorType(processorType);
+    this.loyaltyService.loadConfig();
+    this.loyaltyService.loadRewards();
   }
 
   // --- Dining option ---
@@ -283,7 +330,7 @@ export class CheckoutModal implements OnInit {
     switch (field) {
       case 'firstName': this._firstName.set(value); break;
       case 'lastName': this._lastName.set(value); break;
-      case 'phone': this._phone.set(value); break;
+      case 'phone': this._phone.set(value); this.debouncedLoyaltyLookup(value); break;
       case 'email': this._email.set(value); break;
       case 'address': this._address.set(value); break;
       case 'address2': this._address2.set(value); break;
@@ -311,6 +358,62 @@ export class CheckoutModal implements OnInit {
   hasValidationError(field: string): boolean {
     if (!this._showValidation()) return false;
     return this.validationResult().missingFields.includes(field);
+  }
+
+  // --- Loyalty methods ---
+
+  onLoyaltyPhoneInput(event: Event): void {
+    const value = (event.target as HTMLInputElement).value;
+    this._loyaltyPhone.set(value);
+    this.debouncedLoyaltyLookup(value);
+  }
+
+  onPointsToRedeemInput(event: Event): void {
+    const value = Number.parseInt((event.target as HTMLInputElement).value, 10) || 0;
+    const maxPoints = this._loyaltyProfile()?.points ?? 0;
+    const clamped = Math.max(0, Math.min(value, maxPoints));
+    this._pointsToRedeem.set(clamped);
+    const discount = this.loyaltyService.calculateRedemptionDiscount(clamped);
+    this.cartService.setLoyaltyRedemption(clamped, discount);
+  }
+
+  redeemReward(reward: LoyaltyReward): void {
+    this._pointsToRedeem.set(reward.pointsCost);
+    const discount = reward.discountType === 'percentage'
+      ? Math.round(this.subtotal() * (reward.discountValue / 100) * 100) / 100
+      : reward.discountValue;
+    this.cartService.setLoyaltyRedemption(reward.pointsCost, discount);
+  }
+
+  clearRedemption(): void {
+    this._pointsToRedeem.set(0);
+    this.cartService.clearLoyaltyRedemption();
+  }
+
+  private debouncedLoyaltyLookup(phone: string): void {
+    if (this._phoneLookupTimeout) clearTimeout(this._phoneLookupTimeout);
+    this._loyaltyProfile.set(null);
+    this._loyaltyLookupDone.set(false);
+    this._pointsToRedeem.set(0);
+    this.cartService.clearLoyaltyRedemption();
+
+    const digits = phone.replaceAll(/\D/g, '');
+    if (digits.length < 10) return;
+
+    this._phoneLookupTimeout = setTimeout(async () => {
+      this._isLookingUpLoyalty.set(true);
+      try {
+        const customer = await this.loyaltyService.lookupCustomerByPhone(digits);
+        if (customer) {
+          const profile = await this.loyaltyService.getCustomerLoyalty(customer.id);
+          this._loyaltyProfile.set(profile);
+          this.cartService.setEstimatedPointsEarned(this.estimatedPointsEarned());
+        }
+      } finally {
+        this._isLookingUpLoyalty.set(false);
+        this._loyaltyLookupDone.set(true);
+      }
+    }, 500);
   }
 
   // --- Submit ---
@@ -423,6 +526,11 @@ export class CheckoutModal implements OnInit {
       // Dining option object
       orderData['diningOption'] = option;
 
+      // Loyalty redemption
+      if (this._pointsToRedeem() > 0) {
+        orderData['loyaltyPointsRedeemed'] = this._pointsToRedeem();
+      }
+
       const order = await this.orderService.createOrder(orderData);
 
       if (order) {
@@ -534,5 +642,10 @@ export class CheckoutModal implements OnInit {
     this._promisedDate.set('');
     this._courseAssignments.set(new Map());
     this._showValidation.set(false);
+    this._loyaltyProfile.set(null);
+    this._loyaltyLookupDone.set(false);
+    this._pointsToRedeem.set(0);
+    this._loyaltyPhone.set('');
+    this.cartService.clearLoyaltyRedemption();
   }
 }

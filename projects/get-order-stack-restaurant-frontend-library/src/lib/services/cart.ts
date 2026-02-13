@@ -19,6 +19,9 @@ export class CartService {
   private readonly _specialInstructions = signal<string | undefined>(undefined);
   private readonly _tip = signal<number>(0);
   private readonly _isOpen = signal(false);
+  private readonly _loyaltyPointsToRedeem = signal(0);
+  private readonly _loyaltyDiscount = signal(0);
+  private readonly _estimatedPointsEarned = signal(0);
 
   // Public readonly signals
   readonly items = this._items.asReadonly();
@@ -28,6 +31,9 @@ export class CartService {
   readonly specialInstructions = this._specialInstructions.asReadonly();
   readonly tip = this._tip.asReadonly();
   readonly isOpen = this._isOpen.asReadonly();
+  readonly loyaltyPointsToRedeem = this._loyaltyPointsToRedeem.asReadonly();
+  readonly loyaltyDiscount = this._loyaltyDiscount.asReadonly();
+  readonly estimatedPointsEarned = this._estimatedPointsEarned.asReadonly();
 
   // Computed signals
   readonly itemCount = computed(() =>
@@ -45,7 +51,7 @@ export class CartService {
   );
 
   readonly total = computed(() =>
-    Math.round((this.subtotal() + this.tax() + this._tip()) * 100) / 100
+    Math.max(0, Math.round((this.subtotal() + this.tax() + this._tip() - this._loyaltyDiscount()) * 100) / 100)
   );
 
   readonly isEmpty = computed(() => this._items().length === 0);
@@ -181,6 +187,20 @@ export class CartService {
     this._tip.set(tipAmount);
   }
 
+  setLoyaltyRedemption(points: number, discount: number): void {
+    this._loyaltyPointsToRedeem.set(points);
+    this._loyaltyDiscount.set(discount);
+  }
+
+  clearLoyaltyRedemption(): void {
+    this._loyaltyPointsToRedeem.set(0);
+    this._loyaltyDiscount.set(0);
+  }
+
+  setEstimatedPointsEarned(points: number): void {
+    this._estimatedPointsEarned.set(points);
+  }
+
   clear(): void {
     this._items.set([]);
     this._orderType.set('pickup');
@@ -189,6 +209,9 @@ export class CartService {
     this._specialInstructions.set(undefined);
     this._tip.set(0);
     this._isOpen.set(false);
+    this._loyaltyPointsToRedeem.set(0);
+    this._loyaltyDiscount.set(0);
+    this._estimatedPointsEarned.set(0);
   }
 
   getOrderData(): Partial<any> {
@@ -215,6 +238,8 @@ export class CartService {
       tax: this.tax(),
       tip: this._tip(),
       total: this.total(),
+      loyaltyPointsRedeemed: this._loyaltyPointsToRedeem(),
+      discount: this._loyaltyDiscount(),
     };
   }
 }

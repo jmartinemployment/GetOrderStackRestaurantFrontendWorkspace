@@ -159,7 +159,12 @@
                     --
                   }
                 </td>
-                <td class="text-end">{{ customer.loyaltyPoints | number }}</td>
+                <td class="text-end">
+                  <span class="loyalty-tier-badge" [style.background-color]="getLoyaltyTierColor(customer)">
+                    {{ getLoyaltyTierLabel(customer) }}
+                  </span>
+                  <div class="small">{{ customer.loyaltyPoints | number }}</div>
+                </td>
               </tr>
             } @empty {
               <tr>
@@ -241,6 +246,90 @@
           <div class="detail-stat">
             <span class="detail-label">Loyalty Points</span>
             <span class="detail-value">{{ customer.loyaltyPoints | number }}</span>
+          </div>
+        </div>
+
+        <!-- Loyalty Section -->
+        <div class="loyalty-detail mb-3">
+          <h6 class="detail-section-title">Loyalty</h6>
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <span class="loyalty-tier-badge" [style.background-color]="getLoyaltyTierColor(customer)">
+              {{ getLoyaltyTierLabel(customer) }}
+            </span>
+            <span class="fw-semibold">{{ customer.loyaltyPoints | number }} pts</span>
+          </div>
+          @if (getNextTierLabel(customer)) {
+            <div class="tier-progress mb-2">
+              <div class="d-flex justify-content-between small text-muted mb-1">
+                <span>Progress to {{ getNextTierLabel(customer) }}</span>
+                <span>{{ getTierProgress(customer) }}%</span>
+              </div>
+              <div class="progress" style="height: 6px;">
+                <div class="progress-bar" [style.width.%]="getTierProgress(customer)"></div>
+              </div>
+            </div>
+          }
+          <div class="small text-muted mb-2">
+            Lifetime: {{ customer.totalPointsEarned | number }} earned, {{ customer.totalPointsRedeemed | number }} redeemed
+          </div>
+
+          <!-- Points History -->
+          @if (isLoadingLoyalty()) {
+            <div class="small text-muted">Loading history...</div>
+          } @else if (loyaltyHistory().length > 0) {
+            <div class="points-history mb-2">
+              <div class="small fw-semibold mb-1">Recent Activity</div>
+              @for (tx of loyaltyHistory().slice(0, 5); track tx.id) {
+                <div class="history-row d-flex justify-content-between small">
+                  <span>
+                    <span class="text-uppercase" [class.text-success]="tx.type === 'earn'" [class.text-danger]="tx.type === 'redeem' || tx.type === 'reversal'" [class.text-warning]="tx.type === 'adjustment'">
+                      {{ tx.type }}
+                    </span>
+                    @if (tx.description) {
+                      <span class="text-muted ms-1">{{ tx.description }}</span>
+                    }
+                  </span>
+                  <span [class.text-success]="tx.points > 0" [class.text-danger]="tx.points < 0">
+                    {{ tx.points > 0 ? '+' : '' }}{{ tx.points }}
+                  </span>
+                </div>
+              }
+            </div>
+          }
+
+          <!-- Adjust Points -->
+          <div class="adjust-section">
+            <div class="small fw-semibold mb-1">Adjust Points</div>
+            <div class="d-flex gap-2 mb-1">
+              <input
+                type="number"
+                class="form-control form-control-sm"
+                style="max-width: 100px;"
+                placeholder="Points"
+                [value]="adjustPoints()"
+                (input)="onAdjustPointsInput($event)"
+              />
+              <input
+                type="text"
+                class="form-control form-control-sm"
+                placeholder="Reason"
+                [value]="adjustReason()"
+                (input)="onAdjustReasonInput($event)"
+              />
+              <button
+                type="button"
+                class="btn btn-sm btn-primary"
+                [disabled]="isAdjusting() || adjustPoints() === 0 || !adjustReason()"
+                (click)="submitAdjustment()"
+              >
+                @if (isAdjusting()) {
+                  <span class="spinner-border spinner-border-sm"></span>
+                } @else {
+                  Apply
+                }
+              </button>
+            </div>
+            <div class="small text-muted">Use negative for deductions</div>
           </div>
         </div>
 

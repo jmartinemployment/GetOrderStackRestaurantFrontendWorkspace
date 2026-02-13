@@ -5,6 +5,7 @@ export * from './dining-option.model';
 export * from './chat.model';
 export * from './customer.model';
 export * from './inventory.model';
+export * from './loyalty.model';
 export * from './menu.model';
 export * from './monitoring.model';
 export * from './order.model';

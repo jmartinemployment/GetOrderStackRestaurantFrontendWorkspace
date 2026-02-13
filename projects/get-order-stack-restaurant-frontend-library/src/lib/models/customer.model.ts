@@ -1,3 +1,5 @@
+import { LoyaltyTier } from './loyalty.model';
+
 export interface Customer {
   id: string;
   restaurantId: string;
@@ -10,6 +12,9 @@ export interface Customer {
   avgOrderValue: number | null;
   lastOrderDate: string | null;
   loyaltyPoints: number;
+  loyaltyTier: LoyaltyTier;
+  totalPointsEarned: number;
+  totalPointsRedeemed: number;
   tags: string[];
   createdAt: string;
   updatedAt: string;

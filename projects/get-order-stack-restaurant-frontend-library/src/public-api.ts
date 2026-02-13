@@ -105,5 +105,6 @@ export { SentimentDashboard } from './lib/sentiment/sentiment-dashboard';
 // Additional services
 export { ChatService } from './lib/services/chat';
 export { CustomerService } from './lib/services/customer';
+export { LoyaltyService } from './lib/services/loyalty';
 export { MonitoringService } from './lib/services/monitoring';
 export { ReservationService } from './lib/services/reservation';

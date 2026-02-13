@@ -31,6 +31,9 @@
     @if (activeTab() === 'tip-management') {
       <get-order-stack-tip-management />
     }
+    @if (activeTab() === 'loyalty') {
+      <get-order-stack-loyalty-settings />
+    }
   } @else {
     <div class="text-center text-muted py-5">
       <p>Please log in and select a restaurant to access settings.</p>

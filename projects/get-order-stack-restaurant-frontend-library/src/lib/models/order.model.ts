@@ -175,6 +175,10 @@ export interface Order {
   curbsideInfo?: CurbsideInfo;
   cateringInfo?: CateringInfo;
 
+  // Loyalty
+  loyaltyPointsEarned?: number;
+  loyaltyPointsRedeemed?: number;
+
   // Client-only: true for offline-queued orders not yet synced
   _queued?: boolean;
 }
