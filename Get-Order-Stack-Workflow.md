@@ -818,7 +818,7 @@ GetOrderStack Applications
 | Loyalty | Points, tiers, rewards, redemption | ✅ IMPLEMENTED |
 | Tip management | Pooling, tip-out, compliance, CSV export | ✅ IMPLEMENTED |
 | Reporting | Dashboard (sales, menu engineering, command center) | ✅ IMPLEMENTED |
-| Third-party delivery | DoorDash, Uber, Grubhub APIs | 📋 PLANNED |
+| Third-party delivery | DoorDash Drive + Uber Direct (DaaS Phase 1), Marketplace inbound (Phase 2) | 📋 PLANNED (plan reviewed — see `Third-Party-Delivery-Plan.md`) |
 | Accounting | See below | 🔬 RESEARCH |
 | Payroll | See below | 🔬 RESEARCH |
 
@@ -1134,8 +1134,8 @@ GetOrderStack Applications
 
 ---
 
-*Document Version: 5.2*
-*Last Updated: 2026-02-13 (Session 20 — Loyalty program full-stack integration)*
+*Document Version: 5.3*
+*Last Updated: 2026-02-13 (Session 21 — Third-party delivery plan reviewed and corrected)*
 *Location: Get-Order-Stack-Restaurant-Frontend-Workspace/Get-Order-Stack-Workflow.md*
 
 ## IMPLEMENTATION SUMMARY
@@ -1162,6 +1162,7 @@ GetOrderStack Applications
 **Remaining:**
 - 🚧 AI auto-fire course pacing — backend execution pending (frontend UI complete: mode selector, manual fire, course notifications, recall ticket)
 - 📋 Order throttling — not yet implemented
-- 🔬 Third-party delivery, accounting/payroll integrations (research phase)
+- 📋 Third-party delivery — plan reviewed and corrected (`Third-Party-Delivery-Plan.md`): Phase 1 DaaS (DoorDash Drive + Uber Direct), Phase 2 Marketplace inbound (Grubhub conditional)
+- 🔬 Accounting/payroll integrations (research phase)
 - ⏭️ T2-04 Multi-Device KDS Routing — deferred (no backend station-category mapping)
 - ⏭️ T3-03 Labor Intelligence / Staff Scheduling — deferred (no backend schema)

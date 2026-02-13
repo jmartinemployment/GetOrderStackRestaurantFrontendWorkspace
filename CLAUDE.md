@@ -359,6 +359,7 @@ See **[plan.md](./plan.md)** for the comprehensive AI feature roadmap. Key point
 - **Tier 3 (6/6 COMPLETE):** AI command center, CRM, online ordering, reservations, AI chat assistant (T3-03 labor scheduling deferred)
 - **Tier 4 (5/5 COMPLETE):** Autonomous monitoring, voice AI ordering, dynamic pricing, waste reduction, sentiment analysis
 - **Additional features COMPLETE:** Dining options (5 types), course system UI, expo station, offline mode, catering timeout, tip pooling/management, loyalty program
+- **PLANNED:** Third-party delivery (DaaS Phase 1: DoorDash Drive + Uber Direct, Marketplace Phase 2) — see `Third-Party-Delivery-Plan.md`
 
 ### Session Notes
 
@@ -780,4 +781,24 @@ npm run seed:reset    # Nuclear: wipe DB, re-create schema, re-seed everything
 
 ---
 
-*Last Updated: February 13, 2026 (Session 21 — Status sync across CLAUDE.md, plan.md, Get-Order-Stack-Workflow.md)*
+**[February 13, 2026] (Session 21):**
+- Updated: CLAUDE.md, plan.md, Get-Order-Stack-Workflow.md — synced statuses for loyalty program completion (Session 20)
+- Updated: CLAUDE.md core services table expanded from 9 to 17 services, internal components list consolidated
+- Updated: AI Feature Roadmap summary — all tiers marked complete with additional features list
+- Reviewed: `Third-Party-Delivery-Plan.md` — addressed 15 issues (3 CRITICAL, 7 MAJOR, 4 MINOR, 1 INFO)
+  - Issue #1 (CRITICAL): Confirmed plan extends DeliveryInfo, does NOT add flat fields to Order
+  - Issue #2 (CRITICAL): Confirmed plan keeps 3-state deliveryState + separate dispatchStatus
+  - Issue #3 (CRITICAL): Confirmed DeliverySettings goes in settings.model.ts
+  - Issue #4 (MAJOR): Fixed ControlPanelTab count — actually 7 values (includes 'loyalty'), delivery is 8th
+  - Issue #8 (MAJOR): Added delivery fee override logic (DaaS quote replaces static OnlinePricingSettings.deliveryFee)
+  - Issue #12 (MINOR): Added DaaS error handling (quote expired 410, driver cancelled, API unavailable 503, dispatch failed 502)
+  - Issue #13 (MINOR): Added explicit order-enrichment.ts update requirement with CRITICAL tag
+  - Issue #14 (MINOR): Added order-actions.routes.ts coexistence note (self-delivery uses existing endpoint, DaaS bypasses it)
+  - Issue #15 (INFO): Marked Grubhub marketplace API as CONDITIONAL (invitation-only)
+- Committed: `ef11002` — loyalty program (33 files, 1,884 insertions), pushed to origin
+- Build: 1.01 MB main.js + 231 kB styles.css, zero errors
+- Next: implement Third-Party Delivery Plan Phase 1 (DaaS — 10 steps), or deploy updated bundle
+
+---
+
+*Last Updated: February 13, 2026 (Session 21)*

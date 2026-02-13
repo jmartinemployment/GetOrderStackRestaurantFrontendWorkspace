@@ -184,6 +184,7 @@ One bundle serves all OrderStack pages. New custom elements are available on any
 | Table Management | ✅ Built (floor plan, drag-and-drop, status management) | Complete |
 | Customer/CRM | ✅ Built (dashboard, segments, search, detail panel) | Complete |
 | Staff/Scheduling | PIN auth only | 📋 PLANNED (T3-03 deferred) |
+| Third-Party Delivery | Self-delivery complete (3-state workflow) | 📋 PLANNED (DaaS Phase 1 + Marketplace Phase 2 — see `Third-Party-Delivery-Plan.md`) |
 | Reservations | ✅ Built (manager, booking, status workflow) | Complete |
 | Online Ordering | ✅ Built (customer portal, 4-step flow, order tracking) | Complete |
 | Marketing/Loyalty | ✅ Built (loyalty config, tiers, rewards CRUD, points earn/redeem, phone lookup) | Complete |
