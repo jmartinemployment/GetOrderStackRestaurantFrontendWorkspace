@@ -6,7 +6,7 @@
 
 Get-Order-Stack is a restaurant operating system built to compete with Toast, Square, Clover POS. The **backend already has significant AI features built with Claude Sonnet 4** (cost estimation, menu engineering, sales insights, inventory predictions, order profit analysis). The frontend now surfaces all four tiers of features (T1–T4 complete). The system is deployed via WordPress at geekatyourspot.com with 18 feature pages.
 
-**Foundational Capabilities:** Dining Options (dine-in, takeout, curbside, delivery, catering) fully implemented with frontend workflows (Session 11) and production-ready backend validation via Zod (Session 12). Query filtering supports delivery status tracking and catering approval workflows. Control Panel fully implemented with 7 tabs: Printers, AI Settings, Online Pricing, Catering Calendar, Payments, Tip Management, Loyalty (Sessions 13, 18, 19, 20). Course System UI implemented in PendingOrders (grouped items, fire status badges, manual fire controls) and OrderNotifications (course-ready audio chime + desktop alerts) (Session 13). Duplicate notification bug fixed (Session 14). Course Pacing Mode Selector complete (Session 15) — replaced boolean toggle with 3-way `CoursePacingMode` dropdown (disabled/server_fires/auto_fire_timed) that persists from AI Settings → KDS → PendingOrders with operator override. KDS Recall Ticket complete (Session 15) — backward status transitions with print status cleanup. Catering Approval Timeout complete (Session 16) — configurable auto-reject timer with countdown UI in PendingOrders and AI Settings panel. Offline Mode complete (Session 16) — localStorage order queue with auto-sync on reconnect, CheckoutModal routes through OrderService, PendingOrders shows "Queued" badge with disabled actions for offline orders. Expo Station complete (Session 17) — local verification layer in KDS with 4-column layout, AI Settings toggle + KDS header override, expo check triggers print, toggle-off safety prints unchecked orders. PayPal Zettle integration complete (Session 18 frontend, Session 19 backend) — provider-based payment abstraction (`PaymentProvider` interface), PayPal recommended + Stripe fallback, restaurant selects processor via Payments tab in Control Panel. Backend PayPal endpoints complete: `/paypal-create`, `/paypal-capture`, PayPal webhook handler, and shared routes (`/payment-status`, `/cancel-payment`, `/refund`) made processor-agnostic (Session 19). Tip Pooling & Tip-Out Rules complete (Session 19) — TipService reactive computation engine, TipManagement 4-tab dashboard (reports, pool rules, tip-out rules, compliance) in Control Panel 6th tab, CSV payroll export, minimum wage compliance checking. Loyalty Program complete (Session 20) — full-stack: backend Prisma models (LoyaltyTransaction, LoyaltyReward, RestaurantLoyaltyConfig) + 10 REST endpoints + Zod validators; frontend LoyaltyService + LoyaltySettings/RewardsManagement in Control Panel 7th tab + loyalty integration in Checkout, Online Portal, CRM, and Order History.
+**Foundational Capabilities:** Dining Options (dine-in, takeout, curbside, delivery, catering) fully implemented with frontend workflows (Session 11) and production-ready backend validation via Zod (Session 12). Query filtering supports delivery status tracking and catering approval workflows. Control Panel fully implemented with 8 tabs: Printers, AI Settings, Online Pricing, Catering Calendar, Payments, Tip Management, Loyalty, Delivery (Sessions 13, 18, 19, 20, 22). Course System UI implemented in PendingOrders (grouped items, fire status badges, manual fire controls) and OrderNotifications (course-ready audio chime + desktop alerts) (Session 13). Duplicate notification bug fixed (Session 14). Course Pacing Mode Selector complete (Session 15) — replaced boolean toggle with 3-way `CoursePacingMode` dropdown (disabled/server_fires/auto_fire_timed) that persists from AI Settings → KDS → PendingOrders with operator override. KDS Recall Ticket complete (Session 15) — backward status transitions with print status cleanup. Course pacing backend execution complete (Session 24) — backend now persists per-item course state and exposes `/:restaurantId/orders/:orderId/fire-course` + `/:restaurantId/orders/:orderId/fire-item`; deployment on Render verified with live JSON responses. Course pacing target gap configuration is now full-stack (Session 25) — `aiSettings.targetCourseServeGapSeconds` is editable in Control Panel AI Settings, validated on backend (300-3600), and persisted in deployed backend (`ae9b232`). Advanced AI timing optimization remains pending. Catering Approval Timeout complete (Session 16) — configurable auto-reject timer with countdown UI in PendingOrders and AI Settings panel. Offline Mode complete (Session 16) — localStorage order queue with auto-sync on reconnect, CheckoutModal routes through OrderService, PendingOrders shows "Queued" badge with disabled actions for offline orders. Expo Station complete (Session 17) — local verification layer in KDS with 4-column layout, AI Settings toggle + KDS header override, expo check triggers print, toggle-off safety prints unchecked orders. PayPal Zettle integration complete (Session 18 frontend, Session 19 backend) — provider-based payment abstraction (`PaymentProvider` interface), PayPal recommended + Stripe fallback, restaurant selects processor via Payments tab in Control Panel. Backend PayPal endpoints complete: `/paypal-create`, `/paypal-capture`, PayPal webhook handler, and shared routes (`/payment-status`, `/cancel-payment`, `/refund`) made processor-agnostic (Session 19). Tip Pooling & Tip-Out Rules complete (Session 19) — TipService reactive computation engine, TipManagement 4-tab dashboard (reports, pool rules, tip-out rules, compliance) in Control Panel 6th tab, CSV payroll export, minimum wage compliance checking. Loyalty Program complete (Session 20) — full-stack: backend Prisma models (LoyaltyTransaction, LoyaltyReward, RestaurantLoyaltyConfig) + 10 REST endpoints + Zod validators; frontend LoyaltyService + LoyaltySettings/RewardsManagement in Control Panel 7th tab + loyalty integration in Checkout, Online Portal, CRM, and Order History. Third-Party Delivery Phase 1 (DaaS) complete (Session 22) — DoorDash Drive + Uber Direct via `DeliveryProvider` interface (mirrors PaymentProvider pattern), `DeliveryService` orchestrator, delivery settings in Control Panel 8th tab, KDS auto-dispatch on READY_FOR_PICKUP, backend delivery.service.ts with quote/accept/cancel/status/webhook handler, DoorDash + Uber webhook handlers with HMAC signature verification. Backend deployment verified on Render in Session 23 (`/delivery/config-status` live; provider keys pending).
 
 This plan maps every AI integration opportunity across all restaurant operations domains, organized by implementation effort.
 
@@ -151,7 +151,7 @@ React Native is **only** needed for one specific scenario: **mobile delivery dri
 
 > **STATUS: COMPLETE** — Deployed in Session 9. All 18 feature pages are live.
 
-The original expansion plan (taipa-*-demo slugs) was superseded by the production deployment using `orderstack-*` slugs. See `CLAUDE.md` Session 9 notes for the full page template table. 20 custom elements are registered in `main.ts`, with `functions.php` loading the bundle conditionally on all 18 OrderStack pages.
+The original expansion plan (taipa-*-demo slugs) was superseded by the production deployment using `orderstack-*` slugs. See `CLAUDE.md` Session 9 notes for the full page template table. 23 custom elements are registered in `main.ts`, with `functions.php` loading the bundle conditionally on all 18 OrderStack pages.
 
 ### Build & Deploy Workflow
 
@@ -175,7 +175,7 @@ One bundle serves all OrderStack pages. New custom elements are available on any
 | Domain | Current State | AI Priority |
 |--------|--------------|-------------|
 | Self-Order System (SOS) | ✅ Built (menu, cart, checkout, upsell, voice) | Complete |
-| Kitchen Display (KDS) | ✅ Built (prep times, rush, recall, course pacing, expo station) | Complete |
+| Kitchen Display (KDS) | ✅ Built (prep times, rush, recall, course pacing UI + backend fire execution, expo station) | Complete |
 | Order Management | ✅ Built (pending, history, receipt, profit, offline queue) | Complete |
 | Menu Management | ✅ Built (CRUD, AI cost estimation, AI descriptions) | Complete |
 | Inventory | ✅ Built (dashboard, alerts, predictions, stock actions) | Complete |
@@ -184,11 +184,11 @@ One bundle serves all OrderStack pages. New custom elements are available on any
 | Table Management | ✅ Built (floor plan, drag-and-drop, status management) | Complete |
 | Customer/CRM | ✅ Built (dashboard, segments, search, detail panel) | Complete |
 | Staff/Scheduling | PIN auth only | 📋 PLANNED (T3-03 deferred) |
-| Third-Party Delivery | Self-delivery complete (3-state workflow) | 📋 PLANNED (DaaS Phase 1 + Marketplace Phase 2 — see `Third-Party-Delivery-Plan.md`) |
+| Third-Party Delivery | ✅ DaaS Phase 1 complete (DoorDash Drive + Uber Direct, KDS dispatch, webhooks, deployed backend routes) | 🚧 Marketplace inbound (Phase 2) in progress (backend ingestion foundation complete) |
 | Reservations | ✅ Built (manager, booking, status workflow) | Complete |
 | Online Ordering | ✅ Built (customer portal, 4-step flow, order tracking) | Complete |
 | Marketing/Loyalty | ✅ Built (loyalty config, tiers, rewards CRUD, points earn/redeem, phone lookup) | Complete |
-| Settings | ✅ Built (Control Panel: printers, AI settings, online pricing, catering calendar, payments, tip management, loyalty) | Complete |
+| Settings | ✅ Built (Control Panel: printers, AI settings, online pricing, catering calendar, payments, tip management, loyalty, delivery) | Complete |
 | Monitoring | ✅ Built (autonomous agent, anomaly rules, alert feed) | Complete |
 | Voice Ordering | ✅ Built (Web Speech API, bilingual EN/ES, fuzzy match) | Complete |
 | Dynamic Pricing | ✅ Built (rules engine, time-based, price preview) | Complete |
@@ -285,8 +285,8 @@ Payment statuses: `pending`, `paid`, `failed`, `cancelled`, `partial_refund`, `r
 **Domain:** KDS
 **Status:** ✅ COMPLETE (prep time + rush + recall ticket + course pacing + expo station)
 **What:** Show estimated prep time countdown on order cards, color escalation (green/amber/red by time), route items to kitchen stations, add station filter to KDS header, "Rush" button. Expo Station adds a 4th KDS column for expediter verification before printing/serving.
-**Backend:** PARTIAL — `prepTimeMinutes` and `Station` model exist. Need prep estimate endpoint.
-**Frontend:** Prep time countdown with color escalation from MenuItem.prepTimeMinutes. Rush priority toggle. KDS stats header (active/overdue/avg wait). Recall ticket (backward status transitions). Course pacing mode from AI Settings with operator override. Expo Station: local verification layer on READY_FOR_PICKUP orders — 4-column grid (NEW/COOKING/EXPO/READY), expo check triggers print, toggle-off safety prints unchecked orders, AI Settings + KDS header toggles with override pattern. Station routing deferred until backend station-category mapping is built.
+**Backend:** PARTIAL — `prepTimeMinutes` and `Station` model exist. Course pacing execution endpoints are live (`PATCH /:restaurantId/orders/:orderId/fire-course`, `PATCH /:restaurantId/orders/:orderId/fire-item`, Session 24). Course pacing target gap is now persisted/validated in `aiSettings.targetCourseServeGapSeconds` (Session 25, deployed). Prep estimate endpoint and station-category mapping remain pending.
+**Frontend:** Prep time countdown with color escalation from MenuItem.prepTimeMinutes. Rush priority toggle. KDS stats header (active/overdue/avg wait). Recall ticket (backward status transitions). Course pacing mode from AI Settings with operator override. Auto-fire timing now consumes AI Settings target gap (`targetCourseServeGapSeconds`) with adaptive delay heuristics. Expo Station: local verification layer on READY_FOR_PICKUP orders — 4-column grid (NEW/COOKING/EXPO/READY), expo check triggers print, toggle-off safety prints unchecked orders, AI Settings + KDS header toggles with override pattern. Station routing deferred until backend station-category mapping is built.
 **Impact:** Station routing cuts ticket times 15-20%. Expo verification prevents incorrect plates reaching customers.
 
 ### T2-02. Intelligent 86 System (Auto-86 from Inventory)
@@ -443,13 +443,149 @@ Payment statuses: `pending`, `paid`, `failed`, `cancelled`, `partial_refund`, `r
 
 ---
 
+## Next Task (Current Focus)
+
+✅ **Completed (Session 26):** AI auto-fire course pacing optimization v1
+- Adaptive delay now combines next-course prep time + kitchen load + observed/historical table pace.
+- KDS order cards now show a delay rationale breakdown for operator trust/debugging.
+- Backend metrics endpoint is live: `GET /api/restaurant/:restaurantId/course-pacing/metrics`.
+
+✅ **Completed (Session 27):** Order throttling v1
+- Added AI settings contract for throttling thresholds and hysteresis.
+- Added backend throttling engine + endpoints (`/throttling/status`, manual hold/release routes) with hold/release item state transitions.
+- Added KDS throttled queue column, gate status indicator, and operator hold/release controls.
+
+✅ **Completed (Session 28):** Per-restaurant delivery credential management (admin-only)
+- Added encrypted backend credential storage linked by `restaurantId`.
+- Added admin endpoints for credential save/update/delete and status summary (`/delivery/credentials/*`).
+- Added Control Panel Delivery credential forms with manager/owner/super_admin-only edit access (staff view-only).
+- Delivery runtime now resolves provider credentials per restaurant at dispatch time.
+
+✅ **Completed (Session 29):** Marketplace Phase 2 inbound ingestion foundation (backend)
+- Added Prisma models for marketplace integrations, external order linking, and webhook event idempotency/audit.
+- Added admin integration endpoints (`/api/restaurant/:restaurantId/marketplace/integrations`).
+- Added inbound webhook routes (`/api/webhooks/doordash-marketplace`, `/api/webhooks/ubereats`, `/api/webhooks/grubhub`).
+- Implemented normalized webhook ingestion path that can create internal delivery orders from marketplace payloads and broadcast `order:new`.
+
+✅ **Completed (Session 30):** Marketplace Control Panel integration (frontend Phase 1)
+- Added Delivery settings marketplace cards for DoorDash Marketplace, Uber Eats, and Grubhub.
+- Added role-gated CRUD wiring for integration enable/store ID/webhook secret using backend marketplace integration endpoints.
+- Added read-only status visibility and per-provider secret clear actions.
+
+✅ **Completed (Session 31):** Marketplace menu mapping + inbound hardening (Phase 2)
+- Added backend `marketplace_menu_mappings` schema + CRUD endpoints under `/api/restaurant/:restaurantId/marketplace/menu-mappings`.
+- Added Delivery settings UI for per-provider external-item -> internal-menu mapping management.
+- Updated inbound ingestion to prioritize explicit mappings and place unmapped payloads into `HOLD_FOR_REVIEW` instead of silent auto-accept.
+
+**New Current Focus:** Marketplace Phase 2 completion (outbound provider status sync and pilot rollout hardening).
+
+### Detailed Plan (Current Focus): Marketplace Phase 2 Completion
+
+**Goal:** Finish Phase 2 from inbound-only foundation to production-ready two-way marketplace operations.
+
+**Progress:** Phases 1-2 are complete (Sessions 30-31). Phases 3-5 remain.
+
+**Phase 1 — Control Panel Marketplace Integration (Frontend + Existing Backend APIs)**
+1. Add frontend marketplace models/service methods for integration summary/update/secret-clear.
+2. Extend Delivery settings UI with Marketplace provider cards (`doordash_marketplace`, `ubereats`, `grubhub`) including enable toggle, external store ID, webhook secret update, and last-updated status.
+3. Enforce existing role policy (manager/owner/super_admin edit; staff view-only) and form validation.
+4. Add integration test for config CRUD flow against backend endpoints.
+
+**Phase 2 — Menu Mapping + Inbound Quality Hardening**
+1. Add `marketplace_menu_mappings` schema (restaurantId + provider + externalItemId -> menuItemId, unique constraints).
+2. Add backend CRUD/search endpoints for menu mappings and include dry-run mapping preview.
+3. Update marketplace ingestion to resolve line items by explicit mapping first; keep name fallback only as temporary compatibility path.
+4. Add unknown-item handling policy (`hold_for_review` with reason) instead of silent best-effort mapping.
+
+**Phase 3 — Outbound Marketplace Status Sync**
+1. Add provider status adapter interface (`pushOrderStatus`) for DoorDash Marketplace and Uber Eats.
+2. Trigger outbound sync on internal order lifecycle transitions (`confirmed`, `preparing`, `ready`, `cancelled`, `completed`) with provider-specific mapping.
+3. Add resilient retry/outbox mechanism for provider sync failures (retry count, nextAttemptAt, dead-letter state).
+4. Surface last sync outcome on marketplace order records for support/debugging.
+
+**Phase 4 — Operator UX in KDS/Orders**
+1. Add marketplace source badges and filters in Pending Orders, KDS order cards, and Order History.
+2. Add marketplace sync status indicator and failure warning in order detail.
+3. Add quick action for re-attempt sync when an order is in outbound-sync failed state.
+
+**Phase 5 — Verification + Pilot Rollout**
+1. Add webhook contract fixture tests per provider (valid, invalid signature, duplicates, out-of-order events).
+2. Add end-to-end flow test: inbound webhook -> order created -> KDS visible -> status changes -> outbound sync success.
+3. Roll out in sequence: DoorDash pilot restaurant(s) -> Uber Eats pilot -> broader cohort expansion.
+4. Keep Grubhub feature-gated and disabled unless partnership/API access is confirmed.
+
+**Exit Criteria**
+1. Inbound marketplace orders are idempotent, auditable, and consistently mapped to internal menu items.
+2. Outbound status updates succeed with retries and observable failure states.
+3. Operators can identify and triage marketplace orders in normal KDS workflow without ambiguity.
+4. Pilot restaurants complete live validation with no critical ingestion/sync regressions.
+
+### Deferred Detailed Plan (Out Of Scope): Strict Tenant-Isolated Credential Encryption
+
+**Why Deferred:** Current rollout solved per-restaurant credential CRUD and runtime usage. This next hardening step is intentionally deferred because it requires KMS infra, migration jobs, and operational runbooks.
+
+**Security Context:** Render environment variables are shared at service scope, not tenant scope. Therefore any service-level symmetric key is weaker than desired for multi-tenant isolation.
+
+**Target State:** Envelope encryption per restaurant:
+- One unique DEK per restaurant credential record.
+- DEK wrapped by KMS-managed KEK.
+- No long-lived tenant secrets in Render env.
+- Cryptographic binding to `restaurantId` (AAD) to prevent cross-tenant ciphertext reuse.
+
+**Phase 0 — Threat Model + Decision Record**
+1. Document threat model (`docs/security/delivery-credentials-threat-model.md`) covering shared-env risk, insider risk, backup exposure, and key compromise blast radius.
+2. Publish ADR selecting KMS provider and key hierarchy (`docs/adr/ADR-00x-tenant-kms-encryption.md`).
+3. Define SLO/SLA impact and failure mode (fail-closed for write/decrypt vs fail-open disallowed).
+
+**Phase 1 — Schema and Metadata**
+1. Extend `restaurant_delivery_credentials` with: `dek_wrapped`, `dek_version`, `kek_alias`, `crypto_provider`, `aad_hash`, `rotation_due_at`, `migrated_at`.
+2. Keep current encrypted columns for migration compatibility window only.
+3. Add `credential_key_audit` table: actor, restaurantId, provider, action, keyVersion, outcome, correlationId, timestamp.
+
+**Phase 2 — Crypto/KMS Layer**
+1. Add `KeyManagementService` abstraction with strict methods: `generateDek()`, `wrapDek()`, `unwrapDek()`, `scheduleRotation()`.
+2. Implement provider adapter (AWS KMS or GCP KMS) plus local dev stub.
+3. Use AES-256-GCM with AAD = stable tenant context (`restaurantId`, provider, field name).
+4. Remove business-logic direct access to raw key bytes outside crypto boundary.
+
+**Phase 3 — Runtime Integration**
+1. On save/update credentials: generate DEK, encrypt fields with AAD, wrap DEK via KMS, persist metadata.
+2. On read/dispatch/webhook verify: unwrap DEK on demand, decrypt fields, zeroize buffers after use where feasible.
+3. Add in-memory short TTL cache for unwrapped DEKs (optional) with strict bounds and eviction telemetry.
+
+**Phase 4 — Migration (Dual Read / Single Write)**
+1. Switch writes to KMS path first (new records only).
+2. Read path: attempt KMS metadata path, then legacy path if not migrated.
+3. Run batched migration job per restaurant with resumable cursor and idempotent checkpoints.
+4. Emit migration dashboard metrics: total, migrated, failed, retried.
+
+**Phase 5 — Rotation, Revocation, IR**
+1. Add per-restaurant key rotation job and admin trigger endpoint.
+2. Add emergency revoke action (disable provider dispatch for impacted tenant until re-provisioned).
+3. Add incident playbook for tenant key compromise and restore.
+
+**Phase 6 — Enforcement + Cleanup**
+1. Remove legacy shared-key decrypt fallback after 100% migration and soak window.
+2. Block startup if KMS is required but unhealthy for credential operations.
+3. Add CI/security tests asserting no plaintext credential leakage in logs/responses.
+
+**Acceptance Criteria**
+1. Compromise of one restaurant DEK cannot decrypt any other restaurant credentials.
+2. Render env secret leakage alone is insufficient to decrypt tenant credentials.
+3. Rotation/revoke events are auditable and reproducible.
+4. Dispatch degradation is tenant-scoped during key incidents (no global outage).
+
+---
+
 ## Services & Models Inventory — ✅ ALL IMPLEMENTED
 
-**Services (17 total):** `AnalyticsService`, `AuthService`, `CartService`, `ChatService`, `CustomerService`, `InventoryService`, `LoyaltyService`, `MenuService`, `MonitoringService`, `OrderService`, `PaymentService`, `PrinterService`, `ReservationService`, `RestaurantSettingsService`, `SocketService`, `TableService`, `TipService`
+**Services (18 total):** `AnalyticsService`, `AuthService`, `CartService`, `ChatService`, `CustomerService`, `DeliveryService`, `InventoryService`, `LoyaltyService`, `MenuService`, `MonitoringService`, `OrderService`, `PaymentService`, `PrinterService`, `ReservationService`, `RestaurantSettingsService`, `SocketService`, `TableService`, `TipService`
 
 **Payment Providers (2):** `StripePaymentProvider`, `PayPalPaymentProvider` — plain classes (not Angular services) implementing `PaymentProvider` interface, used by `PaymentService` orchestrator
 
-**Models (22 files):** `analytics.model.ts`, `auth.model.ts`, `cart.model.ts`, `chat.model.ts`, `customer.model.ts`, `dining-option.model.ts`, `inventory.model.ts`, `loyalty.model.ts`, `menu.model.ts`, `monitoring.model.ts`, `order.model.ts`, `payment.model.ts`, `pricing.model.ts`, `printer.model.ts`, `reservation.model.ts`, `restaurant.model.ts`, `sentiment.model.ts`, `settings.model.ts`, `table.model.ts`, `tip.model.ts`, `voice.model.ts`, `waste.model.ts`
+**Delivery Providers (2):** `DoorDashDeliveryProvider`, `UberDeliveryProvider` — plain classes implementing `DeliveryProvider` interface, used by `DeliveryService` orchestrator
+
+**Models (23 files):** `analytics.model.ts`, `auth.model.ts`, `cart.model.ts`, `chat.model.ts`, `customer.model.ts`, `delivery.model.ts`, `dining-option.model.ts`, `inventory.model.ts`, `loyalty.model.ts`, `menu.model.ts`, `monitoring.model.ts`, `order.model.ts`, `payment.model.ts`, `pricing.model.ts`, `printer.model.ts`, `reservation.model.ts`, `restaurant.model.ts`, `sentiment.model.ts`, `settings.model.ts`, `table.model.ts`, `tip.model.ts`, `voice.model.ts`, `waste.model.ts`
 
 **Custom Elements (23 registered in main.ts):** `get-order-stack-login`, `get-order-stack-restaurant-select`, `get-order-stack-sos-terminal`, `get-order-stack-kds-display`, `get-order-stack-command-center`, `get-order-stack-menu-engineering`, `get-order-stack-sales-dashboard`, `get-order-stack-inventory-dashboard`, `get-order-stack-category-management`, `get-order-stack-item-management`, `get-order-stack-floor-plan`, `get-order-stack-crm`, `get-order-stack-reservations`, `get-order-stack-ai-chat`, `get-order-stack-online-ordering`, `get-order-stack-monitoring-agent`, `get-order-stack-voice-order`, `get-order-stack-dynamic-pricing`, `get-order-stack-waste-tracker`, `get-order-stack-sentiment`, `get-order-stack-pending-orders`, `get-order-stack-order-history`, `get-order-stack-control-panel`
 

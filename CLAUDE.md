@@ -138,6 +138,7 @@ Internal (not registered as custom elements):
 | `CartService` | Shopping cart state, tax/tip/loyalty calculation | Signals, configurable tax rate, loyalty discount |
 | `ChatService` | AI chat conversation management | Signals, `firstValueFrom()` |
 | `CustomerService` | Customer CRUD, segment calculation | Signals, `firstValueFrom()` |
+| `DeliveryService` | Third-party delivery orchestration (quotes, dispatch, status) | Signals, delegates to delivery provider classes |
 | `InventoryService` | Inventory CRUD, stock actions, AI predictions, reports | Signals, 10 HTTP methods, `firstValueFrom()` |
 | `LoyaltyService` | Loyalty config, rewards CRUD, points, phone lookup | Signals, `firstValueFrom()` |
 | `MenuService` | Menu CRUD, AI cost estimation, language support (en/es) | `firstValueFrom()`, HttpClient |
@@ -146,7 +147,7 @@ Internal (not registered as custom elements):
 | `PaymentService` | Processor-agnostic orchestrator (PayPal Zettle + Stripe) | Signals, delegates to `PaymentProvider` instances |
 | `PrinterService` | Printer CRUD, test print | Signals, `firstValueFrom()` |
 | `ReservationService` | Reservation CRUD, status workflow | Signals, `firstValueFrom()` |
-| `RestaurantSettingsService` | Settings persistence (AI, pricing, payments, tips, loyalty) | Signals, localStorage + backend PATCH |
+| `RestaurantSettingsService` | Settings persistence (AI, pricing, payments, tips, loyalty, delivery) | Signals, localStorage + backend PATCH |
 | `SocketService` | Real-time WebSocket + polling fallback | socket.io-client, reconnection, heartbeat |
 | `TableService` | Table CRUD, position/status updates | Signals, `firstValueFrom()` |
 | `TipService` | Tip pooling, tip-out rules, compliance, CSV export | Signals, computed reactive engine |
@@ -156,6 +157,7 @@ Internal (not registered as custom elements):
 - `order:new` — New order created
 - `order:updated` — Order status changed
 - `order:cancelled` — Order cancelled
+- `delivery:location_updated` — Driver GPS ping update
 - `heartbeat` — Connection keep-alive (every 15s)
 
 ## Build & Deploy
@@ -358,8 +360,8 @@ See **[plan.md](./plan.md)** for the comprehensive AI feature roadmap. Key point
 - **Tier 2 (5/6 COMPLETE):** Smart KDS + expo station, auto-86, AI menu badges, priority notifications, table floor plan (T2-04 multi-device routing deferred)
 - **Tier 3 (6/6 COMPLETE):** AI command center, CRM, online ordering, reservations, AI chat assistant (T3-03 labor scheduling deferred)
 - **Tier 4 (5/5 COMPLETE):** Autonomous monitoring, voice AI ordering, dynamic pricing, waste reduction, sentiment analysis
-- **Additional features COMPLETE:** Dining options (5 types), course system UI, expo station, offline mode, catering timeout, tip pooling/management, loyalty program
-- **PLANNED:** Third-party delivery (DaaS Phase 1: DoorDash Drive + Uber Direct, Marketplace Phase 2) — see `Third-Party-Delivery-Plan.md`
+- **Additional features COMPLETE:** Dining options (5 types), course system UI, expo station, offline mode, catering timeout, tip pooling/management, loyalty program, third-party delivery DaaS Phase 1
+- **PLANNED:** Third-party delivery marketplace inbound (Phase 2) — see `Third-Party-Delivery-Plan.md`
 
 ### Session Notes
 
@@ -801,4 +803,207 @@ npm run seed:reset    # Nuclear: wipe DB, re-create schema, re-seed everything
 
 ---
 
-*Last Updated: February 13, 2026 (Session 21)*
+**[February 13, 2026] (Session 22):**
+- Implemented: Third-Party Delivery Integration Phase 1 (DaaS) — all 10 steps complete
+- **Frontend — New files (8):**
+  - `models/delivery.model.ts` — `DeliveryProviderType`, `DeliveryDispatchStatus` (11 states), `DeliveryQuote`, `DeliveryDispatchResult`, `DeliveryDriverInfo`, `DeliveryContext`, `DeliveryProvider` interface
+  - `services/providers/doordash-provider.ts` — plain class implementing `DeliveryProvider`, proxies through backend via `fetch()`
+  - `services/providers/uber-provider.ts` — same pattern as DoorDash provider
+  - `services/delivery.ts` — Angular orchestrator service (mirrors PaymentService pattern), signals: providerType, isProcessing, error, currentQuote, driverInfo, configStatus
+  - `settings/delivery-settings/` (4 files: ts, html, scss, index.ts) — radio buttons for None/DoorDash/Uber/Self, auto-dispatch toggle, config status dots, save/discard
+- **Frontend — Modified files (14):**
+  - `models/dining-option.model.ts` — extended `DeliveryInfo` with 6 DaaS fields (deliveryProvider, deliveryExternalId, deliveryTrackingUrl, dispatchStatus, estimatedDeliveryAt, deliveryFee)
+  - `models/settings.model.ts` — added `DeliverySettings` interface + `defaultDeliverySettings()`
+  - `models/printer.model.ts` — added `'delivery'` to `ControlPanelTab` (now 8 values)
+  - `models/index.ts` — added delivery.model export
+  - `services/providers/index.ts` — added DoorDash/Uber provider exports
+  - `services/restaurant-settings.ts` — added `_deliverySettings` signal, loading, `saveDeliverySettings()`
+  - `services/socket.ts` — added `DeliveryLocationEvent`, `delivery:location_updated` listener, `onDeliveryLocationEvent()` callback
+  - `services/order.ts` — extended `mapOrder()` with 6 DaaS fields from backend response
+  - `settings/control-panel/control-panel.ts` + `.html` — added Delivery tab (8th tab)
+  - `sos/checkout-modal/checkout-modal.ts` — injects DeliveryService, handles DaaS dispatch after order creation
+  - `online-ordering/online-order-portal/online-order-portal.ts` — injects DeliveryService, delivery quote display, `requestDeliveryQuote()`, `getDispatchStatusLabel()`
+  - `kds/order-card/order-card.ts` — added `deliveryQuote`, `isDispatchingDelivery` inputs, `dispatchDriver` output, delivery provider badges, dispatch status labels
+  - `kds/order-card/order-card.html` — provider badge, dispatch status + ETA, Dispatch button in footer
+  - `kds/order-card/order-card.scss` — `.provider-doordash`, `.provider-uber`, `.btn-dispatch`, `.dispatch-status`
+  - `kds/kds-display/kds-display.ts` — injects DeliveryService, delivery quote/dispatching signals, `dispatchDriver()` method (requestQuote → acceptQuote), auto-dispatch on READY_FOR_PICKUP when settings.autoDispatch is ON
+  - `kds/kds-display/kds-display.html` — passes `[deliveryQuote]`, `[isDispatchingDelivery]`, `(dispatchDriver)` to READY + EXPO order cards
+  - `public-api.ts` — added DeliveryService, DoorDashDeliveryProvider, UberDeliveryProvider, DeliveryLocationEvent exports
+- **Backend — New files (2):**
+  - `services/delivery.service.ts` — orchestrator with DoorDash Drive + Uber Direct API integration (quote, accept, status, cancel, webhook handler), `toDeliveryState()` in enrichment
+  - `app/delivery.routes.ts` — 5 endpoints: GET config-status, POST quote, POST dispatch, GET status, POST cancel (Zod validation)
+- **Backend — Modified files (4):**
+  - `prisma/schema.prisma` — added `deliveryExternalId` and `dispatchStatus` columns to Order model
+  - `utils/order-enrichment.ts` — added `toDeliveryState()` function (DaaS dispatchStatus → 3-state), enriched deliveryInfo with DaaS fields
+  - `app/app.ts` — added DoorDash + Uber webhook handlers (HMAC-SHA256 verification), mounted delivery routes
+- **Database:** `prisma db push` synced 2 new columns (delivery_external_id, dispatch_status)
+- **Prisma client:** regenerated after schema changes
+- Build: Frontend 1.03 MB main.js + 231 kB styles.css, zero errors. Backend zero TypeScript errors.
+- **Architecture decisions:**
+  - Providers are plain classes (not Angular @Injectable) — mirrors PaymentProvider pattern
+  - Frontend never calls DoorDash/Uber APIs directly — all proxied through backend
+  - No `delivery:status_updated` socket event — order:updated handles all status changes
+  - No frontend polling — webhooks push updates via order:updated, GPS pings via delivery:location_updated
+  - `toDeliveryState()` in enrichment maps 11-state dispatchStatus → 3-state deliveryState for backward compatibility
+  - Auto-dispatch: KDS auto-dispatches delivery when order hits READY_FOR_PICKUP and settings.autoDispatch is ON
+- **Environment variables needed (backend):**
+  - `DOORDASH_API_KEY`, `DOORDASH_SIGNING_SECRET`, `DOORDASH_MODE` (production/test)
+  - `UBER_CLIENT_ID`, `UBER_CLIENT_SECRET`, `UBER_CUSTOMER_ID`, `UBER_WEBHOOK_SIGNING_KEY`
+- Control Panel tabs: Printers, AI Settings, Online Pricing, Catering Calendar, Payments, Tip Management, Loyalty, Delivery (8 total)
+- Next: deploy updated bundle + backend, configure DoorDash/Uber sandbox keys, test end-to-end delivery flow
+
+---
+
+**[February 13, 2026] (Session 23):**
+- Deployed: Backend updates to Render from `Get-Order-Stack-Restaurant-Backend` (`main` @ `5942efc`)
+  - Added live routes/services for delivery dispatch, loyalty, and labor modules
+  - Build check passed before push: `npm run build` (`prisma generate && tsc`)
+- Verified: Delivery routes are now live on deployed backend
+  - `GET /api/restaurant/{restaurantId}/delivery/config-status` returned `200` with `{"doordash":false,"uber":false}`
+  - Confirms DaaS endpoints are deployed; provider credentials are still not configured in production env
+- Validated: KDS auto-dispatch test suite passes locally
+  - `projects/get-order-stack-restaurant-frontend-library/src/lib/kds/kds-display/kds-display.spec.ts` (3/3 passing via `ng test --include ...`)
+- Next: deploy updated frontend bundle and run live dispatch E2E after delivery provider env vars are configured
+
+---
+
+**[February 13, 2026] (Session 24):**
+- Implemented + deployed: KDS course pacing backend execution in `Get-Order-Stack-Restaurant-Backend`
+  - Added `OrderItem` execution fields: `fulfillmentStatus`, `courseGuid`, `courseName`, `courseSortOrder`, `courseFireStatus`, `courseFiredAt`
+  - Added routes: `PATCH /api/restaurant/:restaurantId/orders/:orderId/fire-course` and `PATCH /api/restaurant/:restaurantId/orders/:orderId/fire-item`
+  - Order creation now persists course metadata + held/sent item states; item completion updates course state to READY
+  - `order-enrichment.ts` now enriches `orderItems` with course execution fields and derives order-level `courses` summary
+- Frontend wiring:
+  - `services/order.ts` added `fireItemNow()` backend call + fulfillment-status mapping
+  - `kds/kds-display/kds-display.ts` now uses `OrderService.fireItemNow()` instead of local-only fallback
+- Validation:
+  - Backend build passed (`npm run build`)
+  - Frontend KDS test passed (`kds-display.spec.ts`)
+  - Frontend library build passed (`ng build get-order-stack-restaurant-frontend-library`)
+  - Render deployment verified: both fire routes now return JSON responses (routes live)
+- Backend commit pushed: `77795cc`
+- Remaining: advanced AI pacing optimization (kitchen load + table pace model) still pending
+
+---
+
+**[February 13, 2026] (Session 25):**
+- Implemented + deployed: configurable course pacing target gap (`targetCourseServeGapSeconds`) across frontend + backend
+- Frontend:
+  - `settings/ai-settings/ai-settings.ts|html` — added AI Settings input (`Target Course Serve Gap`, minutes UI, 5-60 min clamp) with save/discard wiring
+  - `services/restaurant-settings.ts` — added migration + normalization for `targetCourseServeGapSeconds` (seconds clamp: 300-3600), localStorage + backend PATCH persistence
+  - `kds/kds-display.ts` — now reads target gap from `settingsService.aiSettings()` and propagates to KDS order cards
+- Backend (`Get-Order-Stack-Restaurant-Backend`):
+  - `prisma/schema.prisma` — added `Restaurant.aiSettings` JSON column mapping (`ai_settings`)
+  - `src/validators/settings.validator.ts` (new) — validates `aiSettings`, including `targetCourseServeGapSeconds` bounds (300-3600)
+  - `src/app/app.routes.ts` — `PATCH /api/restaurant/:restaurantId` now validates `aiSettings` payload and returns 400 on invalid settings
+- Deployment + validation:
+  - `prisma db push` executed successfully
+  - Backend build passed (`npm run build`)
+  - Backend commit pushed: `ae9b232`
+  - Render verified live: invalid `targetCourseServeGapSeconds=100` returns 400; valid payload persists `aiSettings.targetCourseServeGapSeconds=1500`
+- Remaining: advanced AI timing optimization model still pending (kitchen load/table pace/historical pacing heuristics tuning)
+- Next Task (Current Focus): implement AI auto-fire course pacing optimization v1 with transparent delay breakdown (prep time + kitchen load + table pace) and operator-visible behavior in KDS.
+
+---
+
+**[February 13, 2026] (Session 26):**
+- Implemented + deployed: AI auto-fire course pacing optimization v1 (full-stack)
+- Backend (`Get-Order-Stack-Restaurant-Backend`):
+  - Added `src/services/course-pacing.service.ts` to compute historical pacing metrics (`p50`, `p80`, weighted baseline, confidence by sample size)
+  - Added `GET /api/restaurant/:restaurantId/course-pacing/metrics?lookbackDays=...`
+  - Added `OrderItem.courseReadyAt` (`course_ready_at`) and populated when full course reaches READY
+  - Enriched order payloads with `course.readyDate` for both item-level course metadata and order-level course summaries
+- Frontend (`Get-Order-Stack-Restaurant-Frontend-Workspace`):
+  - `services/order.ts` now exposes `getCoursePacingMetrics()`, maps `course.readyDate`, and maps `Selection.completedAt`
+  - `kds/kds-display.ts|html` now loads pacing metrics in Auto-Fire mode and passes baseline/confidence to KDS order cards
+  - `kds/order-card.ts|html|scss` now computes adaptive delay from target gap + prep time + kitchen load + observed/historical table pace, and renders an operator-facing delay rationale block
+  - `models/order.model.ts` extended with `CoursePacingMetrics`, `Course.readyDate`, and `Selection.completedAt`
+- Validation:
+  - Frontend test passed: `ng test --watch=false --include=projects/get-order-stack-restaurant-frontend-library/src/lib/kds/kds-display/kds-display.spec.ts`
+  - Frontend library build passed: `ng build get-order-stack-restaurant-frontend-library`
+  - Backend build passed: `npm run build`
+  - Backend schema synced: `npx prisma db push`
+  - Render verified live: `GET /api/restaurant/:restaurantId/course-pacing/metrics` now returns JSON metrics
+- Backend commit pushed: `9bc6996`
+- Next Task (Current Focus): implement order throttling rules (queue/hold logic for kitchen overload) and operator controls in KDS.
+
+---
+
+**[February 13, 2026] (Session 27):**
+- Implemented + deployed: Order throttling v1 (backend + frontend)
+- Backend:
+  - Added `Order.throttle*` fields (`throttle_state`, reason/source/release fields + timestamps)
+  - Added throttling service + endpoints: `GET /throttling/status`, `POST /:orderId/throttle/hold`, `POST /:orderId/throttle/release`
+  - Added hold/release behavior that updates item `fulfillmentStatus` and preserves kitchen sequencing
+- Frontend:
+  - Added AI settings controls for throttling thresholds + hysteresis
+  - Added KDS throttled queue/operator controls and gate visibility
+- Validation: frontend tests/build and backend build/db push passed; backend deployed on Render
+
+---
+
+**[February 13, 2026] (Session 28):**
+- Implemented + deployed: per-restaurant encrypted delivery credential management (admin-only)
+- Backend:
+  - Added `restaurant_delivery_credentials` model linked by `restaurantId`
+  - Added admin endpoints:
+    - `GET /api/restaurant/:restaurantId/delivery/credentials`
+    - `PUT /api/restaurant/:restaurantId/delivery/credentials/doordash`
+    - `DELETE /api/restaurant/:restaurantId/delivery/credentials/doordash`
+    - `PUT /api/restaurant/:restaurantId/delivery/credentials/uber`
+    - `DELETE /api/restaurant/:restaurantId/delivery/credentials/uber`
+  - Delivery runtime + webhook secret verification now resolve credentials per restaurant
+- Frontend:
+  - Added Delivery settings encrypted credential forms with manager/owner/super_admin edit and staff view-only
+- Validation: build + live API checks passed; role-gating verified (staff denied, manager-level allowed)
+
+---
+
+**[February 13, 2026] (Session 29):**
+- Implemented: Marketplace Phase 2 inbound ingestion foundation (backend)
+- Added Prisma models:
+  - `marketplace_integrations`
+  - `marketplace_orders`
+  - `marketplace_webhook_events`
+- Added integration admin routes:
+  - `GET /api/restaurant/:restaurantId/marketplace/integrations`
+  - `PUT /api/restaurant/:restaurantId/marketplace/integrations/:provider`
+  - `DELETE /api/restaurant/:restaurantId/marketplace/integrations/:provider/secret`
+- Added webhook routes:
+  - `POST /api/webhooks/doordash-marketplace`
+  - `POST /api/webhooks/ubereats`
+  - `POST /api/webhooks/grubhub` (conditional)
+- Added normalized idempotent ingestion path that can create internal orders and broadcast `order:new`
+
+---
+
+**[February 13, 2026] (Session 30):**
+- Implemented: Marketplace Control Panel integration (frontend)
+- Delivery settings now includes per-provider marketplace integration cards for:
+  - DoorDash Marketplace
+  - Uber Eats
+  - Grubhub
+- Added UI/API wiring for enable toggle, external store ID, webhook secret update/clear
+- Role policy preserved: manager/owner/super_admin edit, staff view-only
+
+---
+
+**[February 13, 2026] (Session 31):**
+- Implemented: Marketplace menu mapping + inbound hardening (backend + frontend)
+- Backend:
+  - Added `marketplace_menu_mappings` schema/model and CRUD endpoints:
+    - `GET /api/restaurant/:restaurantId/marketplace/menu-mappings`
+    - `POST /api/restaurant/:restaurantId/marketplace/menu-mappings`
+    - `DELETE /api/restaurant/:restaurantId/marketplace/menu-mappings/:mappingId`
+  - Inbound ingestion now prioritizes explicit external-item mapping and routes unmapped payloads to `HOLD_FOR_REVIEW` (no silent auto-accept)
+- Frontend:
+  - Added Marketplace Menu Mapping UI in Delivery settings (provider filter, create/delete mapping table)
+  - Added service/model wiring for menu mapping CRUD
+- Validation:
+  - Backend: `npm run build`, `npx prisma db push` passed
+  - Frontend: `npm run build -- get-order-stack-restaurant-frontend-library` passed
+- Next Task (Current Focus): Marketplace Phase 2 completion — outbound provider status sync + pilot rollout verification.
+
+---
+
+*Last Updated: February 13, 2026 (Session 31)*

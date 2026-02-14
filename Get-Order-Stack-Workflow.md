@@ -70,6 +70,12 @@ Order
 ├── deliveryInfo (delivery only)
 │   ├── address (street, city, state, zip)
 │   ├── deliveryState: PREPARING | OUT_FOR_DELIVERY | DELIVERED
+│   ├── dispatchStatus?: QUOTED | DISPATCH_REQUESTED | DRIVER_ASSIGNED | DRIVER_EN_ROUTE_TO_PICKUP | DRIVER_AT_PICKUP | PICKED_UP | DRIVER_EN_ROUTE_TO_DROPOFF | DRIVER_AT_DROPOFF | DELIVERED | CANCELLED | FAILED
+│   ├── deliveryProvider?: self | doordash | uber | none
+│   ├── deliveryExternalId?
+│   ├── deliveryTrackingUrl?
+│   ├── estimatedDeliveryAt?
+│   ├── deliveryFee?
 │   ├── dispatchedDate
 │   └── deliveredDate
 ├── curbsidePickupInfo (curbside only)
@@ -307,7 +313,7 @@ Credit: OPEN → PAID → CLOSED
 
 ### 6. DELIVERY STATUS (deliveryInfo.deliveryState)
 
-**Note:** Changed from 4 states to 3 states in Session 11 (PENDING removed, PICKED_UP renamed to OUT_FOR_DELIVERY).
+**Note:** Changed from 4 states to 3 states in Session 11 (PENDING removed, PICKED_UP renamed to OUT_FOR_DELIVERY). DaaS granular state is tracked separately in `deliveryInfo.dispatchStatus` (Session 22).
 
 | Status | Description |
 |--------|-------------|
@@ -317,9 +323,9 @@ Credit: OPEN → PAID → CLOSED
 
 ---
 
-## COURSE SYSTEM — 🚧 PARTIALLY IMPLEMENTED (UI Complete, AI Auto-Fire Pending)
+## COURSE SYSTEM — ✅ IMPLEMENTED (Execution + AI Timing Optimization v1)
 
-**Status:** All frontend course features complete. Course data model (Course, CourseFireStatus, CoursePacingMode, Selection.course in order.model.ts). Course display and manual fire controls in PendingOrders — grouped items by course, fire status badges (PENDING/FIRED/READY), Fire button for PENDING courses, held-item dimming. Course-ready audio chime + desktop alerts in OrderNotifications (single notification with course-specific message, sound respects mute toggle). Course Pacing Mode Selector — 3-way `CoursePacingMode` dropdown (`disabled` / `server_fires` / `auto_fire_timed`) in AI Settings, with persistence flowing from AI Settings → KDS (with operator override) → PendingOrders. KDS Recall Ticket — backward status transitions with print status cleanup. Only AI-Powered Course Pacing (auto-fire timing based on prep times, kitchen load, table pace) remains as a backend-dependent feature.
+**Status:** Frontend course features and backend course execution are complete. Course data model (Course, CourseFireStatus, CoursePacingMode, Selection.course in order.model.ts). Course display and manual fire controls in PendingOrders — grouped items by course, fire status badges (PENDING/FIRED/READY), Fire button for PENDING courses, held-item dimming. Course-ready audio chime + desktop alerts in OrderNotifications (single notification with course-specific message, sound respects mute toggle). Course Pacing Mode Selector — 3-way `CoursePacingMode` dropdown (`disabled` / `server_fires` / `auto_fire_timed`) in AI Settings, with persistence flowing from AI Settings → KDS (with operator override) → PendingOrders. Session 25 added configurable target pacing gap (`targetCourseServeGapSeconds`) in AI Settings, persisted and backend-validated (300-3600). Session 26 added adaptive auto-fire timing v1 (prep + kitchen load + observed/historical pace), backend pacing metrics endpoint, and operator-visible delay rationale in KDS cards.
 
 ### Course Pacing Options
 
@@ -336,7 +342,9 @@ Credit: OPEN → PAID → CLOSED
 
 **Control Panel Setting:** `Course Pacing Mode` (Dropdown: Disabled / Server Fires / Auto-Fire Timed, default: Disabled)
 
-When set to Server Fires or Auto-Fire Timed, the course system activates. AI-powered auto-fire timing dynamically calculates optimal fire time based on:
+When set to Server Fires or Auto-Fire Timed, the course system activates. Current implementation executes course/item firing via backend fire routes and keeps course state synchronized in order payloads.
+
+Advanced AI timing optimization is still planned. Target AI inputs:
 - Prep times per item
 - Current kitchen load
 - Table eating pace
@@ -378,7 +386,7 @@ All items finish simultaneously.
 
 ## KDS WORKFLOW — ✅ IMPLEMENTED (T2-01)
 
-**Status:** KDS Display component complete with prep time tracking (color escalation green/amber/red), rush priority toggle, overdue alerts, average wait time stats, recall ticket (backward status transitions with print status cleanup), course pacing mode synced from AI Settings (with operator override for per-session changes), and Expo Station (local verification layer with 4-column KDS layout).
+**Status:** KDS Display component complete with prep time tracking (color escalation green/amber/red), rush priority toggle, overdue alerts, average wait time stats, recall ticket (backward status transitions with print status cleanup), course pacing mode synced from AI Settings (with operator override for per-session changes), and Expo Station (local verification layer with 4-column KDS layout). Session 24 wiring executes Fire Item actions through backend routes for persisted course/item state transitions. Session 25 wiring consumes `targetCourseServeGapSeconds` from AI Settings for adaptive auto-fire delays.
 
 **Control Panel Setting:** `Enable Expo Station` (On/Off, default: Off) — ✅ IMPLEMENTED (Session 17)
 
@@ -489,9 +497,9 @@ All items finish simultaneously.
 
 ---
 
-## DELIVERY WORKFLOW — ✅ IMPLEMENTED (Session 11)
+## DELIVERY WORKFLOW — ✅ IMPLEMENTED (Sessions 11, 22; backend deployed Session 23)
 
-**Status:** Complete workflow with structured address capture (address2/city/state/zip/notes), delivery state tracking (PREPARING → OUT_FOR_DELIVERY → DELIVERED), and order tracking display in Online Portal.
+**Status:** Complete workflow with structured address capture (address2/city/state/zip/notes), 3-state delivery tracking (`deliveryState`), and DaaS dispatch tracking (`dispatchStatus`) with DoorDash Drive + Uber Direct quote/dispatch/status/cancel support.
 
 ### Phase 1: Order Placed
 - Customer data required (name, phone, email, full address: street, city, state, zip)
@@ -507,7 +515,9 @@ All items finish simultaneously.
 
 ### Phase 3: Order Ready
 - fulfillmentStatus → READY_FOR_PICKUP
-- Webhook to delivery service (if integrated)
+- If DaaS provider configured and auto-dispatch ON: KDS auto-requests quote + dispatches driver
+- If auto-dispatch OFF: KDS shows Dispatch button (manual quote + dispatch flow)
+- Provider webhooks update dispatch status in real time (`order:updated`, `delivery:location_updated`)
 
 ### Phase 4: Delivery
 - PREPARING → OUT_FOR_DELIVERY → DELIVERED
@@ -603,9 +613,9 @@ OPEN → PAID → CLOSED
 
 ---
 
-## SETTINGS TO IMPLEMENT — ✅ IMPLEMENTED (Sessions 11-13, 18-19)
+## SETTINGS TO IMPLEMENT — ✅ IMPLEMENTED (Sessions 11-13, 18-20, 22)
 
-**Status:** Control Panel component complete with 7 tabs: Printers (T1-08 Session 11-12), AI Settings (Session 13), Online Pricing (Session 13), Catering Calendar (Session 13), Payments (Session 18), Tip Management (Session 19), Loyalty (Session 20). Backend CloudPRNT integration ✅ COMPLETE. All settings tabs fully implemented with role-based access (owner/manager/super_admin = edit, staff = view only), local form signals with save/discard pattern, localStorage + backend PATCH persistence.
+**Status:** Control Panel component complete with 8 tabs: Printers (T1-08 Session 11-12), AI Settings (Session 13), Online Pricing (Session 13), Catering Calendar (Session 13), Payments (Session 18), Tip Management (Session 19), Loyalty (Session 20), Delivery (Session 22). Backend CloudPRNT integration ✅ COMPLETE. All settings tabs fully implemented with role-based access (owner/manager/super_admin = edit, staff = view only), local form signals with save/discard pattern, localStorage + backend PATCH persistence.
 
 ### Control Panel - AI Settings — ✅ IMPLEMENTED (Session 13)
 
@@ -613,13 +623,14 @@ OPEN → PAID → CLOSED
 |---------|------|---------|-------------|
 | Enable AI Order Approval | Toggle | On | Master switch for AI approval system |
 | **Course Pacing Mode** | Dropdown | Disabled | 3-way selector: Disabled (all items fire immediately), Server Fires (manual per-course fire), Auto-Fire Timed (auto-fire after delay when previous course completes) |
+| **Target Course Serve Gap** | Minutes | 20 | Target minutes between previous course completion and next-course landing (`targetCourseServeGapSeconds`, 5-60 min / 300-3600 sec) |
 | **Enable Expo Station** | Toggle | Off | Adds EXPO verification column to KDS between COOKING and READY |
 | **Catering Approval Timeout** | Hours | 24 | Auto-reject catering orders awaiting approval after this many hours |
 | Time threshold | Hours | 12 | Orders scheduled beyond this require AI review |
 | Value threshold | Currency | $200 | Orders over this value require AI review |
 | Quantity threshold | Number | 20 | Orders over this item count require AI review |
 
-**Frontend:** `AiSettings` component in `settings/ai-settings/`. Four panels (AI Order Approval with 3 threshold inputs, Catering Approval Timeout with hours input, Expo Station toggle with descriptive text, Course Pacing Mode dropdown with dynamic description). Computed threshold and timeout descriptions. Save/Discard action bar. Role-based view-only for staff.
+**Frontend:** `AiSettings` component in `settings/ai-settings/`. Five panels (AI Order Approval with 3 threshold inputs, Catering Approval Timeout with hours input, Expo Station toggle with descriptive text, Course Pacing Mode dropdown + Target Course Serve Gap input with minutes UI). Computed threshold/timeout/gap descriptions. Save/Discard action bar. Role-based view-only for staff.
 
 ### Control Panel - Online Order Pricing — ✅ IMPLEMENTED (Session 13)
 
@@ -665,6 +676,17 @@ OPEN → PAID → CLOSED
 - `PayPalPaymentProvider`: PayPal Orders v2 — buttons auto-confirm, `onApprove` captures payment
 - `StripePaymentProvider`: Stripe Elements — explicit Pay button click, `confirmPayment()` calls Stripe SDK
 - `PaymentService` orchestrator: `setProcessorType()` instantiates correct provider, delegates all calls
+
+### Control Panel - Delivery — ✅ IMPLEMENTED (Session 22)
+
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| Delivery Provider | Radio | None | None / DoorDash / Uber / Self |
+| Auto-Dispatch when READY | Toggle | Off | Automatically dispatches driver from KDS when order reaches READY_FOR_PICKUP |
+| Provider Credentials | Encrypted CRUD | Empty | Per-restaurant DoorDash/Uber credentials (admin roles only) |
+| Credential Access | Role-based | Manager+ edit | Staff users can view status only |
+
+**Frontend:** `DeliverySettings` component in `settings/delivery-settings/` with provider selector, auto-dispatch toggle, config-status indicators, save/discard flow via `RestaurantSettingsService.saveDeliverySettings()`, and encrypted credential management forms for DoorDash/Uber.
 
 ### Bartender Settings
 | Setting | Options |
@@ -778,14 +800,14 @@ GetOrderStack Applications
 
 ## ERROR/EDGE CASES — 🚧 PARTIALLY IMPLEMENTED
 
-**Status:** Core error handling and resilience features implemented: card declined (Stripe), item 86'd (T2-02), payment errors (Stripe flow), offline order queuing (localStorage queue with auto-sync on reconnect), catering approval timeout (configurable auto-reject with countdown UI). Order throttling not yet implemented.
+**Status:** Core error handling and resilience features implemented: card declined (Stripe), item 86'd (T2-02), payment errors (Stripe flow), offline order queuing (localStorage queue with auto-sync on reconnect), catering approval timeout (configurable auto-reject with countdown UI), and order throttling (auto-hold/auto-release with operator overrides).
 
 | Scenario | Behavior | Status |
 |----------|----------|--------|
 | Network offline | Offline mode — orders queued in localStorage, auto-synced on reconnect | ✅ IMPLEMENTED |
 | Card declined | Display error, retry/alternate | ✅ IMPLEMENTED |
 | Item 86'd | Block from selection | ✅ IMPLEMENTED |
-| Order throttled | Delay firing | 📋 PLANNED |
+| Order throttled | Auto-hold queue with manual release + hysteresis thresholds | ✅ IMPLEMENTED |
 | Approval timeout | Auto-reject after configurable hours (default 24h) | ✅ IMPLEMENTED |
 | Void after payment | Refund initiated | ✅ IMPLEMENTED |
 
@@ -807,7 +829,7 @@ GetOrderStack Applications
 
 ## INTEGRATION POINTS — 🚧 PARTIALLY IMPLEMENTED
 
-**Status:** KDS real-time sync (WebSocket) ✅, kitchen printers (T1-08 CloudPRNT ✅ COMPLETE — frontend PrinterSettings + Control Panel, backend all 8 phases), payment processor (PayPal Zettle + Stripe ✅ COMPLETE — full-stack provider-based abstraction, frontend Session 18, backend Session 19), online ordering (T3-04) ✅, dining options (frontend + backend validation) ✅, offline mode (localStorage queue + auto-sync) ✅, loyalty program (full-stack: config, tiers, rewards, points earn/redeem, phone lookup — Session 20) ✅. Third-party delivery, accounting, and payroll integrations not yet implemented.
+**Status:** KDS real-time sync (WebSocket) ✅, kitchen printers (T1-08 CloudPRNT ✅ COMPLETE — frontend PrinterSettings + Control Panel, backend all 8 phases), payment processor (PayPal Zettle + Stripe ✅ COMPLETE — full-stack provider-based abstraction, frontend Session 18, backend Session 19), online ordering (T3-04) ✅, dining options (frontend + backend validation) ✅, offline mode (localStorage queue + auto-sync) ✅, loyalty program (full-stack: config, tiers, rewards, points earn/redeem, phone lookup — Session 20) ✅, third-party delivery DaaS Phase 1 ✅ (frontend Session 22 + backend deployed Session 23), course pacing execution backend ✅ (Session 24 fire-course/fire-item routes + enriched course states), and AI pacing target-gap setting persistence/validation ✅ (Session 25 `aiSettings.targetCourseServeGapSeconds`). Accounting and payroll integrations remain research.
 
 | System | Method | Status |
 |--------|--------|--------|
@@ -818,7 +840,7 @@ GetOrderStack Applications
 | Loyalty | Points, tiers, rewards, redemption | ✅ IMPLEMENTED |
 | Tip management | Pooling, tip-out, compliance, CSV export | ✅ IMPLEMENTED |
 | Reporting | Dashboard (sales, menu engineering, command center) | ✅ IMPLEMENTED |
-| Third-party delivery | DoorDash Drive + Uber Direct (DaaS Phase 1), Marketplace inbound (Phase 2) | 📋 PLANNED (plan reviewed — see `Third-Party-Delivery-Plan.md`) |
+| Third-party delivery | DoorDash Drive + Uber Direct (DaaS Phase 1), KDS dispatch, webhook status sync | 🚧 IN PROGRESS (Marketplace Phase 2 inbound backend foundation complete; frontend/status-sync completion pending) |
 | Accounting | See below | 🔬 RESEARCH |
 | Payroll | See below | 🔬 RESEARCH |
 
@@ -1134,8 +1156,8 @@ GetOrderStack Applications
 
 ---
 
-*Document Version: 5.3*
-*Last Updated: 2026-02-13 (Session 21 — Third-party delivery plan reviewed and corrected)*
+*Document Version: 6.2*
+*Last Updated: 2026-02-13 (Session 31 — Marketplace menu mapping + inbound hardening implemented)*
 *Location: Get-Order-Stack-Restaurant-Frontend-Workspace/Get-Order-Stack-Workflow.md*
 
 ## IMPLEMENTATION SUMMARY
@@ -1154,15 +1176,73 @@ GetOrderStack Applications
 
 **Additional:**
 - ✅ **Loyalty Program (Session 20):** Full-stack — backend Prisma models + 10 REST endpoints + Zod validators; frontend LoyaltyService + LoyaltySettings/RewardsManagement in Control Panel + loyalty in Checkout, Online Portal, CRM, Order History
-- ✅ **Control Panel:** 7 tabs (Printers, AI Settings, Online Pricing, Catering Calendar, Payments, Tip Management, Loyalty)
+- ✅ **Third-Party Delivery DaaS (Sessions 22-23):** DoorDash Drive + Uber Direct provider pattern, KDS auto/manual dispatch, webhook status updates, deployed backend delivery routes (`/delivery/config-status`, `/quote`, `/dispatch`, `/status`, `/cancel`)
+- ✅ **Course Pacing Backend Execution (Session 24):** backend `fire-course`/`fire-item` endpoints, per-item course state persistence, and enriched course summaries returned in order payloads
+- ✅ **AI Pacing Target Gap Setting (Session 25):** full-stack `aiSettings.targetCourseServeGapSeconds` (Control Panel input, frontend normalization, backend persistence + Zod validation, Render verified live)
+- ✅ **AI Auto-Fire Pacing Optimization v1 (Session 26):** full-stack adaptive delay model (prep time + kitchen load + observed/historical pace), KDS delay rationale UI, backend pacing metrics endpoint, and live deploy verification
+- ✅ **Order Throttling v1 (Session 27):** backend throttling service + schema fields + status/hold/release endpoints; frontend AI settings thresholds and KDS throttled queue/operator controls
+- ✅ **Per-Restaurant Delivery Credentials (Session 28):** backend encrypted credential table + admin-only CRUD/status endpoints, dispatch/runtime webhook secret resolution by restaurant, frontend Control Panel credential management UI (manager/owner/super_admin edit; staff view-only)
+- ✅ **Marketplace Inbound Ingestion Foundation (Session 29):** backend models/routes/webhooks for inbound marketplace orders (`marketplace_integrations`, `marketplace_orders`, `marketplace_webhook_events`), idempotent webhook processing, and initial order creation from inbound payloads
+- ✅ **Marketplace Control Panel Integration (Session 30):** frontend Delivery settings marketplace cards + API wiring for per-restaurant integration enable/store ID/webhook secret update and secret clear (manager/owner/super_admin edit; staff view-only)
+- ✅ **Marketplace Menu Mapping + Inbound Hardening (Session 31):** backend menu-mapping schema/routes (`marketplace_menu_mappings` + CRUD), frontend mapping UI in Delivery settings, and ingestion hold-for-review path for unmapped marketplace items
+- ✅ **Control Panel:** 8 tabs (Printers, AI Settings, Online Pricing, Catering Calendar, Payments, Tip Management, Loyalty, Delivery)
 
 **Frontend:** 23 Web Components registered and deployed to WordPress (geekatyourspot.com)
 **Backend:** Claude AI services (Sonnet 4), PostgreSQL/Prisma, WebSocket + polling, PayPal Zettle + Stripe payment integration (full-stack complete — processor-agnostic routes, PayPal webhook), Loyalty program (full-stack complete)
 
 **Remaining:**
-- 🚧 AI auto-fire course pacing — backend execution pending (frontend UI complete: mode selector, manual fire, course notifications, recall ticket)
-- 📋 Order throttling — not yet implemented
-- 📋 Third-party delivery — plan reviewed and corrected (`Third-Party-Delivery-Plan.md`): Phase 1 DaaS (DoorDash Drive + Uber Direct), Phase 2 Marketplace inbound (Grubhub conditional)
+- 🚧 Third-party delivery Marketplace Phase 2 completion — outbound status push-back and provider-specific rollout hardening still pending (inbound backend + control panel + menu mapping implemented)
+- 🚧 Restaurant-by-restaurant provider onboarding — real DoorDash/Uber account values must be entered in each restaurant's Delivery settings and validated in live dispatch flow
 - 🔬 Accounting/payroll integrations (research phase)
 - ⏭️ T2-04 Multi-Device KDS Routing — deferred (no backend station-category mapping)
 - ⏭️ T3-03 Labor Intelligence / Staff Scheduling — deferred (no backend schema)
+
+**Next Task (Current Focus):** Marketplace Phase 2 completion — outbound provider status sync + pilot rollout verification.
+
+### Detailed Plan (Current Focus): Marketplace Phase 2 Completion
+
+**Progress:** Phases 1-2 are complete (Sessions 30-31). Phases 3-5 remain.
+
+**Phase 1 — Control Panel Marketplace Integration**
+1. Add marketplace integration service methods in frontend.
+2. Add Delivery tab UI for marketplace providers (enable toggle, store ID, webhook secret update/clear, status summary).
+3. Keep admin-only editing; staff stays read-only.
+
+**Phase 2 — Menu Mapping + Inbound Hardening**
+1. Add explicit external-item -> internal-menu mapping data model + CRUD API.
+2. Prioritize explicit mapping in ingestion; keep name fallback as temporary compatibility.
+3. Route unknown items to review/hold path instead of silent auto-accept.
+
+**Phase 3 — Outbound Status Push-Back**
+1. Implement provider status sync adapters for DoorDash Marketplace and Uber Eats.
+2. Trigger sync on internal order status transitions and cancellation paths.
+3. Add retry/outbox handling and dead-letter visibility for failed pushes.
+
+**Phase 4 — Operator UX and Observability**
+1. Add marketplace badges/filters in KDS, Pending Orders, and Order History.
+2. Show sync health state on marketplace orders.
+3. Add metrics/alerts for webhook rejects, duplicates, mapping misses, and outbound sync failures.
+
+**Phase 5 — Pilot Rollout**
+1. Contract/integration tests for webhook and idempotency paths.
+2. Pilot DoorDash first, then Uber Eats; expand by cohort after stable results.
+3. Keep Grubhub disabled behind feature gate unless partnership access is confirmed.
+
+### Deferred Detailed Plan (Out Of Scope): Strict Tenant-Isolated Delivery Credential Encryption
+
+**Reason Deferred:** Current scope achieved secure per-restaurant CRUD/runtime usage. Hardening to strict tenant crypto isolation requires infra and migration work not in current sprint scope.
+
+**Design Goal:** Eliminate reliance on shared service-level encryption secrets by moving to KMS-backed envelope encryption per restaurant.
+
+**Implementation Phases:**
+1. **Threat model + ADR:** document Render shared-env risk, choose KMS provider, define fail-closed behavior.
+2. **Schema extensions:** add wrapped DEK metadata and key-audit table tied to `restaurantId`.
+3. **KMS abstraction:** implement `generate/wrap/unwrap` DEK service; AES-GCM with AAD bound to tenant context.
+4. **Dual-read migration:** write new records with KMS path, read legacy as fallback, batch re-encrypt existing rows.
+5. **Rotation/revocation:** per-restaurant key rotation jobs + emergency tenant revoke workflow.
+6. **Enforcement cleanup:** remove legacy fallback, require healthy KMS for credential operations, add leakage tests.
+
+**Deferred Acceptance Criteria:**
+1. Compromise of one tenant key material cannot decrypt another tenant's credentials.
+2. Service-level env secret leakage alone cannot decrypt tenant provider secrets.
+3. Rotation/revocation operations are auditable and repeatable.
