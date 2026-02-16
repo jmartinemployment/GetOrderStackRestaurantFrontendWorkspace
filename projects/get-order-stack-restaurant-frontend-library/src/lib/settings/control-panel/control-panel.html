@@ -34,6 +34,12 @@
     @if (activeTab() === 'loyalty') {
       <get-order-stack-loyalty-settings />
     }
+    @if (activeTab() === 'delivery') {
+      <get-order-stack-delivery-settings />
+    }
+    @if (activeTab() === 'stations') {
+      <get-order-stack-station-settings />
+    }
   } @else {
     <div class="text-center text-muted py-5">
       <p>Please log in and select a restaurant to access settings.</p>

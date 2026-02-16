@@ -17,6 +17,11 @@
     border-color: #dc3545;
     box-shadow: 0 0 8px rgba(220, 53, 69, 0.3);
   }
+
+  &.throttled {
+    border-color: #b084f5;
+    box-shadow: 0 0 10px rgba(176, 132, 245, 0.22);
+  }
 }
 
 @keyframes pulse-border {
@@ -57,6 +62,31 @@
 
 .order-type-catering {
   background-color: #6f42c1;
+}
+
+.marketplace-source-badge {
+  background-color: #0b7285;
+  color: #fff;
+}
+
+.marketplace-sync-badge {
+  color: #fff;
+}
+
+.sync-success {
+  background-color: #198754;
+}
+
+.sync-pending {
+  background-color: #6c757d;
+}
+
+.sync-retrying {
+  background-color: #fd7e14;
+}
+
+.sync-failed {
+  background-color: #dc3545;
 }
 
 .elapsed-time {
@@ -212,6 +242,24 @@
   font-size: 0.75rem;
 }
 
+.auto-fire-panel {
+  max-width: 18rem;
+}
+
+.auto-fire-rationale {
+  margin-top: 0.2rem;
+  font-size: 0.62rem;
+  line-height: 1.2;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.auto-fire-rationale-meta {
+  margin-top: 0.1rem;
+  font-size: 0.58rem;
+  line-height: 1.2;
+  color: rgba(255, 255, 255, 0.58);
+}
+
 // Item actively firing (just transitioned from held)
 .item-firing {
   border-left: 2px solid #28a745;
@@ -271,4 +319,94 @@
 .retry-print-btn {
   font-size: 0.7rem;
   padding: 0.15rem 0.5rem;
+}
+
+// Delivery provider badges
+.provider-doordash {
+  background-color: #ff3008;
+  color: #fff;
+}
+
+.provider-uber {
+  background-color: #000;
+  color: #fff;
+}
+
+// Dispatch button
+.btn-dispatch {
+  background-color: #198754;
+  border-color: #198754;
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 600;
+
+  &:hover:not(:disabled) {
+    background-color: #157347;
+    border-color: #157347;
+    color: #fff;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    color: #fff;
+  }
+}
+
+// Dispatch status
+.dispatch-status {
+  .badge {
+    font-size: 0.65rem;
+  }
+}
+
+.dispatch-quote {
+  .badge {
+    font-size: 0.65rem;
+  }
+}
+
+.dispatch-error {
+  font-weight: 600;
+}
+
+.marketplace-sync-alert {
+  color: #ff9da7;
+  border-left: 3px solid #dc3545;
+  background-color: rgba(220, 53, 69, 0.12);
+  padding: 0.35rem 0.5rem;
+  border-radius: 0.25rem;
+}
+
+.throttle-info {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  padding: 0.35rem 0.5rem;
+  border: 1px dashed rgba(255, 193, 7, 0.7);
+  border-radius: 0.35rem;
+  background-color: rgba(255, 193, 7, 0.08);
+}
+
+.bg-throttle {
+  background-color: #6f42c1;
+  color: #fff;
+}
+
+.throttle-release-btn {
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.throttle-hold-btn {
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+// Partial order badge (station filtering)
+.bg-partial-order {
+  background-color: #0dcaf0;
+  color: #000;
+  font-size: 0.65rem;
+  font-weight: 600;
 }

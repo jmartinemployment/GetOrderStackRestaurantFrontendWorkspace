@@ -22,7 +22,7 @@
   grid-template-columns: repeat(3, 1fr);
   gap: 1rem;
   padding: 1rem;
-  height: calc(100vh - 70px);
+  height: calc(100vh - 130px);
 
   @media (max-width: 992px) {
     grid-template-columns: 1fr;
@@ -30,10 +30,30 @@
   }
 }
 
+.kds-source-filter {
+  border-bottom: 1px solid rgba(29, 50, 115, 0.35);
+}
+
 .kds-columns-4 {
   grid-template-columns: repeat(4, 1fr);
 
   @media (max-width: 1200px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.kds-columns-5 {
+  grid-template-columns: repeat(5, 1fr);
+
+  @media (max-width: 1400px) {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  @media (max-width: 992px) {
     grid-template-columns: repeat(2, 1fr);
   }
 
@@ -73,6 +93,10 @@
 
   &.ready {
     background-color: #198754;
+  }
+
+  &.throttled {
+    background-color: #6f42c1;
   }
 }
 
@@ -126,6 +150,19 @@
   color: var(--bs-secondary-color, #6c757d);
 }
 
+// Station selector
+.station-select {
+  max-width: 160px;
+  background-color: var(--midnight-black, #03020D);
+  border-color: var(--deep-lake, #1D3273);
+  color: #fff;
+  font-size: 0.8rem;
+
+  option {
+    background-color: var(--midnight-black, #03020D);
+  }
+}
+
 // Pacing mode selector
 .pacing-select {
   max-width: 150px;
@@ -136,5 +173,19 @@
 
   option {
     background-color: var(--midnight-black, #03020D);
+  }
+}
+
+.throttle-indicator {
+  .badge {
+    font-size: 0.72rem;
+    letter-spacing: 0.03em;
+  }
+}
+
+.delivery-dispatch-indicator {
+  .badge {
+    font-size: 0.72rem;
+    letter-spacing: 0.02em;
   }
 }

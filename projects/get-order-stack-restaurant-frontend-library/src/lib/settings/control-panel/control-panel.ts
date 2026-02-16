@@ -8,11 +8,13 @@ import { CateringCalendar } from '../catering-calendar';
 import { PaymentSettingsComponent } from '../payment-settings';
 import { TipManagement } from '../../tip-mgmt/tip-management';
 import { LoyaltySettings } from '../loyalty-settings';
+import { DeliverySettingsComponent } from '../delivery-settings';
+import { StationSettings } from '../station-settings';
 import { ControlPanelTab } from '../../models';
 
 @Component({
   selector: 'get-order-stack-control-panel',
-  imports: [PrinterSettings, AiSettings, OnlinePricing, CateringCalendar, PaymentSettingsComponent, TipManagement, LoyaltySettings],
+  imports: [PrinterSettings, AiSettings, OnlinePricing, CateringCalendar, PaymentSettingsComponent, TipManagement, LoyaltySettings, DeliverySettingsComponent, StationSettings],
   templateUrl: './control-panel.html',
   styleUrl: './control-panel.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -34,6 +36,8 @@ export class ControlPanel implements OnInit {
     { key: 'payments', label: 'Payments' },
     { key: 'tip-management', label: 'Tip Management' },
     { key: 'loyalty', label: 'Loyalty' },
+    { key: 'delivery', label: 'Delivery' },
+    { key: 'stations', label: 'Stations' },
   ];
 
   ngOnInit(): void {

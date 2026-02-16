@@ -1,6 +1,9 @@
 import { CoursePacingMode } from './order.model';
+import { DeliveryProviderType } from './delivery.model';
 import { PaymentProcessorType } from './payment.model';
 import { TipPoolRule, TipOutRule } from './tip.model';
+
+export type ControlPanelTab = 'printers' | 'ai-settings' | 'online-pricing' | 'catering-calendar' | 'payments' | 'tip-management' | 'loyalty' | 'delivery' | 'stations';
 
 /**
  * AI Settings — Control Panel > AI Settings tab
@@ -12,6 +15,20 @@ export interface AISettings {
   valueThresholdDollars: number;
   quantityThreshold: number;
   coursePacingMode: CoursePacingMode;
+  /** Gap between course serves in seconds. Range: 300–3600. */
+  targetCourseServeGapSeconds: number;
+  orderThrottlingEnabled: boolean;
+  /** Hold new orders when active count exceeds this. Must be > releaseActiveOrders. */
+  maxActiveOrders: number;
+  /** Hold new orders when overdue count exceeds this. Must be > releaseOverdueOrders. */
+  maxOverdueOrders: number;
+  /** Resume accepting orders when active count drops to this (hysteresis floor). */
+  releaseActiveOrders: number;
+  /** Resume accepting orders when overdue count drops to this (hysteresis floor). */
+  releaseOverdueOrders: number;
+  /** Max minutes an order can be held before auto-release. */
+  maxHoldMinutes: number;
+  allowRushThrottle: boolean;
   expoStationEnabled: boolean;
   approvalTimeoutHours: number;
 }
@@ -94,6 +111,14 @@ export function defaultAISettings(): AISettings {
     valueThresholdDollars: 200,
     quantityThreshold: 20,
     coursePacingMode: 'disabled',
+    targetCourseServeGapSeconds: 1200,
+    orderThrottlingEnabled: false,
+    maxActiveOrders: 18,
+    maxOverdueOrders: 6,
+    releaseActiveOrders: 14,
+    releaseOverdueOrders: 3,
+    maxHoldMinutes: 20,
+    allowRushThrottle: false,
     expoStationEnabled: false,
     approvalTimeoutHours: 24,
   };
@@ -144,5 +169,21 @@ export function defaultTipManagementSettings(): TipManagementSettings {
     defaultHourlyRate: 5.63,
     poolRules: [],
     tipOutRules: [],
+  };
+}
+
+export interface DeliverySettings {
+  provider: DeliveryProviderType;
+  autoDispatch: boolean;
+  showQuotesToCustomer: boolean;
+  defaultTipPercent: number;
+}
+
+export function defaultDeliverySettings(): DeliverySettings {
+  return {
+    provider: 'none',
+    autoDispatch: false,
+    showQuotesToCustomer: true,
+    defaultTipPercent: 15,
   };
 }

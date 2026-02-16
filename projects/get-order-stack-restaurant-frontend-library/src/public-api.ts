@@ -22,9 +22,13 @@ export { TipService } from './lib/services/tip';
 export { PrinterService } from './lib/services/printer';
 export { RestaurantSettingsService } from './lib/services/restaurant-settings';
 export { SocketService } from './lib/services/socket';
-export type { SocketConnectionStatus, OrderEvent } from './lib/services/socket';
+export type { SocketConnectionStatus, OrderEvent, DeliveryLocationEvent } from './lib/services/socket';
 export { StripePaymentProvider } from './lib/services/providers/stripe-provider';
 export { PayPalPaymentProvider } from './lib/services/providers/paypal-provider';
+export { DoorDashDeliveryProvider } from './lib/services/providers/doordash-provider';
+export { UberDeliveryProvider } from './lib/services/providers/uber-provider';
+export { DeliveryService } from './lib/services/delivery';
+export type { DeliveryConfigStatus } from './lib/services/delivery';
 
 // Shared components
 export { LoadingSpinner } from './lib/shared/loading-spinner/loading-spinner';
@@ -101,6 +105,9 @@ export { WasteTracker } from './lib/waste/waste-tracker';
 
 // Sentiment Analysis components
 export { SentimentDashboard } from './lib/sentiment/sentiment-dashboard';
+
+// Station service
+export { StationService } from './lib/services/station';
 
 // Additional services
 export { ChatService } from './lib/services/chat';

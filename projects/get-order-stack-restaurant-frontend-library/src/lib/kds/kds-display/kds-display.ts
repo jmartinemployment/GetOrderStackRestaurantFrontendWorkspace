@@ -3,12 +3,38 @@ import { OrderService } from '../../services/order';
 import { SocketService } from '../../services/socket';
 import { AuthService } from '../../services/auth';
 import { MenuService } from '../../services/menu';
+import { DeliveryService } from '../../services/delivery';
 import { RestaurantSettingsService } from '../../services/restaurant-settings';
+import { StationService } from '../../services/station';
 import { OrderCard } from '../order-card/order-card';
 import { ConnectionStatus } from '../../shared/connection-status/connection-status';
 import { LoadingSpinner } from '../../shared/loading-spinner/loading-spinner';
 import { ErrorDisplay } from '../../shared/error-display/error-display';
-import { Order, GuestOrderStatus, CoursePacingMode, PrintStatus } from '../../models';
+import {
+  Order,
+  GuestOrderStatus,
+  CoursePacingMode,
+  CoursePacingMetrics,
+  CoursePacingConfidence,
+  OrderThrottlingStatus,
+  PrintStatus,
+  DeliveryQuote,
+  DeliveryProviderType,
+  DispatchState,
+  KdsStation,
+  isMarketplaceOrder,
+} from '../../models';
+
+const ACTIVE_DISPATCH_STATUSES = new Set([
+  'DISPATCH_REQUESTED',
+  'DRIVER_ASSIGNED',
+  'DRIVER_EN_ROUTE_TO_PICKUP',
+  'DRIVER_AT_PICKUP',
+  'PICKED_UP',
+  'DRIVER_EN_ROUTE_TO_DROPOFF',
+  'DRIVER_AT_DROPOFF',
+  'DELIVERED',
+]);
 
 @Component({
   selector: 'get-order-stack-kds-display',
@@ -23,7 +49,16 @@ export class KdsDisplay implements OnInit, OnDestroy {
   private readonly authService = inject(AuthService);
   private readonly menuService = inject(MenuService);
   private readonly settingsService = inject(RestaurantSettingsService);
+  private readonly deliveryService = inject(DeliveryService);
+  private readonly stationService = inject(StationService);
 
+  private readonly _selectedStationId = signal<string | null>(
+    typeof localStorage !== 'undefined' ? localStorage.getItem('kds-station-id') : null
+  );
+  private readonly _deliveryQuotes = signal<Map<string, DeliveryQuote>>(new Map());
+  private readonly _dispatchStates = signal<Map<string, DispatchState>>(new Map());
+  private readonly _dispatchErrors = signal<Map<string, string>>(new Map());
+  private readonly _autoDispatchTriggered = signal(new Set<string>());
   private readonly _rushedOrders = signal(new Set<string>());
   private readonly _operatorOverride = signal(false);
   private readonly _coursePacingMode = signal<CoursePacingMode>('disabled');
@@ -31,13 +66,59 @@ export class KdsDisplay implements OnInit, OnDestroy {
   private readonly _expoOverride = signal(false);
   private readonly _expoCheckedOrders = signal(new Set<string>());
   private readonly _autoFireDelay = signal(300);
+  private readonly _targetCourseServeGapSeconds = signal(1200);
+  private readonly _coursePacingMetrics = signal<CoursePacingMetrics | null>(null);
+  private readonly _coursePacingMetricsLoading = signal(false);
+  private readonly _orderThrottlingStatus = signal<OrderThrottlingStatus | null>(null);
+  private readonly _orderThrottlingStatusLoading = signal(false);
   private readonly _prepTimeFiringEnabled = signal(false);
   private readonly _defaultPrepMinutes = signal(10);
+  private readonly _marketplaceFilter = signal<'all' | 'marketplace' | 'native'>('all');
+  private throttlingPollTimer: ReturnType<typeof setInterval> | null = null;
   readonly coursePacingMode = this._coursePacingMode.asReadonly();
   readonly expoStationEnabled = this._expoStationEnabled.asReadonly();
   readonly autoFireDelay = this._autoFireDelay.asReadonly();
+  readonly targetCourseServeGapSeconds = this._targetCourseServeGapSeconds.asReadonly();
+  readonly coursePacingBaselineSeconds = computed(() =>
+    this._coursePacingMetrics()?.tablePaceBaselineSeconds ?? 900
+  );
+  readonly coursePacingConfidence = computed<CoursePacingConfidence>(() =>
+    this._coursePacingMetrics()?.confidence ?? 'low'
+  );
+  readonly orderThrottlingStatus = this._orderThrottlingStatus.asReadonly();
+  readonly isThrottleGateActive = computed(() => this._orderThrottlingStatus()?.triggering ?? false);
+  readonly throttleGateReason = computed(() => {
+    const reason = this._orderThrottlingStatus()?.triggerReason;
+    if (reason === 'ACTIVE_OVERLOAD') return 'Active ticket overload';
+    if (reason === 'OVERDUE_OVERLOAD') return 'Overdue ticket overload';
+    return 'Load recovered';
+  });
   readonly prepTimeFiringEnabled = this._prepTimeFiringEnabled.asReadonly();
   readonly defaultPrepMinutes = this._defaultPrepMinutes.asReadonly();
+  readonly marketplaceFilter = this._marketplaceFilter.asReadonly();
+  readonly marketplaceFilterOptions: Array<{ value: 'all' | 'marketplace' | 'native'; label: string }> = [
+    { value: 'all', label: 'All Sources' },
+    { value: 'marketplace', label: 'Marketplace' },
+    { value: 'native', label: 'Direct' },
+  ];
+
+  readonly selectedStationId = this._selectedStationId.asReadonly();
+  readonly stations = this.stationService.activeStations;
+
+  /** Map from menuItemGuid → stationId (built from menu items + category-to-station mappings). */
+  readonly menuItemToStationMap = computed(() => {
+    const catToStation = this.stationService.categoryToStationMap();
+    const map = new Map<string, string>();
+    for (const item of this.menuService.allItems()) {
+      if (item.categoryId) {
+        const stationId = catToStation.get(item.categoryId);
+        if (stationId) {
+          map.set(item.id, stationId);
+        }
+      }
+    }
+    return map;
+  });
 
   constructor() {
     effect(() => {
@@ -52,6 +133,52 @@ export class KdsDisplay implements OnInit, OnDestroy {
         this._expoStationEnabled.set(enabled);
       }
     });
+    effect(() => {
+      const target = this.settingsService.aiSettings().targetCourseServeGapSeconds;
+      this._targetCourseServeGapSeconds.set(this.normalizeTargetCourseServeGapSeconds(target));
+    });
+    effect(() => {
+      const restaurantId = this.authService.selectedRestaurantId();
+      const mode = this._coursePacingMode();
+      if (!restaurantId) return;
+      if (mode !== 'auto_fire_timed') return;
+      void this.loadCoursePacingMetrics();
+    });
+    effect(() => {
+      const provider = this.settingsService.deliverySettings().provider;
+      this.deliveryService.setProviderType(provider);
+      if (this.isDaaSProvider(provider)) {
+        void this.deliveryService.loadConfigStatus();
+      }
+    });
+    effect(() => {
+      const autoDispatch = this.settingsService.deliverySettings().autoDispatch;
+      const providerReady = this.deliveryService.selectedProviderConfigured();
+      const readyOrders = this.rawReadyOrders();
+      if (!autoDispatch || !providerReady) return;
+
+      for (const order of readyOrders) {
+        this.maybeAutoDispatch(order.guid);
+      }
+    });
+    effect(() => {
+      const activeOrderIds = new Set([
+        ...this.rawPendingOrders().map(o => o.guid),
+        ...this.rawPreparingOrders().map(o => o.guid),
+        ...this.rawReadyOrders().map(o => o.guid),
+      ]);
+      this.pruneDispatchRuntime(activeOrderIds);
+    });
+    effect(() => {
+      const readyIds = new Set(this.rawReadyOrders().map(o => o.guid));
+      this._autoDispatchTriggered.update(set => {
+        const next = new Set<string>();
+        for (const id of set) {
+          if (readyIds.has(id)) next.add(id);
+        }
+        return next;
+      });
+    });
   }
 
   readonly pacingModeOptions: { value: CoursePacingMode; label: string }[] = [
@@ -60,9 +187,48 @@ export class KdsDisplay implements OnInit, OnDestroy {
     { value: 'auto_fire_timed', label: 'Auto-Fire Timed' },
   ];
 
-  readonly pendingOrders = this.orderService.pendingOrders;
-  readonly preparingOrders = this.orderService.preparingOrders;
-  readonly readyOrders = this.orderService.readyOrders;
+  readonly rawThrottledOrders = computed(() =>
+    this.orderService.orders().filter(order =>
+      order.throttle?.state === 'HELD'
+      && (order.guestOrderStatus === 'RECEIVED' || order.guestOrderStatus === 'IN_PREPARATION')
+    )
+  );
+  readonly rawPendingOrders = computed(() =>
+    this.orderService.pendingOrders().filter(order => order.throttle?.state !== 'HELD')
+  );
+  readonly rawPreparingOrders = computed(() =>
+    this.orderService.preparingOrders().filter(order => order.throttle?.state !== 'HELD')
+  );
+  readonly rawReadyOrders = this.orderService.readyOrders;
+  readonly throttledOrders = computed(() => this.filterByStation(this.filterByMarketplace(this.rawThrottledOrders())));
+  readonly pendingOrders = computed(() => this.filterByStation(this.filterByMarketplace(this.rawPendingOrders())));
+  readonly preparingOrders = computed(() => this.filterByStation(this.filterByMarketplace(this.rawPreparingOrders())));
+  readonly readyOrders = computed(() => this.filterByStation(this.filterByMarketplace(this.rawReadyOrders())));
+  readonly showThrottledColumn = computed(() =>
+    this.settingsService.aiSettings().orderThrottlingEnabled || this.throttledOrders().length > 0
+  );
+  readonly selectedDeliveryProvider = computed(() => this.settingsService.deliverySettings().provider);
+  readonly showDeliveryDispatchStatus = computed(() =>
+    this.isDaaSProvider(this.selectedDeliveryProvider())
+  );
+  readonly deliveryProviderLabel = computed(() => {
+    const provider = this.selectedDeliveryProvider();
+    if (provider === 'doordash') return 'DoorDash';
+    if (provider === 'uber') return 'Uber';
+    return null;
+  });
+  readonly deliveryDispatchStatus = computed<'checking' | 'ready' | 'blocked' | null>(() => {
+    const provider = this.selectedDeliveryProvider();
+    if (!this.isDaaSProvider(provider)) return null;
+    if (!this.deliveryService.configStatus()) return 'checking';
+    return this.deliveryService.isProviderConfiguredFor(provider) ? 'ready' : 'blocked';
+  });
+  readonly kdsColumnCount = computed(() => {
+    let count = 3; // NEW, COOKING, READY
+    if (this.expoStationEnabled()) count += 1;
+    if (this.showThrottledColumn()) count += 1;
+    return count;
+  });
 
   readonly expoQueueOrders = computed(() => {
     if (!this._expoStationEnabled()) return [];
@@ -125,15 +291,61 @@ export class KdsDisplay implements OnInit, OnDestroy {
       this.connectSocket();
       this.menuService.loadMenu();
       this.settingsService.loadSettings();
+      void this.stationService.loadStations();
+      void this.stationService.loadCategoryMappings();
+      if (this.isDaaSProvider(this.settingsService.deliverySettings().provider)) {
+        void this.deliveryService.loadConfigStatus();
+      }
+      void this.loadOrderThrottlingStatus();
+      this.startThrottlingPolling();
     }
   }
 
   ngOnDestroy(): void {
     this.socketService.disconnect();
+    if (this.throttlingPollTimer) {
+      clearInterval(this.throttlingPollTimer);
+      this.throttlingPollTimer = null;
+    }
   }
 
   private loadOrders(): void {
     this.orderService.loadOrders(50);
+  }
+
+  private async loadCoursePacingMetrics(): Promise<void> {
+    if (this._coursePacingMetricsLoading()) return;
+    this._coursePacingMetricsLoading.set(true);
+    try {
+      const metrics = await this.orderService.getCoursePacingMetrics(30);
+      this._coursePacingMetrics.set(metrics);
+    } catch {
+      // OrderService sets _error internally; metrics remain at last known value
+    } finally {
+      this._coursePacingMetricsLoading.set(false);
+    }
+  }
+
+  private async loadOrderThrottlingStatus(): Promise<void> {
+    if (this._orderThrottlingStatusLoading()) return;
+    this._orderThrottlingStatusLoading.set(true);
+    try {
+      const status = await this.orderService.getOrderThrottlingStatus();
+      this._orderThrottlingStatus.set(status);
+    } catch {
+      // OrderService sets _error internally; status remains at last known value
+    } finally {
+      this._orderThrottlingStatusLoading.set(false);
+    }
+  }
+
+  private startThrottlingPolling(): void {
+    if (this.throttlingPollTimer) {
+      clearInterval(this.throttlingPollTimer);
+    }
+    this.throttlingPollTimer = setInterval(() => {
+      void this.loadOrderThrottlingStatus();
+    }, 30_000);
   }
 
   private connectSocket(): void {
@@ -163,9 +375,37 @@ export class KdsDisplay implements OnInit, OnDestroy {
     });
   }
 
+  setMarketplaceFilter(filter: 'all' | 'marketplace' | 'native'): void {
+    this._marketplaceFilter.set(filter);
+  }
+
+  selectStation(stationId: string | null): void {
+    this._selectedStationId.set(stationId);
+    if (typeof localStorage !== 'undefined') {
+      if (stationId) {
+        localStorage.setItem('kds-station-id', stationId);
+      } else {
+        localStorage.removeItem('kds-station-id');
+      }
+    }
+  }
+
   onStatusChange(event: { orderId: string; status: GuestOrderStatus }): void {
     const skipPrint = this._expoStationEnabled() && event.status === 'READY_FOR_PICKUP';
-    this.orderService.updateOrderStatus(event.orderId, event.status, skipPrint ? { skipPrint: true } : undefined);
+    void this.orderService
+      .updateOrderStatus(event.orderId, event.status, skipPrint ? { skipPrint: true } : undefined)
+      .then(success => {
+        if (!success) return;
+
+        if (event.status === 'READY_FOR_PICKUP' && this.settingsService.deliverySettings().autoDispatch) {
+          this.maybeAutoDispatch(event.orderId);
+          void this.loadOrderThrottlingStatus();
+          return;
+        }
+
+        this.clearOrderDispatchRuntime(event.orderId);
+        void this.loadOrderThrottlingStatus();
+      });
   }
 
   onExpoCheck(orderId: string): void {
@@ -181,7 +421,7 @@ export class KdsDisplay implements OnInit, OnDestroy {
     const checked = (event.target as HTMLInputElement).checked;
     if (!checked) {
       const checkedSet = this._expoCheckedOrders();
-      for (const order of this.readyOrders()) {
+      for (const order of this.rawReadyOrders()) {
         if (!checkedSet.has(order.guid)) {
           this.orderService.triggerPrint(order.guid);
         }
@@ -219,8 +459,7 @@ export class KdsDisplay implements OnInit, OnDestroy {
   }
 
   onFireItemNow(event: { orderId: string; selectionGuid: string }): void {
-    console.log('Fire item now:', event);
-    // TODO: Call backend to transition item HOLD → SENT
+    void this.orderService.fireItemNow(event.orderId, event.selectionGuid);
   }
 
   getPrintStatus(orderId: string): PrintStatus {
@@ -235,8 +474,178 @@ export class KdsDisplay implements OnInit, OnDestroy {
     this.orderService.recallOrder(orderId);
   }
 
+  onReleaseThrottle(orderId: string): void {
+    void this.orderService.releaseOrderFromThrottling(orderId).then(success => {
+      if (success) void this.loadOrderThrottlingStatus();
+    });
+  }
+
+  onManualThrottleHold(orderId: string): void {
+    void this.orderService.holdOrderForThrottling(orderId).then(success => {
+      if (success) void this.loadOrderThrottlingStatus();
+    });
+  }
+
+  getDeliveryQuote(orderId: string): DeliveryQuote | null {
+    return this._deliveryQuotes().get(orderId) ?? null;
+  }
+
+  getDispatchState(orderId: string): DispatchState {
+    const local = this._dispatchStates().get(orderId);
+    const backend = this.getBackendDispatchState(orderId);
+
+    if (backend === 'dispatched') return 'dispatched';
+    if (backend === 'failed' && local !== 'quoting' && local !== 'dispatching') return 'failed';
+    return local ?? backend;
+  }
+
+  getDispatchError(orderId: string): string | null {
+    if (this.getDispatchState(orderId) === 'dispatched') return null;
+    return this._dispatchErrors().get(orderId) ?? null;
+  }
+
+  isDispatchingDelivery(orderId: string): boolean {
+    const state = this.getDispatchState(orderId);
+    return state === 'quoting' || state === 'dispatching';
+  }
+
+  canDispatchDelivery(orderId: string): boolean {
+    const order = this.orderService.getOrderById(orderId);
+    if (!order?.deliveryInfo) return false;
+    if (!this.deliveryService.isConfigured()) return false;
+    if (!this.isDispatchProviderReady()) return false;
+
+    const state = this.getDispatchState(orderId);
+    if (state === 'quoting' || state === 'dispatching') return false;
+    if (this.hasActiveDispatch(order)) return false;
+    return true;
+  }
+
+  private maybeAutoDispatch(orderId: string): void {
+    if (this._autoDispatchTriggered().has(orderId)) return;
+
+    const order = this.orderService.getOrderById(orderId);
+    if (!order?.deliveryInfo) return;
+    if (!this.deliveryService.isConfigured()) return;
+    if (!this.isDispatchProviderReady()) return;
+    if (this.hasActiveDispatch(order)) return;
+
+    this._autoDispatchTriggered.update(set => {
+      const next = new Set(set);
+      next.add(orderId);
+      return next;
+    });
+
+    void this.dispatchDriver(orderId, { autoAcceptQuote: true });
+  }
+
+  async dispatchDriver(orderId: string, options?: { autoAcceptQuote?: boolean }): Promise<void> {
+    const autoAcceptQuote = options?.autoAcceptQuote ?? false;
+
+    if (this.isDispatchingDelivery(orderId)) return;
+
+    const order = this.orderService.getOrderById(orderId);
+    if (!order?.deliveryInfo) return;
+
+    if (!this.deliveryService.isConfigured()) {
+      this.setDispatchFailure(orderId, 'Delivery provider is not configured.');
+      return;
+    }
+
+    if (!await this.deliveryService.ensureSelectedProviderConfigured()) {
+      this.setDispatchFailure(orderId, 'Delivery provider credentials are not configured.');
+      return;
+    }
+
+    if (!autoAcceptQuote && !this.canDispatchDelivery(orderId)) return;
+
+    try {
+      this.setDispatchError(orderId, null);
+
+      let quote = this.getDeliveryQuote(orderId);
+      let quoteRequested = false;
+      if (!quote) {
+        this.setDispatchState(orderId, 'quoting');
+        quote = await this.deliveryService.requestQuote(orderId);
+        if (!quote) {
+          this.setDispatchFailure(orderId, this.deliveryService.error() ?? 'Failed to request delivery quote.');
+          return;
+        }
+        this.setDeliveryQuote(orderId, quote);
+        quoteRequested = true;
+      }
+
+      if (!autoAcceptQuote && quoteRequested && this.getDispatchState(orderId) !== 'failed') {
+        this.setDispatchState(orderId, 'idle');
+        return;
+      }
+
+      let accepted = await this.acceptQuote(orderId, quote.quoteId);
+
+      // One retry when provider reports quote expiration.
+      if (!accepted && this.isQuoteExpiredError(this.deliveryService.error())) {
+        this.clearDeliveryQuote(orderId);
+        this.setDispatchState(orderId, 'quoting');
+        quote = await this.deliveryService.requestQuote(orderId);
+        if (quote) {
+          this.setDeliveryQuote(orderId, quote);
+          accepted = await this.acceptQuote(orderId, quote.quoteId);
+        }
+      }
+
+      if (!accepted) {
+        this.setDispatchFailure(orderId, this.deliveryService.error() ?? 'Driver dispatch failed.');
+        return;
+      }
+
+      this.clearDeliveryQuote(orderId);
+      this.setDispatchError(orderId, null);
+      this.setDispatchState(orderId, 'dispatched');
+    } catch {
+      this.setDispatchFailure(orderId, 'Driver dispatch failed.');
+    }
+  }
+
+  onDispatchDriver(orderId: string): void {
+    void this.dispatchDriver(orderId, { autoAcceptQuote: false });
+  }
+
   refresh(): void {
     this.loadOrders();
+    void this.loadOrderThrottlingStatus();
+    if (this._coursePacingMode() === 'auto_fire_timed') {
+      void this.loadCoursePacingMetrics();
+    }
+    if (this.isDaaSProvider(this.settingsService.deliverySettings().provider)) {
+      void this.deliveryService.loadConfigStatus();
+    }
+  }
+
+  private filterByMarketplace(orders: Order[]): Order[] {
+    const filter = this._marketplaceFilter();
+    if (filter === 'all') return orders;
+    return orders.filter(order => {
+      const marketplace = isMarketplaceOrder(order);
+      if (filter === 'marketplace') return marketplace;
+      return !marketplace;
+    });
+  }
+
+  /** Hide orders that have zero items matching the selected station. */
+  private filterByStation(orders: Order[]): Order[] {
+    const stationId = this._selectedStationId();
+    if (!stationId) return orders; // "All Stations" — show everything
+    const itemMap = this.menuItemToStationMap();
+    if (itemMap.size === 0) return orders; // No mappings loaded yet — don't filter
+
+    return orders.filter(order => {
+      const allSelections = order.checks.flatMap(c => c.selections);
+      // Show order if at least one selection matches this station OR is unmapped
+      return allSelections.some(sel => {
+        const selStation = itemMap.get(sel.menuItemGuid);
+        return selStation === stationId || selStation === undefined;
+      });
+    });
   }
 
   clearError(): void {
@@ -252,5 +661,129 @@ export class KdsDisplay implements OnInit, OnDestroy {
       if (prep > maxPrep) maxPrep = prep;
     }
     return maxPrep;
+  }
+
+  private normalizeTargetCourseServeGapSeconds(value: number): number {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) return 1200;
+    const rounded = Math.round(parsed);
+    return Math.max(300, Math.min(3600, rounded));
+  }
+
+  private async acceptQuote(orderId: string, quoteId: string): Promise<boolean> {
+    this.setDispatchState(orderId, 'dispatching');
+    const result = await this.deliveryService.acceptQuote(orderId, quoteId);
+    return result !== null;
+  }
+
+  private getBackendDispatchState(orderId: string): DispatchState {
+    const order = this.orderService.getOrderById(orderId);
+    if (!order?.deliveryInfo) return 'idle';
+
+    const status = order.deliveryInfo.dispatchStatus;
+    if (status === 'FAILED' || status === 'CANCELLED') return 'failed';
+    if ((status && status !== 'QUOTED') || order.deliveryInfo.deliveryExternalId) return 'dispatched';
+    return 'idle';
+  }
+
+  private hasActiveDispatch(order: Order): boolean {
+    const status = order.deliveryInfo?.dispatchStatus;
+    if (!status) return Boolean(order.deliveryInfo?.deliveryExternalId);
+    if (status === 'FAILED' || status === 'CANCELLED') return false;
+    if (status === 'QUOTED') return false;
+    return ACTIVE_DISPATCH_STATUSES.has(status);
+  }
+
+  private setDispatchState(orderId: string, state: DispatchState): void {
+    this._dispatchStates.update(map => {
+      const next = new Map(map);
+      next.set(orderId, state);
+      return next;
+    });
+  }
+
+  private setDispatchError(orderId: string, message: string | null): void {
+    this._dispatchErrors.update(map => {
+      const next = new Map(map);
+      if (message) {
+        next.set(orderId, message);
+      } else {
+        next.delete(orderId);
+      }
+      return next;
+    });
+  }
+
+  private setDispatchFailure(orderId: string, message: string): void {
+    this.setDispatchState(orderId, 'failed');
+    this.setDispatchError(orderId, message);
+  }
+
+  private setDeliveryQuote(orderId: string, quote: DeliveryQuote): void {
+    this._deliveryQuotes.update(map => {
+      const next = new Map(map);
+      next.set(orderId, quote);
+      return next;
+    });
+  }
+
+  private clearDeliveryQuote(orderId: string): void {
+    this._deliveryQuotes.update(map => {
+      const next = new Map(map);
+      next.delete(orderId);
+      return next;
+    });
+  }
+
+  private clearOrderDispatchRuntime(orderId: string): void {
+    this._dispatchStates.update(map => {
+      const next = new Map(map);
+      next.delete(orderId);
+      return next;
+    });
+    this._dispatchErrors.update(map => {
+      const next = new Map(map);
+      next.delete(orderId);
+      return next;
+    });
+    this.clearDeliveryQuote(orderId);
+  }
+
+  private pruneDispatchRuntime(activeOrderIds: Set<string>): void {
+    this._dispatchStates.update(map => {
+      const next = new Map<string, DispatchState>();
+      for (const [orderId, state] of map) {
+        if (activeOrderIds.has(orderId)) next.set(orderId, state);
+      }
+      return next;
+    });
+    this._dispatchErrors.update(map => {
+      const next = new Map<string, string>();
+      for (const [orderId, error] of map) {
+        if (activeOrderIds.has(orderId)) next.set(orderId, error);
+      }
+      return next;
+    });
+    this._deliveryQuotes.update(map => {
+      const next = new Map<string, DeliveryQuote>();
+      for (const [orderId, quote] of map) {
+        if (activeOrderIds.has(orderId)) next.set(orderId, quote);
+      }
+      return next;
+    });
+  }
+
+  private isQuoteExpiredError(message: string | null): boolean {
+    if (!message) return false;
+    return /expired|gone|410/i.exec(message) !== null;
+  }
+
+  private isDaaSProvider(provider: DeliveryProviderType): boolean {
+    return provider === 'doordash' || provider === 'uber';
+  }
+
+  private isDispatchProviderReady(): boolean {
+    const provider = this.settingsService.deliverySettings().provider;
+    return this.isDaaSProvider(provider) && this.deliveryService.isProviderConfiguredFor(provider);
   }
 }
