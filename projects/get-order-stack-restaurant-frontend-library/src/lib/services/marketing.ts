@@ -88,7 +88,7 @@ export class MarketingService {
     this._error.set(null);
     try {
       const updated = await firstValueFrom(
-        this.http.patch<Campaign>(`${this.baseUrl}/marketing/campaigns/${campaignId}`, data)
+        this.http.patch<Campaign>(`${this.baseUrl}/campaigns/${campaignId}`, data)
       );
       this._campaigns.update(list =>
         list.map(c => c.id === campaignId ? updated : c)
@@ -102,7 +102,7 @@ export class MarketingService {
     this._error.set(null);
     try {
       await firstValueFrom(
-        this.http.delete(`${this.baseUrl}/marketing/campaigns/${campaignId}`)
+        this.http.delete(`${this.baseUrl}/campaigns/${campaignId}`)
       );
       this._campaigns.update(list => list.filter(c => c.id !== campaignId));
     } catch {
@@ -114,7 +114,7 @@ export class MarketingService {
     this._error.set(null);
     try {
       const updated = await firstValueFrom(
-        this.http.post<Campaign>(`${this.baseUrl}/marketing/campaigns/${campaignId}/send`, {})
+        this.http.post<Campaign>(`${this.baseUrl}/campaigns/${campaignId}/send`, {})
       );
       this._campaigns.update(list =>
         list.map(c => c.id === campaignId ? updated : c)
@@ -128,7 +128,7 @@ export class MarketingService {
     this._error.set(null);
     try {
       const updated = await firstValueFrom(
-        this.http.post<Campaign>(`${this.baseUrl}/marketing/campaigns/${campaignId}/schedule`, { scheduledAt })
+        this.http.post<Campaign>(`${this.baseUrl}/campaigns/${campaignId}/schedule`, { scheduledAt })
       );
       this._campaigns.update(list =>
         list.map(c => c.id === campaignId ? updated : c)
@@ -141,7 +141,7 @@ export class MarketingService {
   async getPerformance(campaignId: string): Promise<CampaignPerformance | null> {
     try {
       return await firstValueFrom(
-        this.http.get<CampaignPerformance>(`${this.baseUrl}/marketing/campaigns/${campaignId}/performance`)
+        this.http.get<CampaignPerformance>(`${this.baseUrl}/campaigns/${campaignId}/performance`)
       );
     } catch {
       return null;

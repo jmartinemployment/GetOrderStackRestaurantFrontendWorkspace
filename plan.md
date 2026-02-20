@@ -861,6 +861,7 @@ Payment statuses: `pending`, `paid`, `failed`, `cancelled`, `partial_refund`, `r
 **Pending items:**
 - ~~Backend endpoints for T5-07~~ ✅ COMPLETE (Session 42 — 16 endpoints deployed)
 - ~~Backend endpoints for T5-08~~ ✅ COMPLETE (Session 42 — 12 endpoints deployed)
+- ~~Frontend-backend endpoint gaps~~ ✅ COMPLETE (Session 43 — marketing URL fix, 6 staff portal endpoints + 2 Prisma models built/deployed, invoice send already existed)
 - Marketplace pilot rollout execution (verification tooling complete, pending cohort selection)
 - Tenant-isolated credential encryption Phase B (managed KMS adapter pending paid service)
 

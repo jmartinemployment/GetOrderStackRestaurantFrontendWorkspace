@@ -1366,4 +1366,27 @@ npm run seed:reset    # Nuclear: wipe DB, re-create schema, re-seed everything
 
 ---
 
-*Last Updated: February 20, 2026 (Session 42)*
+**[February 20, 2026] (Session 43):**
+- Audited and fixed all frontend-backend endpoint gaps (3 categories found, all resolved):
+  1. **Marketing URL mismatch (FIXED):** Removed `/marketing/` prefix from 5 URLs in `services/marketing.ts` — `updateCampaign`, `deleteCampaign`, `sendCampaign`, `scheduleCampaign`, `getPerformance` now match backend routes at `/:restaurantId/campaigns/...`
+  2. **Staff Portal endpoints (BUILT + DEPLOYED):** Added 6 missing endpoints to backend `labor.routes.ts`:
+     - `GET /:restaurantId/staff/:staffPinId/earnings` — computes hours from TimeEntry, pay at $15/hr + 1.5x OT, tip share from order tips ÷ active staff count
+     - `GET /:restaurantId/staff/:staffPinId/availability` — returns StaffAvailability records
+     - `PUT /:restaurantId/staff/:staffPinId/availability` — upserts per day-of-week (transaction of 7 upserts)
+     - `GET /:restaurantId/staff/:staffPinId/swap-requests` — returns requests where staff is requestor or target, enriched with shift details
+     - `POST /:restaurantId/staff/swap-requests` — creates swap request with shiftId, requestorPinId, reason
+     - `PATCH /:restaurantId/staff/swap-requests/:requestId` — approve/reject with respondedBy + timestamp
+  3. **Invoice send endpoint:** Already existed at `POST /:restaurantId/invoices/:invoiceId/send` (line 167 of invoice.routes.ts) — no fix needed
+- **Backend Prisma schema:** Added 2 new models:
+  - `StaffAvailability` — per staff per day-of-week preferences (unique on staffPinId+dayOfWeek)
+  - `SwapRequest` — shift swap requests with requestor relation, status workflow (pending→approved/rejected)
+  - Added relation fields to `StaffPin` (availability[], swapRequestsMade[]) and `Shift` (swapRequests[])
+- **Backend fix:** Existing `GET /staff/shifts` now supports `staffPinId` query param for per-staff filtering
+- **Backend fix:** `tipAmount` → `tip` (correct Prisma Order column name) in earnings calculation
+- **Backend deploy:** committed `40a2aba`, pushed to main, Render deployed, all 6 endpoints verified live
+- **Frontend deploy:** Rebuilt bundle with marketing URL fix, FTP uploaded main.js + styles.css to WordPress
+- **Remaining work:** marketplace pilot rollout execution, credential encryption Phase B
+
+---
+
+*Last Updated: February 20, 2026 (Session 43)*
