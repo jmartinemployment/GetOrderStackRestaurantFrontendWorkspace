@@ -60,6 +60,8 @@ function createDeliveryOrder(id: string): Order {
       taxAmount: 0,
       tipAmount: 0,
       totalAmount: 0,
+      discounts: [],
+      voidedSelections: [],
     }],
     subtotal: 0,
     taxAmount: 0,
