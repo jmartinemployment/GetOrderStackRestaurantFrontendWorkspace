@@ -174,6 +174,47 @@
   color: rgba(255, 255, 255, 0.5);
 }
 
+// Waitlist
+.waitlist-queue {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.waitlist-card {
+  background-color: var(--midnight-black, #03020D);
+  border: 1px solid var(--deep-lake, #1D3273);
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+  transition: border-color 0.2s;
+
+  &:hover { border-color: var(--medium-slate-blue, #7E5EF2); }
+
+  &.waitlist-notified {
+    border-left: 3px solid #28a745;
+  }
+}
+
+.waitlist-position {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background-color: rgba(255, 193, 7, 0.15);
+  color: #ffc107;
+  font-weight: 700;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+
+.waitlist-wait-time {
+  color: var(--cerulean-periwinkle, #5CB9F2);
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
 .btn-primary {
   background-color: var(--medium-slate-blue, #7E5EF2);
   border-color: var(--medium-slate-blue, #7E5EF2);

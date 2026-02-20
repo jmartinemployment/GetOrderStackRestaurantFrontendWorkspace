@@ -10,6 +10,13 @@ export interface OrderEvent {
   order: any;
 }
 
+export interface DeliveryLocationEvent {
+  orderId: string;
+  lat: number;
+  lng: number;
+  estimatedDeliveryAt?: string;
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -42,8 +49,13 @@ export class SocketService implements OnDestroy {
   readonly isPolling = computed(() => this._connectionStatus() === 'polling');
   readonly isOnline = computed(() => this._browserOnline() && this.isConnected());
 
+  // Delivery location
+  private readonly _lastDeliveryLocation = signal<DeliveryLocationEvent | null>(null);
+  readonly lastDeliveryLocation = this._lastDeliveryLocation.asReadonly();
+
   // Event callbacks
   private orderCallbacks: Array<(event: OrderEvent) => void> = [];
+  private deliveryLocationCallbacks: Array<(event: DeliveryLocationEvent) => void> = [];
 
   constructor() {
     globalThis.addEventListener('online', () => this._browserOnline.set(true));
@@ -132,6 +144,13 @@ export class SocketService implements OnDestroy {
       this._lastOrderEvent.set(event);
       this.notifyOrderCallbacks(event);
     });
+
+    this.socket.on('delivery:location_updated', (data: DeliveryLocationEvent) => {
+      this._lastDeliveryLocation.set(data);
+      for (const cb of this.deliveryLocationCallbacks) {
+        cb(data);
+      }
+    });
   }
 
   disconnect(): void {
@@ -205,6 +224,13 @@ export class SocketService implements OnDestroy {
     this.orderCallbacks.push(callback);
     return () => {
       this.orderCallbacks = this.orderCallbacks.filter(cb => cb !== callback);
+    };
+  }
+
+  onDeliveryLocationEvent(callback: (event: DeliveryLocationEvent) => void): () => void {
+    this.deliveryLocationCallbacks.push(callback);
+    return () => {
+      this.deliveryLocationCallbacks = this.deliveryLocationCallbacks.filter(cb => cb !== callback);
     };
   }
 

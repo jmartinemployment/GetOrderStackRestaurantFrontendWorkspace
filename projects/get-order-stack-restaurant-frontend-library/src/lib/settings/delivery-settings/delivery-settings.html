@@ -186,6 +186,54 @@
     </div>
   }
 
+  <section class="credential-card mb-3">
+    <h6 class="mb-2">Credential Security Mode</h6>
+    <p class="small text-muted mb-2">
+      Select how provider credentials are encrypted. Free mode is default. Most secure mode requires external key backend configuration.
+    </p>
+    @if (credentialSecurityProfile(); as securityProfile) {
+      <p class="small mb-2">
+        Active:
+        <strong>{{ securityProfile.mode === 'most_secure' ? 'Most Secure' : 'Free' }}</strong>
+        <span class="text-muted ms-2">Backend: {{ securityProfile.backend }}</span>
+      </p>
+      @if (!securityProfile.canUseMostSecure) {
+        <p class="small text-warning mb-2">
+          Most secure mode is currently unavailable on backend configuration.
+        </p>
+      }
+    }
+
+    <div class="d-flex gap-2 align-items-end flex-wrap">
+      <div class="flex-grow-1">
+        <label class="form-label" for="credential-security-mode">Encryption Mode</label>
+        <select
+          id="credential-security-mode"
+          class="form-select"
+          [value]="credentialSecurityMode()"
+          [disabled]="!isManagerOrAbove() || isCredentialSaving()"
+          (change)="onCredentialSecurityModeChange($event)"
+        >
+          <option value="free">Free</option>
+          <option value="most_secure" [disabled]="credentialSecurityProfile()?.canUseMostSecure === false">
+            Most Secure
+          </option>
+        </select>
+      </div>
+      <button
+        type="button"
+        class="btn btn-primary btn-sm"
+        [disabled]="!canSaveCredentialSecurityMode()"
+        (click)="saveCredentialSecurityMode()"
+      >
+        @if (isCredentialSaving()) {
+          <span class="spinner-border spinner-border-sm me-1"></span>
+        }
+        Update Mode
+      </button>
+    </div>
+  </section>
+
   <div class="credential-grid">
     <section class="credential-card">
       <h6>DoorDash Credentials</h6>

@@ -36,6 +36,13 @@
   }
 }
 
+.source-filter {
+  background-color: var(--midnight-black, #03020D);
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--deep-lake, #1D3273);
+}
+
 .orders-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -124,6 +131,40 @@
 .payment-pending { background-color: #ffc107; color: #000; }
 .payment-failed { background-color: #dc3545; color: #fff; }
 .payment-refunded { background-color: #6c757d; color: #fff; }
+
+.marketplace-source {
+  background-color: #0b7285;
+  color: #fff;
+}
+
+.marketplace-sync {
+  color: #fff;
+}
+
+.sync-success {
+  background-color: #198754;
+}
+
+.sync-pending {
+  background-color: #6c757d;
+}
+
+.sync-retrying {
+  background-color: #fd7e14;
+}
+
+.sync-failed {
+  background-color: #dc3545;
+}
+
+.marketplace-sync-alert {
+  font-size: 0.75rem;
+  color: #ff9da7;
+  border-left: 3px solid #dc3545;
+  background-color: rgba(220, 53, 69, 0.12);
+  padding: 0.35rem 0.5rem;
+  border-radius: 0.25rem;
+}
 
 // Dining option detail blocks
 .delivery-detail,

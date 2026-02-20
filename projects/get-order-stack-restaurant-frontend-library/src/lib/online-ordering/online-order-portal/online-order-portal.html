@@ -2,7 +2,16 @@
   <!-- Header -->
   <div class="portal-header">
     <div class="d-flex justify-content-between align-items-center">
-      <h1 class="portal-title">Order Online</h1>
+      @if (isTableside()) {
+        <h1 class="portal-title">
+          <i class="bi bi-qr-code-scan me-2"></i>Table {{ table() }}
+          @if (orderRound() > 1) {
+            <span class="round-badge">Round {{ orderRound() }}</span>
+          }
+        </h1>
+      } @else {
+        <h1 class="portal-title">Order Online</h1>
+      }
       @if (step() !== 'confirm') {
         <button type="button" class="cart-btn" (click)="goToCart()" [disabled]="cartItemCount() === 0">
           Cart
@@ -159,9 +168,21 @@
                 <span>-{{ loyaltyDiscount() | currency }}</span>
               </div>
             }
+            @if (giftCardDiscount() > 0) {
+              <div class="summary-row text-success">
+                <span>Gift Card</span>
+                <span>-{{ giftCardDiscount() | currency }}</span>
+              </div>
+            }
+            @if (surchargeAmount() > 0) {
+              <div class="summary-row">
+                <span>Card Surcharge</span>
+                <span>{{ surchargeAmount() | currency }}</span>
+              </div>
+            }
             <div class="summary-row total">
               <span>Total</span>
-              <span>{{ cartTotal() | currency }}</span>
+              <span>{{ totalAfterGiftCard() | currency }}</span>
             </div>
           </div>
 
@@ -179,60 +200,73 @@
       <div class="info-view px-3 pt-3">
         <button type="button" class="btn btn-sm btn-outline-light mb-3" (click)="setStep('cart')">Back to Cart</button>
 
-        <!-- Order Type -->
-        <div class="mb-3">
-          <label class="form-label">Order Type</label>
-          <div class="order-type-toggle d-flex gap-2 flex-wrap">
-            <button
-              type="button"
-              class="btn flex-fill"
-              [class.btn-primary]="orderType() === 'pickup'"
-              [class.btn-outline-light]="orderType() !== 'pickup'"
-              (click)="setOrderType('pickup')"
-            >Pickup</button>
-            <button
-              type="button"
-              class="btn flex-fill"
-              [class.btn-primary]="orderType() === 'delivery'"
-              [class.btn-outline-light]="orderType() !== 'delivery'"
-              (click)="setOrderType('delivery')"
-            >Delivery</button>
-            <button
-              type="button"
-              class="btn flex-fill"
-              [class.btn-primary]="orderType() === 'curbside'"
-              [class.btn-outline-light]="orderType() !== 'curbside'"
-              (click)="setOrderType('curbside')"
-            >Curbside</button>
-            <button
-              type="button"
-              class="btn flex-fill"
-              [class.btn-primary]="orderType() === 'dine-in'"
-              [class.btn-outline-light]="orderType() !== 'dine-in'"
-              (click)="setOrderType('dine-in')"
-            >Dine-In</button>
+        <!-- Order Type (hidden in tableside mode) -->
+        @if (!isTableside()) {
+          <div class="mb-3">
+            <label class="form-label">Order Type</label>
+            <div class="order-type-toggle d-flex gap-2 flex-wrap">
+              <button
+                type="button"
+                class="btn flex-fill"
+                [class.btn-primary]="orderType() === 'pickup'"
+                [class.btn-outline-light]="orderType() !== 'pickup'"
+                (click)="setOrderType('pickup')"
+              >Pickup</button>
+              <button
+                type="button"
+                class="btn flex-fill"
+                [class.btn-primary]="orderType() === 'delivery'"
+                [class.btn-outline-light]="orderType() !== 'delivery'"
+                (click)="setOrderType('delivery')"
+              >Delivery</button>
+              <button
+                type="button"
+                class="btn flex-fill"
+                [class.btn-primary]="orderType() === 'curbside'"
+                [class.btn-outline-light]="orderType() !== 'curbside'"
+                (click)="setOrderType('curbside')"
+              >Curbside</button>
+              <button
+                type="button"
+                class="btn flex-fill"
+                [class.btn-primary]="orderType() === 'dine-in'"
+                [class.btn-outline-light]="orderType() !== 'dine-in'"
+                (click)="setOrderType('dine-in')"
+              >Dine-In</button>
+            </div>
           </div>
-        </div>
+        } @else {
+          <div class="tableside-badge mb-3">
+            <i class="bi bi-geo-alt-fill"></i> Dine-In — Table {{ table() }}
+          </div>
+        }
 
-        <!-- Customer Info -->
-        <div class="row mb-3">
-          <div class="col-6">
-            <label class="form-label">First Name *</label>
-            <input type="text" class="form-control" [value]="customerFirstName()" (input)="onFieldInput('firstName', $event)" placeholder="First name" />
+        <!-- Customer Info (optional in tableside mode) -->
+        @if (!isTableside()) {
+          <div class="row mb-3">
+            <div class="col-6">
+              <label class="form-label">First Name *</label>
+              <input type="text" class="form-control" [value]="customerFirstName()" (input)="onFieldInput('firstName', $event)" placeholder="First name" />
+            </div>
+            <div class="col-6">
+              <label class="form-label">Last Name *</label>
+              <input type="text" class="form-control" [value]="customerLastName()" (input)="onFieldInput('lastName', $event)" placeholder="Last name" />
+            </div>
           </div>
-          <div class="col-6">
-            <label class="form-label">Last Name *</label>
-            <input type="text" class="form-control" [value]="customerLastName()" (input)="onFieldInput('lastName', $event)" placeholder="Last name" />
+          <div class="mb-3">
+            <label class="form-label">Phone *</label>
+            <input type="tel" class="form-control" [value]="customerPhone()" (input)="onFieldInput('phone', $event)" placeholder="(555) 123-4567" />
           </div>
-        </div>
-        <div class="mb-3">
-          <label class="form-label">Phone *</label>
-          <input type="tel" class="form-control" [value]="customerPhone()" (input)="onFieldInput('phone', $event)" placeholder="(555) 123-4567" />
-        </div>
-        <div class="mb-3">
-          <label class="form-label">Email</label>
-          <input type="email" class="form-control" [value]="customerEmail()" (input)="onFieldInput('email', $event)" placeholder="you@email.com" />
-        </div>
+          <div class="mb-3">
+            <label class="form-label">Email</label>
+            <input type="email" class="form-control" [value]="customerEmail()" (input)="onFieldInput('email', $event)" placeholder="you@email.com" />
+          </div>
+        } @else {
+          <div class="mb-3">
+            <label class="form-label">Phone (for loyalty rewards)</label>
+            <input type="tel" class="form-control" [value]="customerPhone()" (input)="onFieldInput('phone', $event)" placeholder="(555) 123-4567" />
+          </div>
+        }
 
         @if (orderType() === 'delivery') {
           <div class="mb-3">
@@ -347,6 +381,112 @@
           </div>
         }
 
+        <!-- Gift Card -->
+        <div class="gift-card-section mb-3">
+          <div class="section-title">Gift Card</div>
+          <div class="d-flex gap-2 mb-2">
+            <input
+              type="text"
+              class="form-control form-control-sm"
+              placeholder="Enter gift card code"
+              [value]="giftCardCode()"
+              (input)="onGiftCardCodeInput($event)"
+            />
+            <button
+              type="button"
+              class="btn btn-sm btn-outline-light"
+              [disabled]="!giftCardCode() || isCheckingGiftCard()"
+              (click)="lookupGiftCard()"
+            >
+              @if (isCheckingGiftCard()) {
+                <span class="spinner-border spinner-border-sm"></span>
+              } @else {
+                Check
+              }
+            </button>
+          </div>
+          @if (giftCardBalance(); as gc) {
+            @if (gc.status === 'active' && gc.currentBalance > 0) {
+              <div class="gift-card-found">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <span class="small" style="color: rgba(255,255,255,0.7);">Balance</span>
+                  <span class="gc-balance">{{ gc.currentBalance | currency }}</span>
+                </div>
+                @if (!giftCardApplied()) {
+                  <div class="d-flex align-items-center gap-2">
+                    <span class="small" style="color: rgba(255,255,255,0.7);">Apply:</span>
+                    <span class="small" style="color: rgba(255,255,255,0.7);">$</span>
+                    <input
+                      type="number"
+                      class="form-control form-control-sm"
+                      style="max-width: 80px;"
+                      [value]="giftCardAmount()"
+                      (input)="onGiftCardAmountInput($event)"
+                      min="0"
+                      step="0.01"
+                    />
+                    <button type="button" class="btn btn-sm btn-primary" (click)="applyGiftCard()">Apply</button>
+                  </div>
+                } @else {
+                  <div class="gift-card-applied d-flex justify-content-between align-items-center">
+                    <span>-{{ giftCardDiscount() | currency }} applied</span>
+                    <button type="button" class="btn btn-sm btn-outline-light" (click)="clearGiftCard()">Remove</button>
+                  </div>
+                }
+              </div>
+            } @else {
+              <div class="small text-muted">
+                @if (gc.status !== 'active') {
+                  This gift card is {{ gc.status }}
+                } @else {
+                  This gift card has no remaining balance
+                }
+              </div>
+            }
+          }
+        </div>
+
+        <!-- Tip Selection -->
+        <div class="tip-section mb-3">
+          <label class="form-label">Add a Tip</label>
+          <div class="tip-presets d-flex gap-2 mb-2">
+            @for (preset of tipPresets; track preset.percent) {
+              <button
+                type="button"
+                class="tip-preset-btn flex-fill"
+                [class.active]="selectedTipPreset() === preset.percent"
+                (click)="selectTipPreset(preset.percent)"
+              >{{ preset.label }}</button>
+            }
+            <button
+              type="button"
+              class="tip-preset-btn flex-fill"
+              [class.active]="isCustomTip()"
+              (click)="enableCustomTip()"
+            >Custom</button>
+          </div>
+          @if (isCustomTip()) {
+            <div class="custom-tip-input d-flex align-items-center gap-2">
+              <span class="tip-prefix">$</span>
+              <input
+                type="number"
+                class="form-control form-control-sm"
+                min="0"
+                step="0.01"
+                [value]="customTipAmount()"
+                (input)="onCustomTipInput($event)"
+                placeholder="0.00"
+              />
+            </div>
+          }
+          @if (tipAmount() > 0) {
+            <div class="tip-amount small">
+              Tip: {{ tipAmount() | currency }}
+              <button type="button" class="btn btn-sm btn-link tip-clear" (click)="clearTip()">Remove</button>
+            </div>
+          }
+        </div>
+
         <!-- Order Summary -->
         <div class="order-summary mb-3">
           <h5>Order Summary</h5>
@@ -362,10 +502,28 @@
               <span>-{{ loyaltyDiscount() | currency }}</span>
             </div>
           }
+          @if (giftCardDiscount() > 0) {
+            <div class="d-flex justify-content-between small text-success mb-1">
+              <span>Gift Card</span>
+              <span>-{{ giftCardDiscount() | currency }}</span>
+            </div>
+          }
+          @if (tipAmount() > 0) {
+            <div class="d-flex justify-content-between small mb-1">
+              <span>Tip</span>
+              <span>{{ tipAmount() | currency }}</span>
+            </div>
+          }
+          @if (surchargeAmount() > 0) {
+            <div class="d-flex justify-content-between small mb-1">
+              <span>Card Surcharge</span>
+              <span>{{ surchargeAmount() | currency }}</span>
+            </div>
+          }
           <hr />
           <div class="d-flex justify-content-between fw-bold">
             <span>Total</span>
-            <span>{{ cartTotal() | currency }}</span>
+            <span>{{ totalAfterGiftCard() | currency }}</span>
           </div>
         </div>
 
@@ -379,7 +537,7 @@
             <span class="spinner-border spinner-border-sm me-2"></span>
             Placing Order...
           } @else {
-            Place Order - {{ cartTotal() | currency }}
+            Place Order - {{ totalAfterGiftCard() | currency }}
           }
         </button>
       </div>
@@ -460,9 +618,17 @@
           </div>
         }
 
-        <button type="button" class="btn btn-primary mt-4" (click)="startNewOrder()">
-          Order Again
-        </button>
+        @if (isTableside()) {
+          <div class="tableside-actions mt-4 d-flex flex-column gap-2">
+            <button type="button" class="btn btn-primary w-100" (click)="orderMore()">
+              <i class="bi bi-plus-circle me-2"></i>Order More
+            </button>
+          </div>
+        } @else {
+          <button type="button" class="btn btn-primary mt-4" (click)="startNewOrder()">
+            Order Again
+          </button>
+        }
       </div>
     }
   }

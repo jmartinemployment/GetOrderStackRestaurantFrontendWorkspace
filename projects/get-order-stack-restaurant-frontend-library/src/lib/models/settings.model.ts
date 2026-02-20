@@ -3,7 +3,7 @@ import { DeliveryProviderType } from './delivery.model';
 import { PaymentProcessorType } from './payment.model';
 import { TipPoolRule, TipOutRule } from './tip.model';
 
-export type ControlPanelTab = 'printers' | 'ai-settings' | 'online-pricing' | 'catering-calendar' | 'payments' | 'tip-management' | 'loyalty' | 'delivery' | 'stations';
+export type ControlPanelTab = 'printers' | 'ai-settings' | 'online-pricing' | 'catering-calendar' | 'payments' | 'tip-management' | 'loyalty' | 'delivery' | 'stations' | 'gift-cards';
 
 /**
  * AI Settings — Control Panel > AI Settings tab
@@ -148,10 +148,12 @@ export function defaultCateringCapacitySettings(): CateringCapacitySettings {
 export interface PaymentSettings {
   processor: PaymentProcessorType;
   requirePaymentBeforeKitchen: boolean;
+  surchargeEnabled: boolean;
+  surchargePercent: number;
 }
 
 export function defaultPaymentSettings(): PaymentSettings {
-  return { processor: 'none', requirePaymentBeforeKitchen: false };
+  return { processor: 'none', requirePaymentBeforeKitchen: false, surchargeEnabled: false, surchargePercent: 3.5 };
 }
 
 export interface TipManagementSettings {
@@ -185,5 +187,64 @@ export function defaultDeliverySettings(): DeliverySettings {
     autoDispatch: false,
     showQuotesToCustomer: true,
     defaultTipPercent: 15,
+  };
+}
+
+// === AI Admin Configuration ===
+
+export type AIFeatureKey =
+  | 'aiCostEstimation'
+  | 'menuEngineering'
+  | 'salesInsights'
+  | 'laborOptimization'
+  | 'inventoryPredictions'
+  | 'taxEstimation';
+
+export interface AIFeatureToggle {
+  key: AIFeatureKey;
+  label: string;
+  description: string;
+  costTier: 'high' | 'medium' | 'low';
+}
+
+export interface AIAdminConfig {
+  apiKeyConfigured: boolean;
+  apiKeyLastFour: string | null;
+  apiKeyValid: boolean;
+  features: Record<AIFeatureKey, boolean>;
+  usage: AIUsageSummary | null;
+}
+
+export interface AIFeatureUsage {
+  calls: number;
+  inputTokens: number;
+  outputTokens: number;
+  estimatedCostCents: number;
+}
+
+export interface AIUsageSummary {
+  byFeature: Partial<Record<AIFeatureKey, AIFeatureUsage>>;
+  totalCostCents: number;
+  periodStart: string;
+  periodEnd: string;
+}
+
+export const AI_FEATURE_CATALOG: AIFeatureToggle[] = [
+  { key: 'aiCostEstimation', label: 'AI Cost Estimation', description: 'Estimates ingredient costs and suggests menu prices using AI.', costTier: 'high' },
+  { key: 'menuEngineering', label: 'Menu Engineering', description: 'Classifies menu items (Stars/Dogs/Puzzles/Cash Cows) with AI recommendations.', costTier: 'high' },
+  { key: 'salesInsights', label: 'Sales Insights', description: 'Generates AI-powered revenue trends and business insights.', costTier: 'medium' },
+  { key: 'laborOptimization', label: 'Labor Optimization', description: 'AI shift recommendations and labor cost analysis.', costTier: 'medium' },
+  { key: 'inventoryPredictions', label: 'Inventory Predictions', description: 'AI-powered reorder predictions and waste reduction tips.', costTier: 'medium' },
+  { key: 'taxEstimation', label: 'Tax Estimation', description: 'AI-assisted tax rate lookup and estimation.', costTier: 'low' },
+];
+
+export function defaultAiFeatures(): Record<AIFeatureKey, boolean> {
+  return {
+    aiCostEstimation: true,
+    menuEngineering: true,
+    salesInsights: true,
+    laborOptimization: true,
+    inventoryPredictions: true,
+    taxEstimation: true,
   };
 }

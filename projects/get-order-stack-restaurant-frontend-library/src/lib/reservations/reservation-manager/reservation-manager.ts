@@ -6,7 +6,7 @@ import { TableService } from '../../services/table';
 import { AuthService } from '../../services/auth';
 import { LoadingSpinner } from '../../shared/loading-spinner/loading-spinner';
 import { ErrorDisplay } from '../../shared/error-display/error-display';
-import { Reservation, ReservationTab, ReservationStatus } from '../../models';
+import { Reservation, ReservationTab, ReservationStatus, WaitlistEntry, WaitlistFormData } from '../../models';
 
 @Component({
   selector: 'get-order-stack-reservations',
@@ -39,6 +39,8 @@ export class ReservationManager {
   readonly todayReservations = this.reservationService.todayReservations;
   readonly upcomingReservations = this.reservationService.upcomingReservations;
   readonly pastReservations = this.reservationService.pastReservations;
+  readonly activeWaitlist = this.reservationService.activeWaitlist;
+  readonly waitlistCount = this.reservationService.waitlistCount;
   readonly tables = this.tableService.tables;
 
   readonly availableTables = computed(() =>
@@ -52,6 +54,27 @@ export class ReservationManager {
       .filter(r => r.status !== 'cancelled' && r.status !== 'no-show')
       .reduce((sum, r) => sum + r.partySize, 0)
   );
+
+  // --- Waitlist ---
+  private readonly _showWaitlistForm = signal(false);
+  private readonly _waitlistSaving = signal(false);
+  private readonly _waitlistName = signal('');
+  private readonly _waitlistSize = signal(2);
+  private readonly _waitlistPhone = signal('');
+  private readonly _waitlistNotes = signal('');
+
+  readonly showWaitlistForm = this._showWaitlistForm.asReadonly();
+  readonly waitlistSaving = this._waitlistSaving.asReadonly();
+  readonly waitlistName = this._waitlistName.asReadonly();
+  readonly waitlistSize = this._waitlistSize.asReadonly();
+  readonly waitlistPhone = this._waitlistPhone.asReadonly();
+  readonly waitlistNotes = this._waitlistNotes.asReadonly();
+
+  readonly avgTableTurnMinutes = computed(() => {
+    const completed = this.pastReservations().filter(r => r.status === 'completed');
+    if (completed.length === 0) return 45;
+    return 45;
+  });
 
   readonly reservationForm = this.fb.group({
     customerName: ['', [Validators.required, Validators.minLength(2)]],
@@ -68,6 +91,7 @@ export class ReservationManager {
     effect(() => {
       if (this.isAuthenticated() && this.authService.selectedRestaurantId()) {
         this.reservationService.loadReservations();
+        this.reservationService.loadWaitlist();
         this.tableService.loadTables();
       }
     });
@@ -75,6 +99,9 @@ export class ReservationManager {
 
   setTab(tab: ReservationTab): void {
     this._activeTab.set(tab);
+    if (tab === 'waitlist') {
+      this.reservationService.loadWaitlist();
+    }
   }
 
   openForm(): void {
@@ -146,6 +173,99 @@ export class ReservationManager {
 
   closeDetail(): void {
     this._selectedReservation.set(null);
+  }
+
+  // --- Waitlist methods ---
+
+  openWaitlistForm(): void {
+    this._waitlistName.set('');
+    this._waitlistSize.set(2);
+    this._waitlistPhone.set('');
+    this._waitlistNotes.set('');
+    this._showWaitlistForm.set(true);
+  }
+
+  closeWaitlistForm(): void {
+    this._showWaitlistForm.set(false);
+  }
+
+  onWaitlistField(field: string, event: Event): void {
+    const value = (event.target as HTMLInputElement).value;
+    switch (field) {
+      case 'name': this._waitlistName.set(value); break;
+      case 'size': this._waitlistSize.set(Number.parseInt(value, 10) || 2); break;
+      case 'phone': this._waitlistPhone.set(value); break;
+      case 'notes': this._waitlistNotes.set(value); break;
+    }
+  }
+
+  async saveWaitlistEntry(): Promise<void> {
+    const name = this._waitlistName().trim();
+    if (!name || this._waitlistSaving()) return;
+
+    this._waitlistSaving.set(true);
+    this._localError.set(null);
+
+    const data: WaitlistFormData = {
+      partyName: name,
+      partySize: this._waitlistSize(),
+      phone: this._waitlistPhone().trim(),
+      notes: this._waitlistNotes().trim() || undefined,
+    };
+
+    const result = await this.reservationService.addToWaitlist(data);
+    this._waitlistSaving.set(false);
+
+    if (result) {
+      this.closeWaitlistForm();
+    } else {
+      this._localError.set(this.reservationService.error() ?? 'Failed to add to waitlist');
+    }
+  }
+
+  async notifyGuest(entry: WaitlistEntry): Promise<void> {
+    await this.reservationService.notifyWaitlistEntry(entry.id);
+  }
+
+  async seatGuest(entry: WaitlistEntry): Promise<void> {
+    await this.reservationService.seatWaitlistEntry(entry.id);
+  }
+
+  async removeGuest(entry: WaitlistEntry): Promise<void> {
+    await this.reservationService.removeFromWaitlist(entry.id);
+  }
+
+  async moveUp(entry: WaitlistEntry): Promise<void> {
+    if (entry.position <= 1) return;
+    await this.reservationService.reorderWaitlist(entry.id, entry.position - 1);
+  }
+
+  async moveDown(entry: WaitlistEntry): Promise<void> {
+    await this.reservationService.reorderWaitlist(entry.id, entry.position + 1);
+  }
+
+  getEstimatedWait(entry: WaitlistEntry): number {
+    return entry.estimatedWaitMinutes || entry.position * this.avgTableTurnMinutes();
+  }
+
+  getElapsedWait(createdAt: string): string {
+    const diff = Date.now() - new Date(createdAt).getTime();
+    const minutes = Math.floor(diff / 60000);
+    if (minutes < 60) return `${minutes}m`;
+    const hours = Math.floor(minutes / 60);
+    const remainder = minutes % 60;
+    return `${hours}h ${remainder}m`;
+  }
+
+  getWaitlistStatusClass(status: string): string {
+    switch (status) {
+      case 'waiting': return 'status-pending';
+      case 'notified': return 'status-confirmed';
+      case 'seated': return 'status-seated';
+      case 'cancelled': return 'status-cancelled';
+      case 'no-show': return 'status-noshow';
+      default: return 'status-pending';
+    }
   }
 
   getStatusClass(status: string): string {

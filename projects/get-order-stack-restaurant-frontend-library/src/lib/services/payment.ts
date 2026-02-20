@@ -7,6 +7,8 @@ import {
   PaymentContext,
   PaymentStatusResponse,
   RefundResponse,
+  PreauthResponse,
+  CaptureResponse,
   PaymentStep,
 } from '../models';
 import { AuthService } from './auth';
@@ -181,6 +183,62 @@ export class PaymentService {
       return await this.provider.requestRefund(orderId, this.paymentContext, amount);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to process refund';
+      this._error.set(message);
+      return null;
+    } finally {
+      this._isProcessing.set(false);
+    }
+  }
+
+  async preauthorize(orderId: string, amount: number): Promise<PreauthResponse | null> {
+    if (!this.restaurantId) {
+      this._error.set('No restaurant selected');
+      return null;
+    }
+
+    this._isProcessing.set(true);
+    this._error.set(null);
+
+    try {
+      const result = await firstValueFrom(
+        this.http.post<PreauthResponse>(
+          `${this.apiUrl}/restaurant/${this.restaurantId}/orders/${orderId}/preauth`,
+          { amount }
+        )
+      );
+      return result;
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to pre-authorize card';
+      this._error.set(message);
+      return null;
+    } finally {
+      this._isProcessing.set(false);
+    }
+  }
+
+  async capturePreauth(orderId: string, captureAmount?: number): Promise<CaptureResponse | null> {
+    if (!this.restaurantId) {
+      this._error.set('No restaurant selected');
+      return null;
+    }
+
+    this._isProcessing.set(true);
+    this._error.set(null);
+
+    try {
+      const body: Record<string, unknown> = {};
+      if (captureAmount !== undefined) {
+        body['amount'] = captureAmount;
+      }
+      const result = await firstValueFrom(
+        this.http.post<CaptureResponse>(
+          `${this.apiUrl}/restaurant/${this.restaurantId}/orders/${orderId}/close-tab`,
+          body
+        )
+      );
+      return result;
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to capture pre-auth';
       this._error.set(message);
       return null;
     } finally {

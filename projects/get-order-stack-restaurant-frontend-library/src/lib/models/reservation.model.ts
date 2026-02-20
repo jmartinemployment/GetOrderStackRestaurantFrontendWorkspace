@@ -28,5 +28,31 @@ export interface ReservationFormData {
   specialRequests?: string;
 }
 
-export type ReservationTab = 'upcoming' | 'today' | 'past';
+export type ReservationTab = 'upcoming' | 'today' | 'past' | 'waitlist';
 export type ReservationViewMode = 'list' | 'timeline';
+
+export type WaitlistStatus = 'waiting' | 'notified' | 'seated' | 'cancelled' | 'no-show';
+
+export interface WaitlistEntry {
+  id: string;
+  restaurantId: string;
+  partyName: string;
+  partySize: number;
+  phone: string;
+  notes: string | null;
+  status: WaitlistStatus;
+  position: number;
+  estimatedWaitMinutes: number;
+  quotedWaitMinutes: number;
+  notifiedAt: string | null;
+  seatedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WaitlistFormData {
+  partyName: string;
+  partySize: number;
+  phone: string;
+  notes?: string;
+}

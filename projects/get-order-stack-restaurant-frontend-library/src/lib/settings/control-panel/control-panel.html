@@ -40,6 +40,9 @@
     @if (activeTab() === 'stations') {
       <get-order-stack-station-settings />
     }
+    @if (activeTab() === 'gift-cards') {
+      <get-order-stack-gift-card-management />
+    }
   } @else {
     <div class="text-center text-muted py-5">
       <p>Please log in and select a restaurant to access settings.</p>

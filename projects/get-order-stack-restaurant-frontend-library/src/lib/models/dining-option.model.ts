@@ -1,4 +1,5 @@
 import { CustomerInfo } from './order.model';
+import { DeliveryProviderType, DeliveryDispatchStatus } from './delivery.model';
 
 /**
  * Dining Option Behaviors
@@ -45,6 +46,13 @@ export interface DeliveryInfo {
   deliveryState: 'PREPARING' | 'OUT_FOR_DELIVERY' | 'DELIVERED';
   dispatchedDate?: Date;
   deliveredDate?: Date;
+  // DaaS fields (all optional — absent for self-delivery)
+  deliveryProvider?: DeliveryProviderType;
+  deliveryExternalId?: string;
+  deliveryTrackingUrl?: string;
+  dispatchStatus?: DeliveryDispatchStatus;
+  estimatedDeliveryAt?: string;
+  deliveryFee?: number;
 }
 
 /**

@@ -7,14 +7,22 @@ import {
   ChangeDetectionStrategy,
   ElementRef,
   viewChild,
+  output,
 } from '@angular/core';
 import { CurrencyPipe } from '@angular/common';
 import { TableService } from '../../services/table';
 import { OrderService } from '../../services/order';
+import { AuthService } from '../../services/auth';
 import { LoadingSpinner } from '../../shared/loading-spinner/loading-spinner';
 import { ErrorDisplay } from '../../shared/error-display/error-display';
 import { RestaurantTable, TableFormData, TableStatus } from '../../models';
 import { Order, getOrderIdentifier } from '../../models';
+
+export interface TableSelectedEvent {
+  table: RestaurantTable;
+  orders: Order[];
+  action: 'open-pos' | 'new-order';
+}
 
 @Component({
   selector: 'get-order-stack-floor-plan',
@@ -26,7 +34,10 @@ import { Order, getOrderIdentifier } from '../../models';
 export class FloorPlan implements OnInit {
   private readonly tableService = inject(TableService);
   private readonly orderService = inject(OrderService);
+  private readonly authService = inject(AuthService);
   private readonly canvasRef = viewChild<ElementRef<HTMLDivElement>>('floorCanvas');
+
+  readonly tableSelected = output<TableSelectedEvent>();
 
   readonly tables = this.tableService.tables;
   readonly isLoading = this.tableService.isLoading;
@@ -75,11 +86,19 @@ export class FloorPlan implements OnInit {
   private readonly _actionError = signal<string | null>(null);
   private readonly _showStatusMenu = signal<string | null>(null);
   private readonly _showDeleteConfirm = signal<string | null>(null);
+  private readonly _showQrModal = signal(false);
+  private readonly _qrTable = signal<RestaurantTable | null>(null);
+  private readonly _showBatchQr = signal(false);
 
   readonly isSubmitting = this._isSubmitting.asReadonly();
   readonly actionError = this._actionError.asReadonly();
   readonly showStatusMenu = this._showStatusMenu.asReadonly();
   readonly showDeleteConfirm = this._showDeleteConfirm.asReadonly();
+  readonly showQrModal = this._showQrModal.asReadonly();
+  readonly qrTable = this._qrTable.asReadonly();
+  readonly showBatchQr = this._showBatchQr.asReadonly();
+
+  readonly restaurantSlug = computed(() => this.authService.selectedRestaurantName()?.toLowerCase().replaceAll(/[^a-z0-9]+/g, '-').replaceAll(/(^-|-$)/g, '') ?? '');
 
   readonly sections = computed(() => {
     const sectionSet = new Set<string>();
@@ -367,7 +386,120 @@ export class FloorPlan implements OnInit {
     return this.getTableOrders(tableId).reduce((sum, o) => sum + o.totalAmount, 0);
   }
 
+  getTableElapsedMinutes(tableId: string): number {
+    const orders = this.getTableOrders(tableId);
+    if (orders.length === 0) return 0;
+    const earliest = Math.min(...orders.map(o => o.timestamps.createdDate.getTime()));
+    return Math.floor((Date.now() - earliest) / 60000);
+  }
+
+  getTableGuestCount(tableId: string): number {
+    const orders = this.getTableOrders(tableId);
+    return orders.reduce((total, order) => {
+      const seats = new Set<number>();
+      for (const check of order.checks) {
+        for (const sel of check.selections) {
+          if (sel.seatNumber != null) seats.add(sel.seatNumber);
+        }
+      }
+      return total + (seats.size > 0 ? seats.size : 1);
+    }, 0);
+  }
+
+  getTableServerName(tableId: string): string {
+    const orders = this.getTableOrders(tableId);
+    if (orders.length === 0) return '';
+    return orders[0].server?.name ?? '';
+  }
+
+  onTableTap(table: RestaurantTable, event: Event): void {
+    event.stopPropagation();
+    const orders = this.getTableOrders(table.id);
+    this.tableSelected.emit({ table, orders, action: 'open-pos' });
+  }
+
+  onNewOrder(table: RestaurantTable, event: Event): void {
+    event.stopPropagation();
+    const orders = this.getTableOrders(table.id);
+    this.tableSelected.emit({ table, orders, action: 'new-order' });
+  }
+
+  async onBusTable(table: RestaurantTable, event: Event): Promise<void> {
+    event.stopPropagation();
+    await this.tableService.updateStatus(table.id, 'available');
+    const selected = this._selectedTable();
+    if (selected?.id === table.id) {
+      const updated = this.tables().find(t => t.id === table.id);
+      if (updated) this._selectedTable.set(updated);
+    }
+  }
+
   retry(): void {
     this.tableService.loadTables();
+  }
+
+  // --- QR Code ---
+
+  getQrUrl(tableNumber: string): string {
+    const slug = this.restaurantSlug();
+    const baseUrl = 'https://geekatyourspot.com/orderstack-online-ordering';
+    return `${baseUrl}?restaurant=${encodeURIComponent(slug)}&table=${encodeURIComponent(tableNumber)}`;
+  }
+
+  getQrImageUrl(tableNumber: string): string {
+    const url = this.getQrUrl(tableNumber);
+    return `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}`;
+  }
+
+  showTableQr(table: RestaurantTable): void {
+    this._qrTable.set(table);
+    this._showQrModal.set(true);
+  }
+
+  closeQrModal(): void {
+    this._showQrModal.set(false);
+    this._qrTable.set(null);
+  }
+
+  openBatchQr(): void {
+    this._showBatchQr.set(true);
+  }
+
+  closeBatchQr(): void {
+    this._showBatchQr.set(false);
+  }
+
+  printQrCodes(): void {
+    const tables = this.tables();
+    if (tables.length === 0) return;
+
+    const html = tables.map(t => `
+      <div style="page-break-inside: avoid; display: inline-block; width: 45%; margin: 2%; text-align: center; padding: 20px; border: 2px solid #333; border-radius: 12px;">
+        <h2 style="margin: 0 0 8px; font-family: sans-serif;">Table ${t.tableNumber}</h2>
+        <img src="${this.getQrImageUrl(t.tableNumber)}" alt="QR Code" style="width: 180px; height: 180px;" />
+        <p style="margin: 8px 0 0; font-family: sans-serif; font-size: 12px; color: #666;">Scan to order from your phone</p>
+      </div>
+    `).join('');
+
+    const printWindow = globalThis.open('', '_blank');
+    if (!printWindow) return;
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html><head><title>QR Codes — All Tables</title>
+      <style>
+        body { font-family: sans-serif; padding: 20px; }
+        @media print { body { padding: 0; } }
+      </style>
+      </head><body>
+      <div style="display: flex; flex-wrap: wrap; justify-content: center;">
+        ${html}
+      </div>
+      </body></html>
+    `);
+    printWindow.document.close();
+    printWindow.addEventListener('load', () => {
+      printWindow.print();
+    });
   }
 }

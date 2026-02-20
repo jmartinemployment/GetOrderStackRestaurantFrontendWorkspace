@@ -134,6 +134,13 @@
   color: rgba(255, 255, 255, 0.75);
 }
 
+.table-meta {
+  font-size: 0.55rem;
+  color: rgba(255, 255, 255, 0.85);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
 .table-order-badge {
   position: absolute;
   top: -6px;
@@ -148,6 +155,30 @@
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.table-server-badge {
+  position: absolute;
+  bottom: -6px;
+  left: -6px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background-color: var(--medium-slate-blue, #7E5EF2);
+  color: #fff;
+  font-size: 0.6rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+// POS Quick Actions
+.pos-actions {
+  .btn {
+    font-weight: 500;
+    font-size: 0.85rem;
+  }
 }
 
 // Unplaced panel
@@ -332,5 +363,28 @@
   &:hover:not(:disabled) {
     background-color: var(--lapis-lazuli, #3632A6);
     border-color: var(--lapis-lazuli, #3632A6);
+  }
+}
+
+// QR Code Modal
+.qr-modal {
+  max-width: 360px;
+
+  .qr-image {
+    width: 200px;
+    height: 200px;
+    border-radius: 8px;
+    background: #fff;
+    padding: 8px;
+  }
+
+  .qr-url {
+    word-break: break-all;
+    color: rgba(255, 255, 255, 0.4);
+    font-family: monospace;
+    font-size: 0.7rem;
+    background: rgba(255, 255, 255, 0.04);
+    padding: 0.5rem;
+    border-radius: 0.25rem;
   }
 }

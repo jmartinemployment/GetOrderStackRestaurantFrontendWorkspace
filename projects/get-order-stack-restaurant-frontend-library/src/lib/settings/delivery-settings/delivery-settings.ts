@@ -7,6 +7,7 @@ import {
   DeliveryProviderType,
   DeliveryProviderMode,
   DeliverySettings,
+  DeliveryCredentialSecurityMode,
   DoorDashCredentialPayload,
   UberCredentialPayload,
   MenuItem,
@@ -45,6 +46,7 @@ export class DeliverySettingsComponent implements OnInit {
   private readonly _uberWebhookSigningKey = signal('');
 
   private readonly _credentialNotice = signal<string | null>(null);
+  private readonly _credentialSecurityMode = signal<DeliveryCredentialSecurityMode>('free');
   private readonly _marketplaceNotice = signal<string | null>(null);
 
   private readonly _marketplaceDoorDashEnabled = signal(false);
@@ -82,6 +84,8 @@ export class DeliverySettingsComponent implements OnInit {
   );
 
   readonly credentialStatus = this.deliveryService.credentialsSummary;
+  readonly credentialSecurityProfile = this.deliveryService.credentialSecurityProfile;
+  readonly credentialSecurityMode = this._credentialSecurityMode.asReadonly();
   readonly isCredentialSaving = this.deliveryService.isProcessing;
   readonly credentialError = this.deliveryService.error;
   readonly credentialNotice = this._credentialNotice.asReadonly();
@@ -169,6 +173,13 @@ export class DeliverySettingsComponent implements OnInit {
     this.isManagerOrAbove() && Boolean(this.credentialStatus()?.uber.configured) && !this.isCredentialSaving()
   );
 
+  readonly canSaveCredentialSecurityMode = computed(() => {
+    if (!this.isManagerOrAbove()) return false;
+    if (this.isCredentialSaving()) return false;
+    const current = this.credentialSecurityProfile()?.mode ?? 'free';
+    return this._credentialSecurityMode() !== current;
+  });
+
   readonly canSaveMarketplaceDoorDash = computed(() => this.canSaveMarketplaceProvider('doordash_marketplace'));
   readonly canSaveMarketplaceUber = computed(() => this.canSaveMarketplaceProvider('ubereats'));
   readonly canSaveMarketplaceGrubhub = computed(() => this.canSaveMarketplaceProvider('grubhub'));
@@ -200,10 +211,15 @@ export class DeliverySettingsComponent implements OnInit {
     this._autoDispatch.set(s.autoDispatch);
     this._showQuotes.set(s.showQuotesToCustomer);
     this._defaultTip.set(s.defaultTipPercent);
+    this._credentialSecurityMode.set(this.credentialSecurityProfile()?.mode ?? 'free');
     this.deliveryService.setProviderType(s.provider);
     void this.deliveryService.loadConfigStatus();
     void this.deliveryService.loadCredentialSummary().then(() => {
       this._doorDashMode.set(this.credentialStatus()?.doordash.mode ?? 'test');
+      this._credentialSecurityMode.set(this.credentialSecurityProfile()?.mode ?? 'free');
+    });
+    void this.deliveryService.loadCredentialSecurityProfile().then((profile) => {
+      if (profile) this._credentialSecurityMode.set(profile.mode);
     });
     void this.deliveryService.loadMarketplaceIntegrations().then((integrations) => {
       if (integrations) this.syncMarketplaceFormsFromIntegrations(integrations);
@@ -252,6 +268,11 @@ export class DeliverySettingsComponent implements OnInit {
 
   onDoorDashModeChange(event: Event): void {
     this._doorDashMode.set((event.target as HTMLSelectElement).value as DeliveryProviderMode);
+    this.clearCredentialNotice();
+  }
+
+  onCredentialSecurityModeChange(event: Event): void {
+    this._credentialSecurityMode.set((event.target as HTMLSelectElement).value as DeliveryCredentialSecurityMode);
     this.clearCredentialNotice();
   }
 
@@ -379,6 +400,17 @@ export class DeliverySettingsComponent implements OnInit {
       this._credentialNotice.set('DoorDash credentials saved.');
       void this.deliveryService.loadConfigStatus();
     }
+  }
+
+  async saveCredentialSecurityMode(): Promise<void> {
+    if (!this.canSaveCredentialSecurityMode()) return;
+
+    const saved = await this.deliveryService.saveCredentialSecurityProfile(this._credentialSecurityMode());
+    if (!saved) return;
+
+    await this.deliveryService.loadCredentialSummary();
+    this._credentialSecurityMode.set(this.credentialSecurityProfile()?.mode ?? this._credentialSecurityMode());
+    this._credentialNotice.set('Credential security mode updated.');
   }
 
   async saveUberCredentials(): Promise<void> {

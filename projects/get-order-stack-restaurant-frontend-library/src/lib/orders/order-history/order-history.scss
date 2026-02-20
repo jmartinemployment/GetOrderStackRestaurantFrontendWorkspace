@@ -15,6 +15,13 @@
   border: 1px solid var(--deep-lake, #1D3273);
 }
 
+.source-filter {
+  background-color: var(--midnight-black, #03020D);
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--deep-lake, #1D3273);
+}
+
 .order-card {
   background-color: var(--midnight-black, #03020D);
   border: 1px solid var(--deep-lake, #1D3273);
@@ -93,6 +100,40 @@
 .payment-pending { background-color: #ffc107; color: #000; }
 .payment-failed { background-color: #dc3545; color: #fff; }
 .payment-refunded { background-color: #6c757d; color: #fff; }
+
+.marketplace-source {
+  background-color: #0b7285;
+  color: #fff;
+}
+
+.marketplace-sync {
+  color: #fff;
+}
+
+.sync-success {
+  background-color: #198754;
+}
+
+.sync-pending {
+  background-color: #6c757d;
+}
+
+.sync-retrying {
+  background-color: #fd7e14;
+}
+
+.sync-failed {
+  background-color: #dc3545;
+}
+
+.marketplace-sync-error {
+  color: #ff9da7;
+  font-size: 0.8rem;
+}
+
+.marketplace-sync-notice {
+  color: #9fd7ff;
+}
 
 .alert-success {
   background-color: rgba(40, 167, 69, 0.2);

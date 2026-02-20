@@ -17,6 +17,22 @@
     </div>
   </div>
 
+  <div class="source-filter mb-3">
+    <div class="d-flex flex-wrap gap-2">
+      @for (option of marketplaceFilterOptions; track option.value) {
+        <button
+          type="button"
+          class="btn btn-sm"
+          [class.btn-primary]="marketplaceFilter() === option.value"
+          [class.btn-outline-light]="marketplaceFilter() !== option.value"
+          (click)="setMarketplaceFilter(option.value)"
+        >
+          {{ option.label }}
+        </button>
+      }
+    </div>
+  </div>
+
   @if (error()) {
     <get-order-stack-error-display
       [message]="error()!"
@@ -59,6 +75,10 @@
             <div class="order-meta mb-2">
               <span class="badge bg-secondary me-2">{{ order.diningOption.name }}</span>
               <span class="badge me-2" [class]="getPaymentBadgeClass(order.checks[0]?.paymentStatus ?? 'OPEN')">{{ getPaymentLabel(order.checks[0]?.paymentStatus ?? 'OPEN') }}</span>
+              @if (isMarketplace(order)) {
+                <span class="badge marketplace-source me-2">{{ marketplaceProviderLabel(order) }}</span>
+                <span class="badge marketplace-sync me-2" [class]="marketplaceSyncClass(order)">{{ marketplaceSyncLabel(order) }}</span>
+              }
               @if (order.table) {
                 <span class="badge bg-info">Table {{ order.table.name }}</span>
               }
@@ -120,6 +140,15 @@
                     <button type="button" class="btn btn-outline-danger btn-sm" (click)="rejectOrder(order)">Reject</button>
                   }
                 </div>
+              </div>
+            }
+
+            @if (isMarketplace(order) && marketplaceSyncState(order) === 'FAILED') {
+              <div class="marketplace-sync-alert mb-2">
+                Marketplace status sync failed.
+                @if (order.marketplace?.lastPushError) {
+                  <span class="text-muted ms-1">{{ order.marketplace?.lastPushError }}</span>
+                }
               </div>
             }
 

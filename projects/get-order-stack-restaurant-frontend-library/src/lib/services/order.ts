@@ -8,12 +8,16 @@ import {
   Selection,
   SelectionModifier,
   Check,
+  CheckDiscount,
+  VoidedSelection,
   Payment,
   OrderTimestamps,
   ProfitInsight,
   RecentProfitSummary,
   Course,
   CourseFireStatus,
+  CoursePacingMetrics,
+  OrderThrottlingStatus,
   getOrderIdentifier,
   PrintStatus,
   QueuedOrder,
@@ -83,6 +87,62 @@ function deriveFulfillmentStatus(backendOrderStatus: string): FulfillmentStatus 
     default:
       return 'NEW';
   }
+}
+
+function mapItemFulfillmentStatus(
+  rawItemStatus: unknown,
+  fallback: FulfillmentStatus,
+  hasCourse: boolean
+): FulfillmentStatus {
+  const normalized = String(rawItemStatus ?? '').toUpperCase();
+  switch (normalized) {
+    case 'NEW':
+      return 'NEW';
+    case 'HOLD':
+      return 'HOLD';
+    case 'SENT':
+      return 'SENT';
+    case 'ON_THE_FLY':
+      return 'ON_THE_FLY';
+    // Backward compatibility with legacy order-item statuses.
+    case 'PENDING':
+      return hasCourse ? 'HOLD' : 'NEW';
+    case 'PREPARING':
+    case 'COMPLETED':
+      return 'SENT';
+    default:
+      return hasCourse ? 'HOLD' : fallback;
+  }
+}
+
+function mapCourseFireStatus(rawStatus: unknown): CourseFireStatus {
+  switch (String(rawStatus ?? '').toUpperCase()) {
+    case 'FIRED':
+      return 'FIRED';
+    case 'READY':
+      return 'READY';
+    case 'PENDING':
+    default:
+      return 'PENDING';
+  }
+}
+
+function courseFireStatusRank(status: CourseFireStatus): number {
+  switch (status) {
+    case 'READY':
+      return 2;
+    case 'FIRED':
+      return 1;
+    case 'PENDING':
+    default:
+      return 0;
+  }
+}
+
+function parseDate(value: unknown): Date | undefined {
+  if (!value) return undefined;
+  const date = new Date(String(value));
+  return Number.isNaN(date.getTime()) ? undefined : date;
 }
 
 function mapOrderType(orderType: string): DiningOptionType {
@@ -457,25 +517,153 @@ export class OrderService implements OnDestroy {
       );
       return true;
     } catch {
-      // If backend doesn't support fire-course yet, update locally
+      this._error.set('Failed to fire course — backend unavailable');
+      return false;
+    }
+  }
+
+  async fireItemNow(orderId: string, selectionGuid: string): Promise<boolean> {
+    if (!this.restaurantId) {
+      this._error.set('No restaurant selected');
+      return false;
+    }
+
+    try {
+      const raw = await firstValueFrom(
+        this.http.patch<any>(
+          `${this.apiUrl}/restaurant/${this.restaurantId}/orders/${orderId}/fire-item`,
+          { selectionGuid }
+        )
+      );
+
+      const updatedOrder = this.mapOrder(raw);
       this._orders.update(orders =>
-        orders.map(o => {
-          if (o.guid !== orderId) return o;
-          const updatedCourses = o.courses?.map(c =>
-            c.guid === courseGuid ? { ...c, fireStatus: 'FIRED' as const, firedDate: new Date() } : c
-          );
-          const updatedChecks = o.checks.map(check => ({
-            ...check,
-            selections: check.selections.map(sel =>
-              sel.course?.guid === courseGuid
-                ? { ...sel, fulfillmentStatus: 'SENT' as const, course: { ...sel.course, fireStatus: 'FIRED' as const, firedDate: new Date() } }
-                : sel
-            ),
-          }));
-          return { ...o, courses: updatedCourses, checks: updatedChecks };
-        })
+        orders.map(o => o.guid === orderId ? updatedOrder : o)
       );
       return true;
+    } catch {
+      this._error.set('Failed to fire item — backend unavailable');
+      return false;
+    }
+  }
+
+  async getCoursePacingMetrics(lookbackDays = 30): Promise<CoursePacingMetrics | null> {
+    if (!this.restaurantId) return null;
+
+    const safeLookbackDays = Math.max(1, Math.min(90, Math.round(Number(lookbackDays) || 30)));
+
+    try {
+      const raw = await firstValueFrom(
+        this.http.get<any>(
+          `${this.apiUrl}/restaurant/${this.restaurantId}/course-pacing/metrics`,
+          { params: { lookbackDays: String(safeLookbackDays) } }
+        )
+      );
+
+      const confidence = String(raw?.confidence ?? '').toLowerCase();
+      const normalizedConfidence =
+        confidence === 'high' || confidence === 'medium' ? confidence : 'low';
+
+      return {
+        lookbackDays: Number(raw?.lookbackDays) || safeLookbackDays,
+        sampleSize: Number(raw?.sampleSize) || 0,
+        tablePaceBaselineSeconds: Number(raw?.tablePaceBaselineSeconds) || 900,
+        p50Seconds: Number(raw?.p50Seconds) || 900,
+        p80Seconds: Number(raw?.p80Seconds) || 1200,
+        confidence: normalizedConfidence,
+        generatedAt: parseDate(raw?.generatedAt) ?? new Date(),
+      };
+    } catch {
+      this._error.set('Failed to load course pacing metrics');
+      return null;
+    }
+  }
+
+  async getOrderThrottlingStatus(): Promise<OrderThrottlingStatus | null> {
+    if (!this.restaurantId) return null;
+
+    try {
+      const raw = await firstValueFrom(
+        this.http.get<any>(
+          `${this.apiUrl}/restaurant/${this.restaurantId}/throttling/status`
+        )
+      );
+
+      const trigger = String(raw?.triggerReason ?? '');
+      const triggerReason =
+        trigger === 'ACTIVE_OVERLOAD' || trigger === 'OVERDUE_OVERLOAD'
+          ? trigger
+          : undefined;
+
+      return {
+        enabled: Boolean(raw?.enabled),
+        triggering: Boolean(raw?.triggering),
+        triggerReason,
+        activeOrders: Number(raw?.activeOrders) || 0,
+        overdueOrders: Number(raw?.overdueOrders) || 0,
+        heldOrders: Number(raw?.heldOrders) || 0,
+        thresholds: {
+          maxActiveOrders: Number(raw?.thresholds?.maxActiveOrders) || 18,
+          maxOverdueOrders: Number(raw?.thresholds?.maxOverdueOrders) || 6,
+          releaseActiveOrders: Number(raw?.thresholds?.releaseActiveOrders) || 14,
+          releaseOverdueOrders: Number(raw?.thresholds?.releaseOverdueOrders) || 3,
+          maxHoldMinutes: Number(raw?.thresholds?.maxHoldMinutes) || 20,
+        },
+        evaluatedAt: parseDate(raw?.evaluatedAt) ?? new Date(),
+      };
+    } catch {
+      this._error.set('Failed to load throttling status');
+      return null;
+    }
+  }
+
+  async holdOrderForThrottling(orderId: string): Promise<boolean> {
+    if (!this.restaurantId) {
+      this._error.set('No restaurant selected');
+      return false;
+    }
+
+    try {
+      const raw = await firstValueFrom(
+        this.http.post<any>(
+          `${this.apiUrl}/restaurant/${this.restaurantId}/orders/${orderId}/throttle/hold`,
+          {}
+        )
+      );
+
+      const updatedOrder = this.mapOrder(raw);
+      this._orders.update(orders =>
+        orders.map(o => o.guid === orderId ? updatedOrder : o)
+      );
+      return true;
+    } catch {
+      this._error.set('Failed to hold order for throttling');
+      return false;
+    }
+  }
+
+  async releaseOrderFromThrottling(orderId: string): Promise<boolean> {
+    if (!this.restaurantId) {
+      this._error.set('No restaurant selected');
+      return false;
+    }
+
+    try {
+      const raw = await firstValueFrom(
+        this.http.post<any>(
+          `${this.apiUrl}/restaurant/${this.restaurantId}/orders/${orderId}/throttle/release`,
+          {}
+        )
+      );
+
+      const updatedOrder = this.mapOrder(raw);
+      this._orders.update(orders =>
+        orders.map(o => o.guid === orderId ? updatedOrder : o)
+      );
+      return true;
+    } catch {
+      this._error.set('Failed to release order from throttling');
+      return false;
     }
   }
 
@@ -524,6 +712,8 @@ export class OrderService implements OnDestroy {
       taxAmount: 0,
       tipAmount: 0,
       totalAmount: 0,
+      discounts: [],
+      voidedSelections: [],
     };
 
     const now = new Date();
@@ -624,13 +814,30 @@ export class OrderService implements OnDestroy {
     // Map items → selections
     const rawItems: any[] = raw.orderItems || raw.items || [];
     const selections: Selection[] = rawItems.map((item: any) => {
-      const course: Course | undefined = item.course ? {
-        guid: item.course.guid ?? item.course.id ?? crypto.randomUUID(),
-        name: item.course.name ?? '',
-        sortOrder: Number(item.course.sortOrder) || 0,
-        fireStatus: (item.course.fireStatus as CourseFireStatus) ?? 'PENDING',
-        firedDate: item.course.firedDate ? new Date(item.course.firedDate) : undefined,
-      } : undefined;
+      const rawCourse = item.course;
+      const hasFlatCourse = Boolean(item.courseGuid);
+
+      const course: Course | undefined = rawCourse ? {
+        guid: rawCourse.guid ?? rawCourse.id ?? item.courseGuid ?? crypto.randomUUID(),
+        name: rawCourse.name ?? item.courseName ?? '',
+        sortOrder: Number(rawCourse.sortOrder ?? item.courseSortOrder) || 0,
+        fireStatus: mapCourseFireStatus(rawCourse.fireStatus ?? item.courseFireStatus),
+        firedDate: parseDate(rawCourse.firedDate) ?? parseDate(item.courseFiredAt),
+        readyDate: parseDate(rawCourse.readyDate) ?? parseDate(item.courseReadyAt),
+      } : (hasFlatCourse ? {
+        guid: item.courseGuid,
+        name: item.courseName ?? item.courseGuid,
+        sortOrder: Number(item.courseSortOrder) || 0,
+        fireStatus: mapCourseFireStatus(item.courseFireStatus),
+        firedDate: parseDate(item.courseFiredAt),
+        readyDate: parseDate(item.courseReadyAt),
+      } : undefined);
+
+      const itemFulfillmentStatus = mapItemFulfillmentStatus(
+        item.fulfillmentStatus ?? item.status,
+        fulfillmentStatus,
+        Boolean(course)
+      );
 
       return {
         guid: item.id ?? crypto.randomUUID(),
@@ -639,7 +846,7 @@ export class OrderService implements OnDestroy {
         quantity: Number(item.quantity) || 1,
         unitPrice: Number(item.unitPrice) || 0,
         totalPrice: Number(item.totalPrice) || 0,
-        fulfillmentStatus: item.fulfillmentStatus ?? fulfillmentStatus,
+        fulfillmentStatus: itemFulfillmentStatus,
         modifiers: (item.orderItemModifiers || item.modifiers || []).map((m: any): SelectionModifier => ({
           guid: m.id ?? crypto.randomUUID(),
           name: m.modifierName || m.name || '',
@@ -647,6 +854,11 @@ export class OrderService implements OnDestroy {
         })),
         specialInstructions: item.specialInstructions,
         course,
+        completedAt: parseDate(item.completedAt),
+        seatNumber: item.seatNumber != null ? Number(item.seatNumber) : undefined,
+        isComped: item.isComped ?? false,
+        compReason: item.compReason ?? undefined,
+        compBy: item.compBy ?? undefined,
       };
     });
 
@@ -656,9 +868,32 @@ export class OrderService implements OnDestroy {
       guid: c.guid ?? c.id ?? crypto.randomUUID(),
       name: c.name ?? '',
       sortOrder: Number(c.sortOrder) || 0,
-      fireStatus: (c.fireStatus as CourseFireStatus) ?? 'PENDING',
-      firedDate: c.firedDate ? new Date(c.firedDate) : undefined,
+      fireStatus: mapCourseFireStatus(c.fireStatus),
+      firedDate: parseDate(c.firedDate),
+      readyDate: parseDate(c.readyDate),
     }));
+
+    // If backend doesn't return an explicit courses array, derive from item courses.
+    if (courses.length === 0) {
+      const byGuid = new Map<string, Course>();
+      for (const sel of selections) {
+        if (!sel.course) continue;
+        const existing = byGuid.get(sel.course.guid);
+        if (!existing) {
+          byGuid.set(sel.course.guid, { ...sel.course });
+          continue;
+        }
+        if (courseFireStatusRank(sel.course.fireStatus) > courseFireStatusRank(existing.fireStatus)) {
+          existing.fireStatus = sel.course.fireStatus;
+        }
+        if (!existing.readyDate && sel.course.readyDate) {
+          existing.readyDate = sel.course.readyDate;
+        } else if (existing.readyDate && sel.course.readyDate && sel.course.readyDate > existing.readyDate) {
+          existing.readyDate = sel.course.readyDate;
+        }
+      }
+      courses.push(...[...byGuid.values()].sort((a, b) => a.sortOrder - b.sortOrder));
+    }
 
     // Financials
     const subtotal = Number(raw.subtotal) || 0;
@@ -684,6 +919,34 @@ export class OrderService implements OnDestroy {
       });
     }
 
+    // Map discounts
+    const rawDiscounts: any[] = raw.discounts || [];
+    const discounts: CheckDiscount[] = rawDiscounts.map((d: any) => ({
+      id: d.id ?? crypto.randomUUID(),
+      type: d.type ?? 'flat',
+      value: Number(d.value) || 0,
+      reason: d.reason ?? '',
+      appliedBy: d.appliedBy ?? '',
+      approvedBy: d.approvedBy ?? undefined,
+    }));
+
+    // Map voided selections
+    const rawVoided: any[] = raw.voidedItems || [];
+    const voidedSelections: VoidedSelection[] = rawVoided.map((item: any) => ({
+      guid: item.id ?? crypto.randomUUID(),
+      menuItemGuid: item.menuItemId ?? '',
+      menuItemName: item.menuItemName || item.name || '',
+      quantity: Number(item.quantity) || 1,
+      unitPrice: Number(item.unitPrice) || 0,
+      totalPrice: Number(item.totalPrice) || 0,
+      fulfillmentStatus: 'SENT' as FulfillmentStatus,
+      modifiers: [],
+      voidReason: item.voidReason ?? 'other',
+      voidedBy: item.voidedBy ?? '',
+      voidedAt: parseDate(item.voidedAt) ?? new Date(),
+      managerApproval: item.managerApproval ?? undefined,
+    }));
+
     // Single check wrapping all items
     const check: Check = {
       guid: `check-${raw.id ?? crypto.randomUUID()}`,
@@ -695,6 +958,12 @@ export class OrderService implements OnDestroy {
       taxAmount,
       tipAmount,
       totalAmount,
+      discounts,
+      voidedSelections,
+      tabName: raw.tabName ?? undefined,
+      tabOpenedAt: parseDate(raw.tabOpenedAt),
+      tabClosedAt: parseDate(raw.tabClosedAt),
+      preauthId: raw.preauthId ?? undefined,
     };
 
     // Dining option
@@ -742,11 +1011,50 @@ export class OrderService implements OnDestroy {
       email: raw.customer.email ?? '',
     } : undefined;
 
+    const rawThrottle = raw.throttle ?? raw;
+    const throttleStateRaw = String(rawThrottle.state ?? raw.throttleState ?? '').toUpperCase();
+    const throttleState: 'NONE' | 'HELD' | 'RELEASED' =
+      throttleStateRaw === 'HELD' || throttleStateRaw === 'RELEASED'
+        ? throttleStateRaw
+        : 'NONE';
+    const throttleSourceRaw = String(rawThrottle.source ?? raw.throttleSource ?? '').toUpperCase();
+    const throttleSource: 'AUTO' | 'MANUAL' | undefined =
+      throttleSourceRaw === 'AUTO' || throttleSourceRaw === 'MANUAL'
+        ? throttleSourceRaw
+        : undefined;
+    const throttle = throttleState === 'NONE'
+      && !rawThrottle.reason
+      && !rawThrottle.throttleReason
+      ? undefined
+      : {
+          state: throttleState,
+          reason: rawThrottle.reason ?? rawThrottle.throttleReason ?? undefined,
+          heldAt: parseDate(rawThrottle.heldAt ?? rawThrottle.throttleHeldAt),
+          releasedAt: parseDate(rawThrottle.releasedAt ?? rawThrottle.throttleReleasedAt),
+          source: throttleSource,
+          releaseReason: rawThrottle.releaseReason ?? rawThrottle.throttleReleaseReason ?? undefined,
+        };
+
+    const rawMarketplace = raw.marketplaceOrder ?? raw.marketplace;
+    const marketplace = rawMarketplace
+      ? {
+          provider: rawMarketplace.provider,
+          externalOrderId: rawMarketplace.externalOrderId,
+          externalStoreId: rawMarketplace.externalStoreId ?? undefined,
+          status: rawMarketplace.status ?? undefined,
+          lastPushedStatus: rawMarketplace.lastPushedStatus ?? undefined,
+          lastPushResult: rawMarketplace.lastPushResult ?? undefined,
+          lastPushError: rawMarketplace.lastPushError ?? undefined,
+          lastPushAt: parseDate(rawMarketplace.lastPushAt),
+        }
+      : undefined;
+
     return {
       guid: raw.id ?? crypto.randomUUID(),
       restaurantId: raw.restaurantId ?? '',
       orderNumber: raw.orderNumber ?? '',
       guestOrderStatus,
+      orderSource: raw.orderSource ?? undefined,
       businessDate: raw.businessDate,
       server,
       device,
@@ -775,6 +1083,13 @@ export class OrderService implements OnDestroy {
         estimatedDeliveryTime: raw.deliveryEstimatedAt ? new Date(raw.deliveryEstimatedAt) : undefined,
         dispatchedDate: raw.dispatchedAt ? new Date(raw.dispatchedAt) : undefined,
         deliveredDate: raw.deliveredAt ? new Date(raw.deliveredAt) : undefined,
+        // DaaS fields
+        deliveryProvider: raw.deliveryProvider ?? undefined,
+        deliveryExternalId: raw.deliveryExternalId ?? undefined,
+        deliveryTrackingUrl: raw.deliveryTrackingUrl ?? undefined,
+        dispatchStatus: raw.dispatchStatus ?? undefined,
+        estimatedDeliveryAt: raw.deliveryEstimatedAt ?? undefined,
+        deliveryFee: raw.deliveryFee != null ? Number(raw.deliveryFee) : undefined,
       } : undefined),
       curbsideInfo: raw.curbsideInfo ?? (raw.vehicleDescription ? {
         vehicleDescription: raw.vehicleDescription,
@@ -790,6 +1105,8 @@ export class OrderService implements OnDestroy {
         depositPaid: raw.depositPaid ?? false,
         specialInstructions: raw.cateringInstructions,
       } : undefined),
+      throttle,
+      marketplace,
       loyaltyPointsEarned: raw.loyaltyPointsEarned ?? 0,
       loyaltyPointsRedeemed: raw.loyaltyPointsRedeemed ?? 0,
     };

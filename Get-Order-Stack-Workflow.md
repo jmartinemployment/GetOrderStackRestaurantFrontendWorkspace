@@ -840,7 +840,7 @@ GetOrderStack Applications
 | Loyalty | Points, tiers, rewards, redemption | ✅ IMPLEMENTED |
 | Tip management | Pooling, tip-out, compliance, CSV export | ✅ IMPLEMENTED |
 | Reporting | Dashboard (sales, menu engineering, command center) | ✅ IMPLEMENTED |
-| Third-party delivery | DoorDash Drive + Uber Direct (DaaS Phase 1), KDS dispatch, webhook status sync | 🚧 IN PROGRESS (Marketplace Phase 2 inbound backend foundation complete; frontend/status-sync completion pending) |
+| Third-party delivery | DoorDash Drive + Uber Direct (DaaS Phase 1), KDS dispatch, webhook status sync | 🚧 IN PROGRESS (Marketplace Phase 2 build + verification tooling complete; pilot rollout execution pending) |
 | Accounting | See below | 🔬 RESEARCH |
 | Payroll | See below | 🔬 RESEARCH |
 
@@ -1157,7 +1157,7 @@ GetOrderStack Applications
 ---
 
 *Document Version: 6.2*
-*Last Updated: 2026-02-13 (Session 31 — Marketplace menu mapping + inbound hardening implemented)*
+*Last Updated: 2026-02-14 (Session 35 — Marketplace pilot gate automation implemented)*
 *Location: Get-Order-Stack-Restaurant-Frontend-Workspace/Get-Order-Stack-Workflow.md*
 
 ## IMPLEMENTATION SUMMARY
@@ -1185,48 +1185,46 @@ GetOrderStack Applications
 - ✅ **Marketplace Inbound Ingestion Foundation (Session 29):** backend models/routes/webhooks for inbound marketplace orders (`marketplace_integrations`, `marketplace_orders`, `marketplace_webhook_events`), idempotent webhook processing, and initial order creation from inbound payloads
 - ✅ **Marketplace Control Panel Integration (Session 30):** frontend Delivery settings marketplace cards + API wiring for per-restaurant integration enable/store ID/webhook secret update and secret clear (manager/owner/super_admin edit; staff view-only)
 - ✅ **Marketplace Menu Mapping + Inbound Hardening (Session 31):** backend menu-mapping schema/routes (`marketplace_menu_mappings` + CRUD), frontend mapping UI in Delivery settings, and ingestion hold-for-review path for unmapped marketplace items
+- ✅ **Marketplace Outbound Status Sync Foundation (Session 32):** backend status-sync queue/outbox (`marketplace_status_sync_jobs`), provider adapters (DoorDash Marketplace/Uber Eats), order-status-triggered enqueue + retry/dead-letter processing, admin sync job endpoints, and background worker scheduler
+- ✅ **Marketplace Operator UX + Retry Actions (Session 33):** marketplace source filters/badges and sync health surfaced in KDS, Pending Orders, and Order History; manager-gated retry action for failed syncs
+- ✅ **Marketplace Phase 5 Verification Tooling (Session 34):** backend verification script (`scripts/verify-marketplace-phase5.ts`) for contract + e2e checks, plus runbook (`docs/MARKETPLACE-PHASE5-VERIFICATION.md`) and npm command entry points
+- ✅ **Marketplace Pilot Gate Automation (Session 35):** backend pilot summary endpoint (`/marketplace/pilot/summary`) and CLI gate report (`npm run pilot:marketplace:gates`) with threshold controls (`MARKETPLACE_PILOT_*`)
 - ✅ **Control Panel:** 8 tabs (Printers, AI Settings, Online Pricing, Catering Calendar, Payments, Tip Management, Loyalty, Delivery)
 
 **Frontend:** 23 Web Components registered and deployed to WordPress (geekatyourspot.com)
 **Backend:** Claude AI services (Sonnet 4), PostgreSQL/Prisma, WebSocket + polling, PayPal Zettle + Stripe payment integration (full-stack complete — processor-agnostic routes, PayPal webhook), Loyalty program (full-stack complete)
 
 **Remaining:**
-- 🚧 Third-party delivery Marketplace Phase 2 completion — outbound status push-back and provider-specific rollout hardening still pending (inbound backend + control panel + menu mapping implemented)
+- 🚧 Third-party delivery Marketplace pilot rollout execution — verification tooling is complete; live DoorDash/Uber pilot validation and cohort expansion remain
 - 🚧 Restaurant-by-restaurant provider onboarding — real DoorDash/Uber account values must be entered in each restaurant's Delivery settings and validated in live dispatch flow
 - 🔬 Accounting/payroll integrations (research phase)
 - ⏭️ T2-04 Multi-Device KDS Routing — deferred (no backend station-category mapping)
 - ⏭️ T3-03 Labor Intelligence / Staff Scheduling — deferred (no backend schema)
 
-**Next Task (Current Focus):** Marketplace Phase 2 completion — outbound provider status sync + pilot rollout verification.
+**Next Task (Current Focus):** Execute live marketplace pilot rollout — run verification + gate checks per pilot restaurant, then expand DoorDash/Uber by cohort.
 
-### Detailed Plan (Current Focus): Marketplace Phase 2 Completion
+### Detailed Plan (Current Focus): Marketplace Pilot Rollout Execution
 
-**Progress:** Phases 1-2 are complete (Sessions 30-31). Phases 3-5 remain.
+**Progress:** Phases 1-4 are complete (Sessions 30-33). Phase 5 tooling is complete (Sessions 34-35). Remaining work is pilot rollout execution.
 
 **Phase 1 — Control Panel Marketplace Integration**
-1. Add marketplace integration service methods in frontend.
-2. Add Delivery tab UI for marketplace providers (enable toggle, store ID, webhook secret update/clear, status summary).
-3. Keep admin-only editing; staff stays read-only.
+1. ✅ Implemented in Sessions 30-33.
 
 **Phase 2 — Menu Mapping + Inbound Hardening**
-1. Add explicit external-item -> internal-menu mapping data model + CRUD API.
-2. Prioritize explicit mapping in ingestion; keep name fallback as temporary compatibility.
-3. Route unknown items to review/hold path instead of silent auto-accept.
+1. ✅ Implemented in Session 31.
 
 **Phase 3 — Outbound Status Push-Back**
-1. Implement provider status sync adapters for DoorDash Marketplace and Uber Eats.
-2. Trigger sync on internal order status transitions and cancellation paths.
-3. Add retry/outbox handling and dead-letter visibility for failed pushes.
+1. ✅ Implemented in Session 32.
 
 **Phase 4 — Operator UX and Observability**
-1. Add marketplace badges/filters in KDS, Pending Orders, and Order History.
-2. Show sync health state on marketplace orders.
-3. Add metrics/alerts for webhook rejects, duplicates, mapping misses, and outbound sync failures.
+1. ✅ Implemented in Session 33.
 
 **Phase 5 — Pilot Rollout**
-1. Contract/integration tests for webhook and idempotency paths.
-2. Pilot DoorDash first, then Uber Eats; expand by cohort after stable results.
-3. Keep Grubhub disabled behind feature gate unless partnership access is confirmed.
+1. ✅ Contract/integration and e2e verification script implemented (`scripts/verify-marketplace-phase5.ts`).
+2. ✅ Pilot runbook implemented (`docs/MARKETPLACE-PHASE5-VERIFICATION.md`).
+3. ✅ Monitoring + stop/go gate automation implemented (`/marketplace/pilot/summary`, `npm run pilot:marketplace:gates`).
+4. Pilot DoorDash first, then Uber Eats; expand by cohort after stable results.
+5. Keep Grubhub disabled behind feature gate unless partnership access is confirmed.
 
 ### Deferred Detailed Plan (Out Of Scope): Strict Tenant-Isolated Delivery Credential Encryption
 

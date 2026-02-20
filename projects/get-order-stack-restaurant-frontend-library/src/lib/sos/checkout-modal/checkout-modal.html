@@ -116,10 +116,16 @@
                 <span>-{{ loyaltyDiscount() | currency }}</span>
               </div>
             }
+            @if (giftCardDiscount() > 0) {
+              <div class="d-flex justify-content-between small text-success">
+                <span>Gift Card</span>
+                <span>-{{ giftCardDiscount() | currency }}</span>
+              </div>
+            }
             <hr class="my-2" />
             <div class="d-flex justify-content-between fw-bold">
               <span>Total</span>
-              <span class="total-amount">{{ total() | currency }}</span>
+              <span class="total-amount">{{ totalAfterGiftCard() | currency }}</span>
             </div>
           </div>
 
@@ -519,6 +525,50 @@
               }
             </div>
           }
+
+          <!-- Gift Card -->
+          <div class="form-section">
+            <div class="section-title">Gift Card</div>
+            @if (!giftCardApplied()) {
+              <div class="d-flex gap-2">
+                <input
+                  type="text"
+                  class="form-control form-control-sm"
+                  placeholder="Enter gift card code"
+                  [value]="giftCardCode()"
+                  (input)="onGiftCardCodeInput($event)"
+                  (keydown.enter)="lookupGiftCard()"
+                  [disabled]="isSubmitting()"
+                />
+                <button type="button" class="btn btn-sm btn-outline-light" (click)="lookupGiftCard()"
+                  [disabled]="!giftCardCode().trim() || isCheckingGiftCard()">
+                  @if (isCheckingGiftCard()) {
+                    <span class="spinner-border spinner-border-sm"></span>
+                  } @else {
+                    Check
+                  }
+                </button>
+              </div>
+              @if (giftCardBalance(); as gc) {
+                <div class="gift-card-found mt-2 p-2">
+                  <div class="d-flex justify-content-between align-items-center">
+                    <span class="small text-success">Balance: {{ gc.currentBalance | currency }}</span>
+                    <button type="button" class="btn btn-sm btn-success" (click)="applyGiftCard()">
+                      Apply {{ giftCardAmount() | currency }}
+                    </button>
+                  </div>
+                </div>
+              }
+            } @else {
+              <div class="gift-card-applied p-2 d-flex justify-content-between align-items-center">
+                <div>
+                  <span class="text-success small fw-bold">Gift card applied</span>
+                  <span class="text-success ms-2">-{{ giftCardDiscount() | currency }}</span>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-danger" (click)="clearGiftCard()">Remove</button>
+              </div>
+            }
+          </div>
 
           <!-- Scheduled Orders: Promised Date -->
           @if (diningType() !== 'dine-in') {

@@ -339,3 +339,42 @@
     }
   }
 }
+
+// Gift card section
+.gift-card-section {
+  border: 1px solid var(--deep-lake, #1D3273);
+  border-radius: 0.375rem;
+  padding: 0.75rem;
+
+  .section-title {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--dark-teal, #0E7490);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.5rem;
+  }
+}
+
+.gift-card-found {
+  background: rgba(14, 116, 144, 0.1);
+  border: 1px solid rgba(14, 116, 144, 0.3);
+  border-radius: 0.375rem;
+  padding: 0.75rem;
+
+  .gc-balance {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--dark-teal, #0E7490);
+  }
+}
+
+.gift-card-applied {
+  background: rgba(40, 167, 69, 0.1);
+  border: 1px solid rgba(40, 167, 69, 0.3);
+  border-radius: 0.375rem;
+  padding: 0.5rem 0.75rem;
+  color: #28a745;
+  font-weight: 600;
+  font-size: 0.85rem;
+}

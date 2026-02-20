@@ -613,3 +613,132 @@
 .text-success {
   color: #28a745 !important;
 }
+
+// Tableside mode
+.round-badge {
+  font-size: 0.65rem;
+  font-weight: 600;
+  background: rgba(14, 116, 144, 0.25);
+  color: var(--dark-teal);
+  padding: 0.15rem 0.5rem;
+  border-radius: 2rem;
+  margin-left: 0.5rem;
+  vertical-align: middle;
+}
+
+.tableside-badge {
+  background: rgba(14, 116, 144, 0.12);
+  color: var(--dark-teal);
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+
+  i { margin-right: 0.25rem; }
+}
+
+.tableside-actions {
+  .btn {
+    padding: 0.75rem;
+    font-size: 1rem;
+    font-weight: 600;
+    border-radius: 0.75rem;
+  }
+}
+
+// Tip selection
+.tip-section {
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 0.5rem;
+  padding: 1rem;
+}
+
+.tip-preset-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.7);
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.25rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  &.active {
+    background: var(--medium-slate-blue);
+    border-color: var(--medium-slate-blue);
+    color: #fff;
+  }
+}
+
+.custom-tip-input {
+  .tip-prefix {
+    color: rgba(255, 255, 255, 0.5);
+    font-weight: 600;
+    font-size: 0.9rem;
+  }
+
+  .form-control {
+    max-width: 100px;
+  }
+}
+
+.tip-amount {
+  color: var(--dark-teal);
+  font-weight: 600;
+  margin-top: 0.5rem;
+}
+
+.tip-clear {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.75rem;
+  padding: 0;
+  text-decoration: none;
+
+  &:hover {
+    color: #dc3545;
+  }
+}
+
+// Gift card section
+.gift-card-section {
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 0.5rem;
+  padding: 1rem;
+
+  .section-title {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.7);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin-bottom: 0.5rem;
+  }
+}
+
+.gift-card-found {
+  background: rgba(14, 116, 144, 0.1);
+  border: 1px solid rgba(14, 116, 144, 0.2);
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+
+  .gc-balance {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--dark-teal);
+  }
+}
+
+.gift-card-applied {
+  background: rgba(40, 167, 69, 0.1);
+  border: 1px solid rgba(40, 167, 69, 0.2);
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  color: #28a745;
+  font-weight: 600;
+  font-size: 0.85rem;
+}

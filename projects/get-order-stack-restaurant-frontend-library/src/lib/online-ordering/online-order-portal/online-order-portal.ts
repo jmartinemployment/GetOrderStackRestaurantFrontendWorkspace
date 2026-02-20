@@ -5,10 +5,14 @@ import { CartService } from '../../services/cart';
 import { OrderService } from '../../services/order';
 import { AuthService } from '../../services/auth';
 import { LoyaltyService } from '../../services/loyalty';
+import { DeliveryService } from '../../services/delivery';
+import { RestaurantSettingsService } from '../../services/restaurant-settings';
 import { LoadingSpinner } from '../../shared/loading-spinner/loading-spinner';
-import { MenuItem, Order, OrderType, getOrderIdentifier, LoyaltyProfile, LoyaltyReward, getTierLabel, getTierColor, tierMeetsMinimum } from '../../models';
+import { GiftCardService } from '../../services/gift-card';
+import { MenuItem, Order, OrderType, DeliveryQuote, getOrderIdentifier, LoyaltyProfile, LoyaltyReward, GiftCardBalanceCheck, getTierLabel, getTierColor, tierMeetsMinimum } from '../../models';
 
 type OnlineStep = 'menu' | 'cart' | 'info' | 'confirm';
+type TipPreset = { label: string; percent: number };
 
 @Component({
   selector: 'get-order-stack-online-ordering',
@@ -23,8 +27,37 @@ export class OnlineOrderPortal implements OnDestroy {
   private readonly orderService = inject(OrderService);
   private readonly authService = inject(AuthService);
   private readonly loyaltyService = inject(LoyaltyService);
+  private readonly deliveryService = inject(DeliveryService);
+  private readonly settingsService = inject(RestaurantSettingsService);
+  private readonly giftCardService = inject(GiftCardService);
 
   readonly restaurantSlug = input<string>('');
+  readonly table = input<string>('');
+
+  // Tableside mode: detected when table input is provided
+  readonly isTableside = computed(() => this.table().trim().length > 0);
+
+  // Tip state
+  private readonly _selectedTipPreset = signal<number | null>(null);
+  private readonly _customTipAmount = signal<number>(0);
+  private readonly _isCustomTip = signal(false);
+  readonly selectedTipPreset = this._selectedTipPreset.asReadonly();
+  readonly customTipAmount = this._customTipAmount.asReadonly();
+  readonly isCustomTip = this._isCustomTip.asReadonly();
+  readonly tipAmount = this.cartService.tip;
+
+  readonly tipPresets: TipPreset[] = [
+    { label: '15%', percent: 15 },
+    { label: '18%', percent: 18 },
+    { label: '20%', percent: 20 },
+    { label: '25%', percent: 25 },
+  ];
+
+  // Multi-round ordering: track existing table order for "Order More"
+  private readonly _existingOrderId = signal<string | null>(null);
+  private readonly _orderRound = signal(1);
+  readonly existingOrderId = this._existingOrderId.asReadonly();
+  readonly orderRound = this._orderRound.asReadonly();
 
   readonly isAuthenticated = this.authService.isAuthenticated;
   private readonly _resolveError = signal<string | null>(null);
@@ -87,6 +120,7 @@ export class OnlineOrderPortal implements OnDestroy {
   readonly cartSubtotal = this.cartService.subtotal;
   readonly cartTax = this.cartService.tax;
   readonly cartItemCount = this.cartService.itemCount;
+  readonly surchargeAmount = this.cartService.surchargeAmount;
 
   // --- Loyalty ---
   private readonly _loyaltyProfile = signal<LoyaltyProfile | null>(null);
@@ -126,6 +160,44 @@ export class OnlineOrderPortal implements OnDestroy {
     return profile ? getTierColor(profile.tier) : '';
   });
 
+  // --- Delivery DaaS ---
+  private readonly _deliveryQuote = signal<DeliveryQuote | null>(null);
+  readonly deliveryQuote = this._deliveryQuote.asReadonly();
+  readonly deliveryProcessing = this.deliveryService.isProcessing;
+  readonly deliveryError = this.deliveryService.error;
+  readonly driverInfo = this.deliveryService.driverInfo;
+
+  readonly showDeliveryQuote = computed(() =>
+    this._orderType() === 'delivery'
+    && this.deliveryService.isConfigured()
+    && this.deliveryService.selectedProviderConfigured()
+  );
+
+  readonly showQuotesToCustomer = computed(() =>
+    this.settingsService.deliverySettings().showQuotesToCustomer
+  );
+
+  // --- Gift Cards ---
+  private readonly _giftCardCode = signal('');
+  private readonly _giftCardBalance = signal<GiftCardBalanceCheck | null>(null);
+  private readonly _giftCardAmount = signal(0);
+  private readonly _isCheckingGiftCard = signal(false);
+  private readonly _giftCardApplied = signal(false);
+
+  readonly giftCardCode = this._giftCardCode.asReadonly();
+  readonly giftCardBalance = this._giftCardBalance.asReadonly();
+  readonly giftCardAmount = this._giftCardAmount.asReadonly();
+  readonly isCheckingGiftCard = this._isCheckingGiftCard.asReadonly();
+  readonly giftCardApplied = this._giftCardApplied.asReadonly();
+
+  readonly giftCardDiscount = computed(() =>
+    this._giftCardApplied() ? this._giftCardAmount() : 0
+  );
+
+  readonly totalAfterGiftCard = computed(() =>
+    Math.max(0, this.cartTotal() - this.giftCardDiscount())
+  );
+
   readonly filteredItems = computed(() => {
     let items = this.menuService.allItems().filter(i => i.isActive !== false && !i.eightySixed);
     const catId = this._selectedCategory();
@@ -144,6 +216,9 @@ export class OnlineOrderPortal implements OnDestroy {
   });
 
   readonly canSubmit = computed(() => {
+    if (this.cartItemCount() === 0) return false;
+    // Tableside: no customer info required (dine-in at table)
+    if (this.isTableside()) return true;
     const firstName = this._customerFirstName().trim();
     const lastName = this._customerLastName().trim();
     const phone = this._customerPhone().trim();
@@ -153,22 +228,44 @@ export class OnlineOrderPortal implements OnDestroy {
         || !this._deliveryStateUS().trim() || !this._deliveryZip().trim()) return false;
     }
     if (this._orderType() === 'curbside' && !this._vehicleDescription().trim()) return false;
-    return this.cartItemCount() > 0;
+    return true;
   });
 
   constructor() {
+    effect(() => {
+      const provider = this.settingsService.deliverySettings().provider;
+      this.deliveryService.setProviderType(provider);
+      if (provider === 'doordash' || provider === 'uber') {
+        void this.deliveryService.loadConfigStatus();
+      }
+    });
+
     // Resolve restaurant from slug attribute or fall back to auth selection
     effect(() => {
       const slug = this.restaurantSlug();
       const authId = this.authService.selectedRestaurantId();
 
       if (slug) {
-        this.resolveSlug(slug);
+        void this.resolveSlug(slug);
       } else if (authId) {
         this.menuService.loadMenuForRestaurant(authId);
         this.loyaltyService.loadConfig();
         this.loyaltyService.loadRewards();
+        void this.settingsService.loadSettings();
       }
+    });
+
+    // Auto-set dine-in when tableside mode is active
+    effect(() => {
+      if (this.isTableside()) {
+        this._orderType.set('dine-in');
+      }
+    });
+
+    // Apply surcharge from payment settings
+    effect(() => {
+      const ps = this.settingsService.paymentSettings();
+      this.cartService.setSurcharge(ps.surchargeEnabled, ps.surchargePercent);
     });
   }
 
@@ -183,6 +280,7 @@ export class OnlineOrderPortal implements OnDestroy {
       this.menuService.loadMenuForRestaurant(restaurant.id);
       this.loyaltyService.loadConfig();
       this.loyaltyService.loadRewards();
+      await this.settingsService.loadSettings();
     } else {
       this._resolveError.set(`Restaurant "${slug}" not found`);
     }
@@ -316,6 +414,115 @@ export class OnlineOrderPortal implements OnDestroy {
     }, 500);
   }
 
+  async requestDeliveryQuote(orderId: string): Promise<void> {
+    if (!this.deliveryService.isConfigured()) return;
+    if (!await this.deliveryService.ensureSelectedProviderConfigured()) return;
+    const quote = await this.deliveryService.requestQuote(orderId);
+    if (quote) {
+      this._deliveryQuote.set(quote);
+    }
+  }
+
+  getDispatchStatusLabel(status: string): string {
+    switch (status) {
+      case 'QUOTED': return 'Quote received';
+      case 'DISPATCH_REQUESTED': return 'Requesting driver';
+      case 'DRIVER_ASSIGNED': return 'Driver assigned';
+      case 'DRIVER_EN_ROUTE_TO_PICKUP': return 'Driver heading to restaurant';
+      case 'DRIVER_AT_PICKUP': return 'Driver at restaurant';
+      case 'PICKED_UP': return 'Order picked up';
+      case 'DRIVER_EN_ROUTE_TO_DROPOFF': return 'Driver on the way';
+      case 'DRIVER_AT_DROPOFF': return 'Driver arriving';
+      case 'DELIVERED': return 'Delivered';
+      case 'CANCELLED': return 'Delivery cancelled';
+      case 'FAILED': return 'Delivery failed';
+      default: return status;
+    }
+  }
+
+  // --- Gift Card methods ---
+
+  onGiftCardCodeInput(event: Event): void {
+    this._giftCardCode.set((event.target as HTMLInputElement).value);
+    this._giftCardBalance.set(null);
+    this._giftCardApplied.set(false);
+    this._giftCardAmount.set(0);
+  }
+
+  async lookupGiftCard(): Promise<void> {
+    const code = this._giftCardCode().trim();
+    if (!code) return;
+    this._isCheckingGiftCard.set(true);
+    try {
+      const balance = await this.giftCardService.checkBalance(code);
+      this._giftCardBalance.set(balance);
+      if (balance && balance.status === 'active' && balance.currentBalance > 0) {
+        this._giftCardAmount.set(Math.min(balance.currentBalance, this.cartTotal()));
+      }
+    } finally {
+      this._isCheckingGiftCard.set(false);
+    }
+  }
+
+  applyGiftCard(): void {
+    this._giftCardApplied.set(true);
+  }
+
+  clearGiftCard(): void {
+    this._giftCardCode.set('');
+    this._giftCardBalance.set(null);
+    this._giftCardAmount.set(0);
+    this._giftCardApplied.set(false);
+  }
+
+  onGiftCardAmountInput(event: Event): void {
+    const value = Number.parseFloat((event.target as HTMLInputElement).value) || 0;
+    const balance = this._giftCardBalance();
+    const max = Math.min(balance?.currentBalance ?? 0, this.cartTotal());
+    this._giftCardAmount.set(Math.max(0, Math.min(value, max)));
+  }
+
+  // --- Tip methods ---
+
+  selectTipPreset(percent: number): void {
+    this._selectedTipPreset.set(percent);
+    this._isCustomTip.set(false);
+    this._customTipAmount.set(0);
+    this.cartService.setTipPercentage(percent);
+  }
+
+  enableCustomTip(): void {
+    this._selectedTipPreset.set(null);
+    this._isCustomTip.set(true);
+  }
+
+  onCustomTipInput(event: Event): void {
+    const value = Number.parseFloat((event.target as HTMLInputElement).value) || 0;
+    this._customTipAmount.set(Math.max(0, value));
+    this.cartService.setTip(Math.max(0, value));
+  }
+
+  clearTip(): void {
+    this._selectedTipPreset.set(null);
+    this._isCustomTip.set(false);
+    this._customTipAmount.set(0);
+    this.cartService.setTip(0);
+  }
+
+  // --- Multi-round ordering ---
+
+  orderMore(): void {
+    this._orderConfirmed.set(false);
+    this._step.set('menu');
+    this._orderRound.update(r => r + 1);
+    // Keep table context and customer info, clear cart for new items
+    this.cartService.clear();
+    // Restore dine-in type for tableside
+    if (this.isTableside()) {
+      this._orderType.set('dine-in');
+    }
+  }
+
   async submitOrder(): Promise<void> {
     if (!this.canSubmit() || this._isSubmitting()) return;
 
@@ -341,8 +548,9 @@ export class OnlineOrderPortal implements OnDestroy {
         })),
         subtotal: this.cartSubtotal(),
         tax: this.cartTax(),
-        tip: 0,
+        tip: this.tipAmount(),
         total: this.cartTotal(),
+        ...(this.isTableside() ? { tableNumber: this.table().trim() } : {}),
         customer: {
           firstName: this._customerFirstName().trim(),
           lastName: this._customerLastName().trim(),
@@ -376,19 +584,43 @@ export class OnlineOrderPortal implements OnDestroy {
         orderData['loyaltyPointsRedeemed'] = this._pointsToRedeem();
       }
 
+      // Gift card
+      if (this._giftCardApplied() && this._giftCardAmount() > 0) {
+        orderData['giftCardCode'] = this._giftCardCode().trim();
+        orderData['giftCardAmount'] = this._giftCardAmount();
+      }
+
       const order = await this.orderService.createOrder(orderData as Partial<any>);
       if (order) {
         this._orderNumber.set(getOrderIdentifier(order));
         this._submittedOrder.set(order);
         this._orderConfirmed.set(true);
         this._step.set('confirm');
+        // Store order ID for multi-round tableside ordering
+        if (this.isTableside()) {
+          this._existingOrderId.set(order.guid);
+        }
         // Set earned points message before clearing cart
         const earned = this.estimatedPointsEarned();
         if (this.loyaltyEnabled() && earned > 0) {
           this._earnedPointsMessage.set(`You earned ${earned} points on this order!`);
         }
         this.cartService.clear();
+        // Redeem gift card balance
+        if (this._giftCardApplied() && this._giftCardAmount() > 0) {
+          await this.giftCardService.redeemGiftCard(
+            this._giftCardCode().trim(),
+            this._giftCardAmount(),
+            order.guid
+          );
+        }
         this.startTracking(order.guid);
+        // Request DaaS quote after order submission if delivery
+        if (type === 'delivery' && this.deliveryService.isConfigured()) {
+          if (await this.deliveryService.ensureSelectedProviderConfigured()) {
+            await this.requestDeliveryQuote(order.guid);
+          }
+        }
       } else {
         this._error.set(this.orderService.error() ?? 'Failed to submit order');
       }
@@ -423,6 +655,12 @@ export class OnlineOrderPortal implements OnDestroy {
     this._pointsToRedeem.set(0);
     this._earnedPointsMessage.set('');
     this.cartService.clearLoyaltyRedemption();
+    this._giftCardCode.set('');
+    this._giftCardBalance.set(null);
+    this._giftCardAmount.set(0);
+    this._giftCardApplied.set(false);
+    this._deliveryQuote.set(null);
+    this.deliveryService.reset();
   }
 
   ngOnDestroy(): void {

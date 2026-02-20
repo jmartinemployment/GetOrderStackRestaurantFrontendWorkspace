@@ -26,6 +26,18 @@ import {
   PendingOrders,
   OrderHistory,
   ControlPanel,
+  ServerPosTerminal,
+  OrderPad,
+  CloseOfDay,
+  CashDrawer,
+  KioskTerminal,
+  StaffScheduling,
+  CampaignBuilder,
+  InvoiceManager,
+  ComboManagement,
+  StaffPortal,
+  FoodCostDashboard,
+  MultiLocationDashboard,
 } from 'get-order-stack-restaurant-frontend-library';
 
 (async () => {
@@ -60,6 +72,18 @@ import {
     [PendingOrders, 'get-order-stack-pending-orders'],
     [OrderHistory, 'get-order-stack-order-history'],
     [ControlPanel, 'get-order-stack-control-panel'],
+    [ServerPosTerminal, 'get-order-stack-pos-terminal'],
+    [OrderPad, 'get-order-stack-order-pad'],
+    [CloseOfDay, 'get-order-stack-close-of-day'],
+    [CashDrawer, 'get-order-stack-cash-drawer'],
+    [KioskTerminal, 'get-order-stack-kiosk'],
+    [StaffScheduling, 'get-order-stack-scheduling'],
+    [CampaignBuilder, 'get-order-stack-campaign-builder'],
+    [InvoiceManager, 'get-order-stack-invoice-manager'],
+    [ComboManagement, 'get-order-stack-combo-management'],
+    [StaffPortal, 'get-order-stack-staff-portal'],
+    [FoodCostDashboard, 'get-order-stack-food-cost'],
+    [MultiLocationDashboard, 'get-order-stack-multi-location'],
   ];
 
   for (const [component, tag] of elements) {

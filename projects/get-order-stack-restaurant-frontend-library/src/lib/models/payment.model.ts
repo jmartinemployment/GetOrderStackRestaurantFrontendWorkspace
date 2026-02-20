@@ -1,4 +1,8 @@
 export type PaymentProcessorType = 'stripe' | 'paypal' | 'none';
+
+/** Processor types that represent an active payment provider (excludes settings sentinel). */
+export type ActivePaymentProcessorType = Exclude<PaymentProcessorType, 'none'>;
+
 export type PaymentStep = 'cart' | 'paying' | 'success' | 'failed';
 
 export interface PaymentContext {
@@ -12,7 +16,7 @@ export interface PaymentCreateResult {
 }
 
 export interface PaymentProvider {
-  readonly type: PaymentProcessorType;
+  readonly type: ActivePaymentProcessorType;
   createPayment(orderId: string, amount: number, context: PaymentContext): Promise<PaymentCreateResult>;
   mountPaymentUI(container: HTMLElement): Promise<boolean>;
   confirmPayment(): Promise<boolean>;
@@ -35,6 +39,18 @@ export interface RefundResponse {
   refundId: string;
   amount: number | null;
   status: string;
+}
+
+export interface PreauthResponse {
+  preauthId: string;
+  amount: number;
+  status: 'authorized' | 'captured' | 'cancelled' | 'expired';
+}
+
+export interface CaptureResponse {
+  success: boolean;
+  capturedAmount: number;
+  paymentId: string;
 }
 
 // Kept for StripePaymentProvider internal use

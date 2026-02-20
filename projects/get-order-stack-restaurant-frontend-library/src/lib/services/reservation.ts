@@ -1,7 +1,7 @@
 import { Injectable, inject, signal, computed } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
-import { Reservation, ReservationFormData, ReservationStatus } from '../models';
+import { Reservation, ReservationFormData, ReservationStatus, WaitlistEntry, WaitlistFormData } from '../models';
 import { AuthService } from './auth';
 import { environment } from '../environments/environment';
 
@@ -14,12 +14,22 @@ export class ReservationService {
   private readonly apiUrl = environment.apiUrl;
 
   private readonly _reservations = signal<Reservation[]>([]);
+  private readonly _waitlist = signal<WaitlistEntry[]>([]);
   private readonly _isLoading = signal(false);
   private readonly _error = signal<string | null>(null);
 
   readonly reservations = this._reservations.asReadonly();
+  readonly waitlist = this._waitlist.asReadonly();
   readonly isLoading = this._isLoading.asReadonly();
   readonly error = this._error.asReadonly();
+
+  readonly activeWaitlist = computed(() =>
+    this._waitlist()
+      .filter(e => e.status === 'waiting' || e.status === 'notified')
+      .sort((a, b) => a.position - b.position)
+  );
+
+  readonly waitlistCount = computed(() => this.activeWaitlist().length);
 
   readonly todayReservations = computed(() => {
     const today = new Date().toISOString().split('T')[0];
@@ -128,6 +138,119 @@ export class ReservationService {
 
   async cancelReservation(reservationId: string): Promise<boolean> {
     return this.updateStatus(reservationId, 'cancelled');
+  }
+
+  // --- Waitlist ---
+
+  async loadWaitlist(): Promise<void> {
+    if (!this.restaurantId) return;
+
+    try {
+      const data = await firstValueFrom(
+        this.http.get<WaitlistEntry[]>(
+          `${this.apiUrl}/restaurant/${this.restaurantId}/waitlist`
+        )
+      );
+      this._waitlist.set(data ?? []);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to load waitlist';
+      this._error.set(message);
+    }
+  }
+
+  async addToWaitlist(data: WaitlistFormData): Promise<WaitlistEntry | null> {
+    if (!this.restaurantId) return null;
+
+    try {
+      const entry = await firstValueFrom(
+        this.http.post<WaitlistEntry>(
+          `${this.apiUrl}/restaurant/${this.restaurantId}/waitlist`,
+          data
+        )
+      );
+      this._waitlist.update(list => [...list, entry]);
+      return entry;
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to add to waitlist';
+      this._error.set(message);
+      return null;
+    }
+  }
+
+  async notifyWaitlistEntry(entryId: string): Promise<boolean> {
+    if (!this.restaurantId) return false;
+
+    try {
+      const updated = await firstValueFrom(
+        this.http.patch<WaitlistEntry>(
+          `${this.apiUrl}/restaurant/${this.restaurantId}/waitlist/${entryId}`,
+          { status: 'notified' }
+        )
+      );
+      this._waitlist.update(list => list.map(e => e.id === entryId ? updated : e));
+      return true;
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to notify guest';
+      this._error.set(message);
+      return false;
+    }
+  }
+
+  async seatWaitlistEntry(entryId: string): Promise<boolean> {
+    if (!this.restaurantId) return false;
+
+    try {
+      const updated = await firstValueFrom(
+        this.http.patch<WaitlistEntry>(
+          `${this.apiUrl}/restaurant/${this.restaurantId}/waitlist/${entryId}`,
+          { status: 'seated' }
+        )
+      );
+      this._waitlist.update(list => list.map(e => e.id === entryId ? updated : e));
+      return true;
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to seat guest';
+      this._error.set(message);
+      return false;
+    }
+  }
+
+  async removeFromWaitlist(entryId: string): Promise<boolean> {
+    if (!this.restaurantId) return false;
+
+    try {
+      const updated = await firstValueFrom(
+        this.http.patch<WaitlistEntry>(
+          `${this.apiUrl}/restaurant/${this.restaurantId}/waitlist/${entryId}`,
+          { status: 'cancelled' }
+        )
+      );
+      this._waitlist.update(list => list.map(e => e.id === entryId ? updated : e));
+      return true;
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to remove from waitlist';
+      this._error.set(message);
+      return false;
+    }
+  }
+
+  async reorderWaitlist(entryId: string, newPosition: number): Promise<boolean> {
+    if (!this.restaurantId) return false;
+
+    try {
+      await firstValueFrom(
+        this.http.patch<WaitlistEntry>(
+          `${this.apiUrl}/restaurant/${this.restaurantId}/waitlist/${entryId}`,
+          { position: newPosition }
+        )
+      );
+      await this.loadWaitlist();
+      return true;
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to reorder waitlist';
+      this._error.set(message);
+      return false;
+    }
   }
 
   clearError(): void {

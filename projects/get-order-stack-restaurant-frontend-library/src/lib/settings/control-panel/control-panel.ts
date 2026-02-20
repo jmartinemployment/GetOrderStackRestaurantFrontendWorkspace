@@ -10,11 +10,12 @@ import { TipManagement } from '../../tip-mgmt/tip-management';
 import { LoyaltySettings } from '../loyalty-settings';
 import { DeliverySettingsComponent } from '../delivery-settings';
 import { StationSettings } from '../station-settings';
+import { GiftCardManagement } from '../gift-card-management';
 import { ControlPanelTab } from '../../models';
 
 @Component({
   selector: 'get-order-stack-control-panel',
-  imports: [PrinterSettings, AiSettings, OnlinePricing, CateringCalendar, PaymentSettingsComponent, TipManagement, LoyaltySettings, DeliverySettingsComponent, StationSettings],
+  imports: [PrinterSettings, AiSettings, OnlinePricing, CateringCalendar, PaymentSettingsComponent, TipManagement, LoyaltySettings, DeliverySettingsComponent, StationSettings, GiftCardManagement],
   templateUrl: './control-panel.html',
   styleUrl: './control-panel.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -38,6 +39,7 @@ export class ControlPanel implements OnInit {
     { key: 'loyalty', label: 'Loyalty' },
     { key: 'delivery', label: 'Delivery' },
     { key: 'stations', label: 'Stations' },
+    { key: 'gift-cards', label: 'Gift Cards' },
   ];
 
   ngOnInit(): void {

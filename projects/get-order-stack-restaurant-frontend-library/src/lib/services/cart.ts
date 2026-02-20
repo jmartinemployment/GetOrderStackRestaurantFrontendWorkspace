@@ -22,6 +22,8 @@ export class CartService {
   private readonly _loyaltyPointsToRedeem = signal(0);
   private readonly _loyaltyDiscount = signal(0);
   private readonly _estimatedPointsEarned = signal(0);
+  private readonly _surchargeEnabled = signal(false);
+  private readonly _surchargePercent = signal(3.5);
 
   // Public readonly signals
   readonly items = this._items.asReadonly();
@@ -34,6 +36,13 @@ export class CartService {
   readonly loyaltyPointsToRedeem = this._loyaltyPointsToRedeem.asReadonly();
   readonly loyaltyDiscount = this._loyaltyDiscount.asReadonly();
   readonly estimatedPointsEarned = this._estimatedPointsEarned.asReadonly();
+  readonly surchargeEnabled = this._surchargeEnabled.asReadonly();
+  readonly surchargePercent = this._surchargePercent.asReadonly();
+
+  readonly surchargeAmount = computed(() => {
+    if (!this._surchargeEnabled()) return 0;
+    return Math.round(this.subtotal() * (this._surchargePercent() / 100) * 100) / 100;
+  });
 
   // Computed signals
   readonly itemCount = computed(() =>
@@ -51,7 +60,7 @@ export class CartService {
   );
 
   readonly total = computed(() =>
-    Math.max(0, Math.round((this.subtotal() + this.tax() + this._tip() - this._loyaltyDiscount()) * 100) / 100)
+    Math.max(0, Math.round((this.subtotal() + this.tax() + this._tip() + this.surchargeAmount() - this._loyaltyDiscount()) * 100) / 100)
   );
 
   readonly isEmpty = computed(() => this._items().length === 0);
@@ -201,6 +210,11 @@ export class CartService {
     this._estimatedPointsEarned.set(points);
   }
 
+  setSurcharge(enabled: boolean, percent: number): void {
+    this._surchargeEnabled.set(enabled);
+    this._surchargePercent.set(Math.max(0, percent));
+  }
+
   clear(): void {
     this._items.set([]);
     this._orderType.set('pickup');
@@ -212,6 +226,8 @@ export class CartService {
     this._loyaltyPointsToRedeem.set(0);
     this._loyaltyDiscount.set(0);
     this._estimatedPointsEarned.set(0);
+    this._surchargeEnabled.set(false);
+    this._surchargePercent.set(3.5);
   }
 
   getOrderData(): Partial<any> {
@@ -240,6 +256,7 @@ export class CartService {
       total: this.total(),
       loyaltyPointsRedeemed: this._loyaltyPointsToRedeem(),
       discount: this._loyaltyDiscount(),
+      surcharge: this.surchargeAmount(),
     };
   }
 }

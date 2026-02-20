@@ -9,6 +9,8 @@ import {
   DoorDashCredentialPayload,
   UberCredentialPayload,
   DeliveryCredentialSummary,
+  DeliveryCredentialSecurityMode,
+  DeliveryCredentialSecurityProfile,
   MarketplaceProviderType,
   MarketplaceIntegrationsResponse,
   MarketplaceIntegrationSummary,
@@ -16,6 +18,10 @@ import {
   MarketplaceMenuMappingsResponse,
   MarketplaceMenuMapping,
   MarketplaceMenuMappingUpsertPayload,
+  MarketplaceSyncJobState,
+  MarketplaceStatusSyncJobSummary,
+  MarketplaceStatusSyncJobsResponse,
+  Order,
 } from '../models';
 import { AuthService } from './auth';
 import { environment } from '../environments/environment';
@@ -43,8 +49,10 @@ export class DeliveryService {
   private readonly _driverInfo = signal<DeliveryDriverInfo | null>(null);
   private readonly _configStatus = signal<DeliveryConfigStatus | null>(null);
   private readonly _credentialsSummary = signal<DeliveryCredentialSummary | null>(null);
+  private readonly _credentialSecurityProfile = signal<DeliveryCredentialSecurityProfile | null>(null);
   private readonly _marketplaceIntegrations = signal<MarketplaceIntegrationSummary[]>([]);
   private readonly _marketplaceMenuMappings = signal<MarketplaceMenuMapping[]>([]);
+  private readonly _marketplaceStatusSyncJobs = signal<MarketplaceStatusSyncJobSummary[]>([]);
 
   readonly providerType = this._providerType.asReadonly();
   readonly isProcessing = this._isProcessing.asReadonly();
@@ -53,8 +61,10 @@ export class DeliveryService {
   readonly driverInfo = this._driverInfo.asReadonly();
   readonly configStatus = this._configStatus.asReadonly();
   readonly credentialsSummary = this._credentialsSummary.asReadonly();
+  readonly credentialSecurityProfile = this._credentialSecurityProfile.asReadonly();
   readonly marketplaceIntegrations = this._marketplaceIntegrations.asReadonly();
   readonly marketplaceMenuMappings = this._marketplaceMenuMappings.asReadonly();
+  readonly marketplaceStatusSyncJobs = this._marketplaceStatusSyncJobs.asReadonly();
   readonly selectedProviderConfigured = computed(() =>
     this.isProviderConfiguredFor(this._providerType())
   );
@@ -145,6 +155,56 @@ export class DeliveryService {
     } catch {
       this._error.set('Failed to load delivery credentials');
       return null;
+    }
+  }
+
+  async loadCredentialSecurityProfile(): Promise<DeliveryCredentialSecurityProfile | null> {
+    if (!this.restaurantId) return null;
+
+    try {
+      const response = await fetch(
+        `${this.apiUrl}/restaurant/${this.restaurantId}/delivery/credentials/security-profile`,
+        { headers: this.buildAuthHeaders() },
+      );
+      if (!response.ok) {
+        this._error.set(await this.readErrorMessage(response, 'Failed to load credential security profile'));
+        return null;
+      }
+      const profile = await response.json() as DeliveryCredentialSecurityProfile;
+      this._credentialSecurityProfile.set(profile);
+      return profile;
+    } catch {
+      this._error.set('Failed to load credential security profile');
+      return null;
+    }
+  }
+
+  async saveCredentialSecurityProfile(mode: DeliveryCredentialSecurityMode): Promise<boolean> {
+    if (!this.restaurantId) return false;
+
+    this._isProcessing.set(true);
+    this._error.set(null);
+    try {
+      const response = await fetch(
+        `${this.apiUrl}/restaurant/${this.restaurantId}/delivery/credentials/security-profile`,
+        {
+          method: 'PUT',
+          headers: this.buildAuthHeaders({ 'Content-Type': 'application/json' }),
+          body: JSON.stringify({ mode }),
+        },
+      );
+      if (!response.ok) {
+        this._error.set(await this.readErrorMessage(response, 'Failed to save credential security profile'));
+        return false;
+      }
+      const profile = await response.json() as DeliveryCredentialSecurityProfile;
+      this._credentialSecurityProfile.set(profile);
+      return true;
+    } catch {
+      this._error.set('Failed to save credential security profile');
+      return false;
+    } finally {
+      this._isProcessing.set(false);
     }
   }
 
@@ -421,6 +481,129 @@ export class DeliveryService {
     }
   }
 
+  async loadMarketplaceStatusSyncJobs(options?: {
+    status?: MarketplaceSyncJobState;
+    limit?: number;
+  }): Promise<MarketplaceStatusSyncJobSummary[] | null> {
+    if (!this.restaurantId) return null;
+
+    try {
+      const params = new URLSearchParams();
+      if (options?.status) params.set('status', options.status);
+      if (options?.limit) params.set('limit', String(options.limit));
+      const query = params.toString();
+
+      const response = await fetch(
+        `${this.apiUrl}/restaurant/${this.restaurantId}/marketplace/status-sync/jobs${query ? `?${query}` : ''}`,
+        { headers: this.buildAuthHeaders() },
+      );
+      if (!response.ok) {
+        this._error.set(await this.readErrorMessage(response, 'Failed to load marketplace sync jobs'));
+        return null;
+      }
+
+      const body = await response.json() as MarketplaceStatusSyncJobsResponse;
+      this._marketplaceStatusSyncJobs.set(body.jobs ?? []);
+      return this._marketplaceStatusSyncJobs();
+    } catch {
+      this._error.set('Failed to load marketplace sync jobs');
+      return null;
+    }
+  }
+
+  async retryMarketplaceStatusSyncJob(jobId: string): Promise<boolean> {
+    if (!this.restaurantId) return false;
+
+    this._isProcessing.set(true);
+    this._error.set(null);
+    try {
+      const response = await fetch(
+        `${this.apiUrl}/restaurant/${this.restaurantId}/marketplace/status-sync/jobs/${jobId}/retry`,
+        {
+          method: 'POST',
+          headers: this.buildAuthHeaders(),
+        },
+      );
+      if (!response.ok) {
+        this._error.set(await this.readErrorMessage(response, 'Failed to retry marketplace sync job'));
+        return false;
+      }
+
+      const summary = await response.json() as MarketplaceStatusSyncJobSummary;
+      this.upsertMarketplaceStatusSyncJobSummary(summary);
+      return true;
+    } catch {
+      this._error.set('Failed to retry marketplace sync job');
+      return false;
+    } finally {
+      this._isProcessing.set(false);
+    }
+  }
+
+  async processMarketplaceStatusSyncJobs(limit = 20): Promise<boolean> {
+    if (!this.restaurantId) return false;
+
+    this._isProcessing.set(true);
+    this._error.set(null);
+    try {
+      const response = await fetch(
+        `${this.apiUrl}/restaurant/${this.restaurantId}/marketplace/status-sync/process`,
+        {
+          method: 'POST',
+          headers: this.buildAuthHeaders({ 'Content-Type': 'application/json' }),
+          body: JSON.stringify({ limit }),
+        },
+      );
+      if (!response.ok) {
+        this._error.set(await this.readErrorMessage(response, 'Failed to process marketplace sync jobs'));
+        return false;
+      }
+      return true;
+    } catch {
+      this._error.set('Failed to process marketplace sync jobs');
+      return false;
+    } finally {
+      this._isProcessing.set(false);
+    }
+  }
+
+  async retryMarketplaceSyncForOrder(order: Order): Promise<boolean> {
+    const marketplace = order.marketplace;
+    if (!marketplace) {
+      this._error.set('Order is not linked to a marketplace source');
+      return false;
+    }
+
+    const deadLetterJobs = await this.loadMarketplaceStatusSyncJobs({
+      status: 'DEAD_LETTER',
+      limit: 200,
+    });
+    if (deadLetterJobs === null) return false;
+
+    let candidates = deadLetterJobs.filter(job =>
+      job.externalOrderId === marketplace.externalOrderId
+    );
+
+    if (candidates.length === 0) {
+      const failedJobs = await this.loadMarketplaceStatusSyncJobs({
+        status: 'FAILED',
+        limit: 200,
+      });
+      if (failedJobs === null) return false;
+      candidates = failedJobs.filter(job =>
+        job.externalOrderId === marketplace.externalOrderId
+      );
+    }
+
+    if (candidates.length > 0) {
+      candidates.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+      const retried = await this.retryMarketplaceStatusSyncJob(candidates[0].id);
+      if (!retried) return false;
+    }
+
+    return this.processMarketplaceStatusSyncJobs(25);
+  }
+
   async requestQuote(orderId: string): Promise<DeliveryQuote | null> {
     if (!this.provider || !this.deliveryContext) {
       this._error.set('Delivery provider not configured');
@@ -511,6 +694,7 @@ export class DeliveryService {
   }
 
   private applyCredentialSummary(summary: DeliveryCredentialSummary): void {
+    this._credentialSecurityProfile.set(summary.securityProfile ?? null);
     this._credentialsSummary.set(summary);
     this._configStatus.set({
       doordash: summary.doordash.configured,
@@ -543,6 +727,18 @@ export class DeliveryService {
       return a.externalItemId.localeCompare(b.externalItemId);
     });
     this._marketplaceMenuMappings.set(next);
+  }
+
+  private upsertMarketplaceStatusSyncJobSummary(summary: MarketplaceStatusSyncJobSummary): void {
+    const next = [...this._marketplaceStatusSyncJobs()];
+    const index = next.findIndex((entry) => entry.id === summary.id);
+    if (index >= 0) {
+      next[index] = summary;
+    } else {
+      next.push(summary);
+    }
+    next.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    this._marketplaceStatusSyncJobs.set(next);
   }
 
   private buildAuthHeaders(extra: Record<string, string> = {}): HeadersInit {

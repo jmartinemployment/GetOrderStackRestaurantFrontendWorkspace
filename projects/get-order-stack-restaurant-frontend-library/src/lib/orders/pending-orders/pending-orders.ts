@@ -6,7 +6,22 @@ import { RestaurantSettingsService } from '../../services/restaurant-settings';
 import { LoadingSpinner } from '../../shared/loading-spinner/loading-spinner';
 import { ErrorDisplay } from '../../shared/error-display/error-display';
 import { StatusBadge } from '../../kds/status-badge/status-badge';
-import { Order, ProfitInsight, getCustomerDisplayName, getOrderIdentifier, PrintStatus, Course, Selection, CourseFireStatus } from '../../models';
+import {
+  Order,
+  ProfitInsight,
+  getCustomerDisplayName,
+  getOrderIdentifier,
+  PrintStatus,
+  Course,
+  Selection,
+  CourseFireStatus,
+  isMarketplaceOrder,
+  getMarketplaceProviderLabel,
+  getMarketplaceSyncState,
+  getMarketplaceSyncStateLabel,
+  getMarketplaceSyncClass,
+  MarketplaceSyncState,
+} from '../../models';
 
 interface PendingCourseGroup {
   course: Course | null;
@@ -42,11 +57,19 @@ export class PendingOrders implements OnInit, OnDestroy {
   private _approvalTimerRef: ReturnType<typeof setInterval> | null = null;
   private readonly _tick = signal(0);
   private readonly _autoRejectingIds = signal(new Set<string>());
+  private readonly _marketplaceFilter = signal<'all' | 'marketplace' | 'native'>('all');
+  readonly marketplaceFilter = this._marketplaceFilter.asReadonly();
+  readonly marketplaceFilterOptions: Array<{ value: 'all' | 'marketplace' | 'native'; label: string }> = [
+    { value: 'all', label: 'All Sources' },
+    { value: 'marketplace', label: 'Marketplace' },
+    { value: 'native', label: 'Direct' },
+  ];
 
   readonly pendingOrders = computed(() =>
-    this.orders().filter(order =>
-      ['RECEIVED', 'IN_PREPARATION', 'READY_FOR_PICKUP'].includes(order.guestOrderStatus)
-    ).sort((a, b) => a.timestamps.createdDate.getTime() - b.timestamps.createdDate.getTime())
+    this.orders()
+      .filter(order => ['RECEIVED', 'IN_PREPARATION', 'READY_FOR_PICKUP'].includes(order.guestOrderStatus))
+      .filter(order => this.matchesMarketplaceFilter(order))
+      .sort((a, b) => a.timestamps.createdDate.getTime() - b.timestamps.createdDate.getTime())
   );
 
   readonly approvalTimeoutHours = computed(() => this.settingsService.aiSettings().approvalTimeoutHours);
@@ -80,6 +103,38 @@ export class PendingOrders implements OnInit, OnDestroy {
 
   getOrderNumber(order: Order): string {
     return getOrderIdentifier(order);
+  }
+
+  setMarketplaceFilter(filter: 'all' | 'marketplace' | 'native'): void {
+    this._marketplaceFilter.set(filter);
+  }
+
+  private matchesMarketplaceFilter(order: Order): boolean {
+    const filter = this._marketplaceFilter();
+    if (filter === 'all') return true;
+    const marketplace = isMarketplaceOrder(order);
+    if (filter === 'marketplace') return marketplace;
+    return !marketplace;
+  }
+
+  isMarketplace(order: Order): boolean {
+    return isMarketplaceOrder(order);
+  }
+
+  marketplaceProviderLabel(order: Order): string {
+    return getMarketplaceProviderLabel(order) ?? 'Marketplace';
+  }
+
+  marketplaceSyncState(order: Order): MarketplaceSyncState | null {
+    return getMarketplaceSyncState(order);
+  }
+
+  marketplaceSyncLabel(order: Order): string {
+    return getMarketplaceSyncStateLabel(this.marketplaceSyncState(order));
+  }
+
+  marketplaceSyncClass(order: Order): string {
+    return getMarketplaceSyncClass(order);
   }
 
   getTimeSinceOrder(order: Order): string {

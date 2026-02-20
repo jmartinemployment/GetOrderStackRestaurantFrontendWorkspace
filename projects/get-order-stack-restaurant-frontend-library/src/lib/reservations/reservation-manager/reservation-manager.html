@@ -52,6 +52,14 @@
         Past
       </button>
     </li>
+    <li class="nav-item">
+      <button type="button" class="nav-link" [class.active]="activeTab() === 'waitlist'" (click)="setTab('waitlist')">
+        Waitlist
+        @if (waitlistCount() > 0) {
+          <span class="badge bg-warning ms-1">{{ waitlistCount() }}</span>
+        }
+      </button>
+    </li>
   </ul>
 
   @if (isLoading()) {
@@ -162,6 +170,123 @@
         }
       </div>
     }
+    <!-- WAITLIST TAB -->
+    @if (activeTab() === 'waitlist') {
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0 text-white">Walk-In Waitlist</h5>
+        <button type="button" class="btn btn-warning btn-sm" (click)="openWaitlistForm()">
+          + Add to Waitlist
+        </button>
+      </div>
+
+      <div class="waitlist-queue">
+        @for (entry of activeWaitlist(); track entry.id) {
+          <div class="waitlist-card" [class.waitlist-notified]="entry.status === 'notified'">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+              <div class="d-flex align-items-center gap-2">
+                <span class="waitlist-position">{{ entry.position }}</span>
+                <div>
+                  <strong class="text-white">{{ entry.partyName }}</strong>
+                  <span class="badge bg-secondary ms-2">{{ entry.partySize }} guests</span>
+                  @if (entry.status === 'notified') {
+                    <span class="badge bg-success ms-1">Notified</span>
+                  }
+                </div>
+              </div>
+              <div class="text-end">
+                <div class="waitlist-wait-time">~{{ getEstimatedWait(entry) }}m wait</div>
+                <div class="text-muted small">Waiting: {{ getElapsedWait(entry.createdAt) }}</div>
+              </div>
+            </div>
+
+            <div class="d-flex gap-2 small text-muted mb-2">
+              @if (entry.phone) {
+                <span><i class="bi bi-telephone"></i> {{ entry.phone }}</span>
+              }
+              @if (entry.notes) {
+                <span><i class="bi bi-chat-text"></i> {{ entry.notes }}</span>
+              }
+            </div>
+
+            <div class="d-flex gap-2 align-items-center">
+              @if (entry.status === 'waiting') {
+                <button type="button" class="btn btn-sm btn-outline-success" (click)="notifyGuest(entry); $event.stopPropagation()">
+                  <i class="bi bi-bell"></i> Notify
+                </button>
+              }
+              @if (entry.status === 'waiting' || entry.status === 'notified') {
+                <button type="button" class="btn btn-sm btn-outline-info" (click)="seatGuest(entry); $event.stopPropagation()">
+                  <i class="bi bi-box-arrow-in-right"></i> Seat Now
+                </button>
+              }
+              <button type="button" class="btn btn-sm btn-outline-danger" (click)="removeGuest(entry); $event.stopPropagation()">
+                <i class="bi bi-x-lg"></i>
+              </button>
+              <div class="ms-auto d-flex gap-1">
+                <button type="button" class="btn btn-sm btn-outline-light" (click)="moveUp(entry)" [disabled]="entry.position <= 1">
+                  <i class="bi bi-arrow-up"></i>
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-light" (click)="moveDown(entry)">
+                  <i class="bi bi-arrow-down"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        } @empty {
+          <div class="empty-state text-center p-4">
+            <p class="text-muted mb-2">No one on the waitlist</p>
+            <button type="button" class="btn btn-warning btn-sm" (click)="openWaitlistForm()">Add Walk-In</button>
+          </div>
+        }
+      </div>
+    }
+  }
+
+  <!-- Waitlist Form Modal -->
+  @if (showWaitlistForm()) {
+    <div class="modal-overlay" (click)="closeWaitlistForm()">
+      <div class="modal-content card" (click)="$event.stopPropagation()">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h4 class="mb-0">Add to Waitlist</h4>
+          <button type="button" class="btn-close btn-close-white" (click)="closeWaitlistForm()"></button>
+        </div>
+        <div class="card-body">
+          <div class="mb-3">
+            <label class="form-label">Party Name *</label>
+            <input type="text" class="form-control" placeholder="Smith"
+              [value]="waitlistName()" (input)="onWaitlistField('name', $event)" />
+          </div>
+          <div class="row g-3 mb-3">
+            <div class="col-6">
+              <label class="form-label">Party Size *</label>
+              <input type="number" class="form-control" min="1" max="20"
+                [value]="waitlistSize()" (input)="onWaitlistField('size', $event)" />
+            </div>
+            <div class="col-6">
+              <label class="form-label">Phone</label>
+              <input type="tel" class="form-control" placeholder="(555) 123-4567"
+                [value]="waitlistPhone()" (input)="onWaitlistField('phone', $event)" />
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Notes</label>
+            <textarea class="form-control" rows="2" placeholder="High chair, outdoor seating..."
+              [value]="waitlistNotes()" (input)="onWaitlistField('notes', $event)"></textarea>
+          </div>
+        </div>
+        <div class="card-footer d-flex gap-2 justify-content-end">
+          <button type="button" class="btn btn-outline-light" (click)="closeWaitlistForm()" [disabled]="waitlistSaving()">Cancel</button>
+          <button type="button" class="btn btn-warning" (click)="saveWaitlistEntry()"
+            [disabled]="!waitlistName().trim() || waitlistSaving()">
+            @if (waitlistSaving()) {
+              <span class="spinner-border spinner-border-sm me-1"></span> Saving...
+            } @else {
+              Add to Waitlist
+            }
+          </button>
+        </div>
+      </div>
+    </div>
   }
 
   <!-- New Reservation Modal -->

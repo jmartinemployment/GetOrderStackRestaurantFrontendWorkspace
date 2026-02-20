@@ -20,6 +20,22 @@
     </div>
   </div>
 
+  <div class="source-filter mb-4">
+    <div class="d-flex flex-wrap gap-2">
+      @for (option of marketplaceFilterOptions; track option.value) {
+        <button
+          type="button"
+          class="btn btn-sm"
+          [class.btn-primary]="marketplaceFilter() === option.value"
+          [class.btn-outline-light]="marketplaceFilter() !== option.value"
+          (click)="setMarketplaceFilter(option.value)"
+        >
+          {{ option.label }}
+        </button>
+      }
+    </div>
+  </div>
+
   @if (error()) {
     <get-order-stack-error-display
       [message]="error()!"
@@ -50,6 +66,10 @@
             <div class="d-flex justify-content-between align-items-center">
               <div class="order-meta small text-muted d-flex align-items-center gap-2">
                 <span>{{ order.diningOption.name }}</span>
+                @if (isMarketplace(order)) {
+                  <span class="badge marketplace-source">{{ marketplaceProviderLabel(order) }}</span>
+                  <span class="badge marketplace-sync" [class]="marketplaceSyncClass(order)">{{ marketplaceSyncLabel(order) }}</span>
+                }
                 <span class="badge" [class]="getPaymentBadgeClass(order.checks[0]?.paymentStatus ?? 'OPEN')">{{ getPaymentLabel(order.checks[0]?.paymentStatus ?? 'OPEN') }}</span>
                 @if (order.loyaltyPointsEarned && order.loyaltyPointsEarned > 0) {
                   <span class="badge loyalty-earned">+{{ order.loyaltyPointsEarned }} pts</span>
@@ -104,6 +124,42 @@
           <div class="section mb-3">
             <h6>Order Details</h6>
             <p class="mb-1"><strong>Type:</strong> {{ selectedOrder()!.diningOption.name }}</p>
+            @if (isMarketplace(selectedOrder()!)) {
+              <p class="mb-1"><strong>Source:</strong> {{ marketplaceProviderLabel(selectedOrder()!) }}</p>
+              @if (selectedOrder()!.marketplace?.externalOrderId) {
+                <p class="mb-1"><strong>External Order:</strong> {{ selectedOrder()!.marketplace?.externalOrderId }}</p>
+              }
+              <p class="mb-1">
+                <strong>Sync:</strong>
+                <span class="badge marketplace-sync ms-1" [class]="marketplaceSyncClass(selectedOrder()!)">
+                  {{ marketplaceSyncLabel(selectedOrder()!) }}
+                </span>
+              </p>
+              @if (selectedOrder()!.marketplace?.lastPushAt) {
+                <p class="mb-1 text-muted small">
+                  Last sync: {{ selectedOrder()!.marketplace!.lastPushAt | date:'short' }}
+                </p>
+              }
+              @if (selectedOrder()!.marketplace?.lastPushError) {
+                <p class="mb-1 marketplace-sync-error">{{ selectedOrder()!.marketplace?.lastPushError }}</p>
+              }
+              @if (marketplaceSyncNotice()) {
+                <p class="mb-1 small marketplace-sync-notice">{{ marketplaceSyncNotice() }}</p>
+              }
+              @if (marketplaceSyncState(selectedOrder()!) === 'FAILED' && canManageMarketplaceSync()) {
+                <button
+                  type="button"
+                  class="btn btn-sm btn-outline-warning mt-1"
+                  [disabled]="isRetryingMarketplaceSync()"
+                  (click)="retryMarketplaceSync(selectedOrder()!)"
+                >
+                  @if (isRetryingMarketplaceSync()) {
+                    <span class="spinner-border spinner-border-sm me-1"></span>
+                  }
+                  Retry Marketplace Sync
+                </button>
+              }
+            }
             @if (selectedOrder()!.customer?.firstName || selectedOrder()!.customer?.lastName) {
               <p class="mb-1"><strong>Customer:</strong> {{ selectedOrder()!.customer?.firstName }} {{ selectedOrder()!.customer?.lastName }}</p>
             }

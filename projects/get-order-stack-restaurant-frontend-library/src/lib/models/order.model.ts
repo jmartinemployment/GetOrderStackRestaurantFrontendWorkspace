@@ -24,7 +24,33 @@ export type CourseFireStatus = 'PENDING' | 'FIRED' | 'READY';
 
 export type CoursePacingMode = 'disabled' | 'server_fires' | 'auto_fire_timed';
 
+export type CoursePacingConfidence = 'low' | 'medium' | 'high';
+
 export type PrintStatus = 'none' | 'printing' | 'printed' | 'failed';
+
+export type OrderThrottleState = 'NONE' | 'HELD' | 'RELEASED';
+export type OrderThrottleSource = 'AUTO' | 'MANUAL';
+export type MarketplaceOrderProvider = 'doordash_marketplace' | 'ubereats' | 'grubhub';
+export type MarketplaceSyncState = 'PENDING' | 'SUCCESS' | 'RETRYING' | 'FAILED';
+
+export type OrderSource =
+  | 'pos'
+  | 'online'
+  | 'voice'
+  | 'marketplace_doordash'
+  | 'marketplace_ubereats'
+  | 'marketplace_grubhub';
+
+export interface MarketplaceOrderInfo {
+  provider: MarketplaceOrderProvider;
+  externalOrderId: string;
+  externalStoreId?: string;
+  status?: string;
+  lastPushedStatus?: string;
+  lastPushResult?: string;
+  lastPushError?: string;
+  lastPushAt?: Date;
+}
 
 export interface Course {
   guid: string;
@@ -32,6 +58,43 @@ export interface Course {
   sortOrder: number;
   fireStatus: CourseFireStatus;
   firedDate?: Date;
+  readyDate?: Date;
+}
+
+export interface CoursePacingMetrics {
+  lookbackDays: number;
+  sampleSize: number;
+  tablePaceBaselineSeconds: number;
+  p50Seconds: number;
+  p80Seconds: number;
+  confidence: CoursePacingConfidence;
+  generatedAt: Date;
+}
+
+export interface OrderThrottleInfo {
+  state: OrderThrottleState;
+  reason?: string;
+  heldAt?: Date;
+  releasedAt?: Date;
+  source?: OrderThrottleSource;
+  releaseReason?: string;
+}
+
+export interface OrderThrottlingStatus {
+  enabled: boolean;
+  triggering: boolean;
+  triggerReason?: 'ACTIVE_OVERLOAD' | 'OVERDUE_OVERLOAD';
+  activeOrders: number;
+  overdueOrders: number;
+  heldOrders: number;
+  thresholds: {
+    maxActiveOrders: number;
+    maxOverdueOrders: number;
+    releaseActiveOrders: number;
+    releaseOverdueOrders: number;
+    maxHoldMinutes: number;
+  };
+  evaluatedAt: Date;
 }
 
 // Pre-submission order type (used by CartService / OnlineOrderPortal)
@@ -62,6 +125,28 @@ export interface SelectionModifier {
   priceAdjustment: number;
 }
 
+export type DiscountType = 'percentage' | 'flat' | 'comp';
+
+export type VoidReason = 'customer_request' | 'wrong_item' | 'quality_issue' | 'kitchen_error' | 'other';
+
+export type DiscountReason = 'loyalty' | 'birthday' | 'manager_comp' | 'employee_meal' | 'promo' | 'other';
+
+export interface CheckDiscount {
+  id: string;
+  type: DiscountType;
+  value: number;
+  reason: DiscountReason | string;
+  appliedBy: string;
+  approvedBy?: string;
+}
+
+export interface VoidedSelection extends Selection {
+  voidReason: VoidReason | string;
+  voidedBy: string;
+  voidedAt: Date;
+  managerApproval?: string;
+}
+
 export interface Selection {
   guid: string;
   menuItemGuid: string;
@@ -73,8 +158,13 @@ export interface Selection {
   modifiers: SelectionModifier[];
   specialInstructions?: string;
   course?: Course;
-  fireDelaySeconds?: number;      // Computed delay before this item should fire
-  scheduledFireTime?: Date;       // Absolute time when this item should fire
+  completedAt?: Date;
+  fireDelaySeconds?: number;
+  scheduledFireTime?: Date;
+  seatNumber?: number;
+  isComped?: boolean;
+  compReason?: string;
+  compBy?: string;
 }
 
 export interface Payment {
@@ -98,6 +188,12 @@ export interface Check {
   taxAmount: number;
   tipAmount: number;
   totalAmount: number;
+  discounts: CheckDiscount[];
+  voidedSelections: VoidedSelection[];
+  tabName?: string;
+  tabOpenedAt?: Date;
+  tabClosedAt?: Date;
+  preauthId?: string;
 }
 
 export interface OrderTimestamps {
@@ -138,6 +234,7 @@ export interface Order {
   restaurantId: string;
   orderNumber: string;
   guestOrderStatus: GuestOrderStatus;
+  orderSource?: OrderSource;
   businessDate?: string;
 
   // Server / Device / Table
@@ -178,6 +275,10 @@ export interface Order {
   // Loyalty
   loyaltyPointsEarned?: number;
   loyaltyPointsRedeemed?: number;
+
+  // Kitchen throttling
+  throttle?: OrderThrottleInfo;
+  marketplace?: MarketplaceOrderInfo;
 
   // Client-only: true for offline-queued orders not yet synced
   _queued?: boolean;
@@ -239,6 +340,65 @@ export function calculateOrderTotals(checks: Check[]): {
 
 export function canSendToKitchen(order: Order): boolean {
   return order.guestOrderStatus === 'RECEIVED' || order.guestOrderStatus === 'IN_PREPARATION';
+}
+
+export function isMarketplaceOrder(order: Order): boolean {
+  if (order.marketplace) return true;
+  const source = (order.orderSource ?? '').toLowerCase();
+  return source.startsWith('marketplace_');
+}
+
+export function getMarketplaceProviderLabel(order: Order): string | null {
+  const provider = order.marketplace?.provider;
+  if (provider === 'doordash_marketplace') return 'DoorDash Marketplace';
+  if (provider === 'ubereats') return 'Uber Eats';
+  if (provider === 'grubhub') return 'Grubhub';
+
+  const source = (order.orderSource ?? '').toLowerCase();
+  if (source === 'marketplace_doordash') return 'DoorDash Marketplace';
+  if (source === 'marketplace_ubereats') return 'Uber Eats';
+  if (source === 'marketplace_grubhub') return 'Grubhub';
+  return null;
+}
+
+export function getMarketplaceSyncState(order: Order): MarketplaceSyncState | null {
+  if (!isMarketplaceOrder(order)) return null;
+  const result = (order.marketplace?.lastPushResult ?? '').toUpperCase();
+  if (result === 'SUCCESS') return 'SUCCESS';
+  if (result === 'FAILED') return 'FAILED';
+  if (result === 'FAILED_RETRYING') return 'RETRYING';
+  return 'PENDING';
+}
+
+export function getMarketplaceSyncStateLabel(state: MarketplaceSyncState | null): string {
+  switch (state) {
+    case 'SUCCESS':
+      return 'Sync OK';
+    case 'FAILED':
+      return 'Sync Failed';
+    case 'RETRYING':
+      return 'Retrying';
+    case 'PENDING':
+      return 'Sync Pending';
+    default:
+      return 'Sync';
+  }
+}
+
+export function getMarketplaceSyncClass(order: Order): string {
+  const state = getMarketplaceSyncState(order);
+  switch (state) {
+    case 'SUCCESS':
+      return 'sync-success';
+    case 'FAILED':
+      return 'sync-failed';
+    case 'RETRYING':
+      return 'sync-retrying';
+    case 'PENDING':
+      return 'sync-pending';
+    default:
+      return 'sync-pending';
+  }
 }
 
 export function calculateOrderMetrics(order: Order): OrderMetrics | null {

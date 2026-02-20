@@ -109,6 +109,75 @@ export { SentimentDashboard } from './lib/sentiment/sentiment-dashboard';
 // Station service
 export { StationService } from './lib/services/station';
 
+// Check service (POS)
+export { CheckService } from './lib/services/check';
+export type {
+  AddItemRequest,
+  SplitByItemRequest,
+  SplitByEqualRequest,
+  TransferCheckRequest,
+  DiscountRequest,
+  VoidItemRequest,
+  CompItemRequest,
+  OpenTabRequest,
+} from './lib/services/check';
+
+// POS components
+export { ServerPosTerminal } from './lib/pos/server-pos-terminal';
+export { OrderPad } from './lib/pos/order-pad';
+export { ModifierPrompt } from './lib/pos/modifier-prompt';
+export type { ModifierPromptResult } from './lib/pos/modifier-prompt';
+export { DiscountModal } from './lib/pos/discount-modal';
+export type { DiscountResult } from './lib/pos/discount-modal';
+export { VoidModal } from './lib/pos/void-modal';
+export type { VoidResult, CompResult } from './lib/pos/void-modal';
+export { ManagerPinPrompt } from './lib/pos/manager-pin-prompt';
+
+// Floor plan event types
+export type { TableSelectedEvent } from './lib/table-mgmt/floor-plan/floor-plan';
+
+// Reports components
+export { CloseOfDay } from './lib/reports/close-of-day';
+
+// Cash Drawer
+export { CashDrawerService } from './lib/services/cash-drawer';
+export { CashDrawer } from './lib/pos/cash-drawer';
+
+// Kiosk
+export { KioskTerminal } from './lib/kiosk/kiosk-terminal';
+
+// Labor components
+export { StaffScheduling } from './lib/labor/staff-scheduling';
+export { LaborService } from './lib/services/labor';
+
+// Gift Card
+export { GiftCardService } from './lib/services/gift-card';
+export { GiftCardManagement } from './lib/settings/gift-card-management';
+
+// Marketing components
+export { MarketingService } from './lib/services/marketing';
+export { CampaignBuilder } from './lib/marketing/campaign-builder';
+
+// Invoicing components
+export { InvoiceService } from './lib/services/invoice';
+export { InvoiceManager } from './lib/invoicing/invoice-manager';
+
+// Combo Management components
+export { ComboService } from './lib/services/combo';
+export { ComboManagement } from './lib/menu-mgmt/combo-management';
+
+// Staff Portal
+export { StaffPortal } from './lib/staff/staff-portal';
+
+// Multi-Location Management
+export { MultiLocationService } from './lib/services/multi-location';
+export { MultiLocationDashboard } from './lib/multi-location/multi-location-dashboard';
+
+// Food Cost / AP Automation
+export { VendorService } from './lib/services/vendor';
+export { RecipeCostingService } from './lib/services/recipe-costing';
+export { FoodCostDashboard } from './lib/food-cost/food-cost-dashboard';
+
 // Additional services
 export { ChatService } from './lib/services/chat';
 export { CustomerService } from './lib/services/customer';

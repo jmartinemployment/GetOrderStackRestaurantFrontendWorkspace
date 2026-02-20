@@ -4,10 +4,12 @@ import { CartService } from '../../services/cart';
 import { AuthService } from '../../services/auth';
 import { SocketService } from '../../services/socket';
 import { PaymentService } from '../../services/payment';
+import { DeliveryService } from '../../services/delivery';
 import { OrderService } from '../../services/order';
 import { RestaurantSettingsService } from '../../services/restaurant-settings';
 import { LoyaltyService } from '../../services/loyalty';
-import { Modifier, CustomerInfo, Course, LoyaltyProfile, LoyaltyReward, getTierLabel, getTierColor, tierMeetsMinimum } from '../../models';
+import { GiftCardService } from '../../services/gift-card';
+import { Modifier, CustomerInfo, Course, LoyaltyProfile, LoyaltyReward, DeliveryQuote, GiftCardBalanceCheck, getTierLabel, getTierColor, tierMeetsMinimum } from '../../models';
 import {
   DiningOptionType,
   DINING_OPTIONS,
@@ -29,9 +31,11 @@ export class CheckoutModal implements OnInit {
   private readonly authService = inject(AuthService);
   private readonly socketService = inject(SocketService);
   private readonly paymentService = inject(PaymentService);
+  private readonly deliveryService = inject(DeliveryService);
   private readonly orderService = inject(OrderService);
   private readonly settingsService = inject(RestaurantSettingsService);
   private readonly loyaltyService = inject(LoyaltyService);
+  private readonly giftCardService = inject(GiftCardService);
 
   orderPlaced = output<string>();
 
@@ -98,6 +102,34 @@ export class CheckoutModal implements OnInit {
     this.loyaltyEnabled() && !this.selectedDiningOption().requiresCustomer
   );
 
+  // --- Delivery DaaS ---
+  private readonly _deliveryQuote = signal<DeliveryQuote | null>(null);
+  private readonly _isDispatchingDelivery = signal(false);
+  private readonly _deliveryDispatched = signal(false);
+  readonly deliveryQuote = this._deliveryQuote.asReadonly();
+  readonly isDispatchingDelivery = this._isDispatchingDelivery.asReadonly();
+  readonly deliveryDispatched = this._deliveryDispatched.asReadonly();
+  readonly deliveryError = this.deliveryService.error;
+
+  // --- Gift Card ---
+  private readonly _giftCardCode = signal('');
+  private readonly _giftCardBalance = signal<GiftCardBalanceCheck | null>(null);
+  private readonly _giftCardAmount = signal(0);
+  private readonly _isCheckingGiftCard = signal(false);
+  private readonly _giftCardApplied = signal(false);
+
+  readonly giftCardCode = this._giftCardCode.asReadonly();
+  readonly giftCardBalance = this._giftCardBalance.asReadonly();
+  readonly giftCardAmount = this._giftCardAmount.asReadonly();
+  readonly isCheckingGiftCard = this._isCheckingGiftCard.asReadonly();
+  readonly giftCardApplied = this._giftCardApplied.asReadonly();
+
+  readonly giftCardDiscount = computed(() => this._giftCardApplied() ? this._giftCardAmount() : 0);
+
+  readonly totalAfterGiftCard = computed(() =>
+    Math.max(0, this.total() - this.giftCardDiscount())
+  );
+
   readonly tierLabel = computed(() => {
     const profile = this._loyaltyProfile();
     return profile ? getTierLabel(profile.tier) : '';
@@ -108,9 +140,16 @@ export class CheckoutModal implements OnInit {
     return profile ? getTierColor(profile.tier) : '';
   });
 
-  ngOnInit(): void {
+  async ngOnInit(): Promise<void> {
+    await this.settingsService.loadSettings();
+
     const processorType = this.settingsService.paymentSettings().processor;
     this.paymentService.setProcessorType(processorType);
+    const deliveryProvider = this.settingsService.deliverySettings().provider;
+    this.deliveryService.setProviderType(deliveryProvider);
+    if (deliveryProvider === 'doordash' || deliveryProvider === 'uber') {
+      await this.deliveryService.loadConfigStatus();
+    }
     this.loyaltyService.loadConfig();
     this.loyaltyService.loadRewards();
   }
@@ -416,6 +455,51 @@ export class CheckoutModal implements OnInit {
     }, 500);
   }
 
+  // --- Gift Card methods ---
+
+  onGiftCardCodeInput(event: Event): void {
+    this._giftCardCode.set((event.target as HTMLInputElement).value);
+    this._giftCardBalance.set(null);
+    this._giftCardApplied.set(false);
+    this._giftCardAmount.set(0);
+  }
+
+  async lookupGiftCard(): Promise<void> {
+    const code = this._giftCardCode().trim();
+    if (!code) return;
+
+    this._isCheckingGiftCard.set(true);
+    const result = await this.giftCardService.checkBalance(code);
+    this._isCheckingGiftCard.set(false);
+
+    if (result && result.status === 'active' && result.currentBalance > 0) {
+      this._giftCardBalance.set(result);
+      const maxApply = Math.min(result.currentBalance, this.total());
+      this._giftCardAmount.set(Math.round(maxApply * 100) / 100);
+    } else {
+      this._giftCardBalance.set(null);
+    }
+  }
+
+  applyGiftCard(): void {
+    if (!this._giftCardBalance()) return;
+    this._giftCardApplied.set(true);
+  }
+
+  clearGiftCard(): void {
+    this._giftCardCode.set('');
+    this._giftCardBalance.set(null);
+    this._giftCardAmount.set(0);
+    this._giftCardApplied.set(false);
+  }
+
+  onGiftCardAmountInput(event: Event): void {
+    const value = Number.parseFloat((event.target as HTMLInputElement).value) || 0;
+    const maxBalance = this._giftCardBalance()?.currentBalance ?? 0;
+    const maxTotal = this.total();
+    this._giftCardAmount.set(Math.max(0, Math.min(value, maxBalance, maxTotal)));
+  }
+
   // --- Submit ---
 
   async submitOrder(): Promise<void> {
@@ -531,12 +615,34 @@ export class CheckoutModal implements OnInit {
         orderData['loyaltyPointsRedeemed'] = this._pointsToRedeem();
       }
 
+      // Gift card
+      if (this._giftCardApplied() && this._giftCardAmount() > 0) {
+        orderData['giftCardCode'] = this._giftCardCode().trim();
+        orderData['giftCardAmount'] = this._giftCardAmount();
+      }
+
       const order = await this.orderService.createOrder(orderData);
 
       if (order) {
         this._orderId.set(order.guid);
         this._orderNumber.set(order.orderNumber);
         this.orderPlaced.emit(order.orderNumber);
+
+        // Redeem gift card after order creation
+        if (this._giftCardApplied() && this._giftCardAmount() > 0) {
+          await this.giftCardService.redeemGiftCard(
+            this._giftCardCode().trim(),
+            this._giftCardAmount(),
+            order.guid
+          );
+        }
+
+        // DaaS: request quote + auto-dispatch if delivery order with DaaS configured
+        if (type === 'delivery' && this.deliveryService.isConfigured()) {
+          if (await this.deliveryService.ensureSelectedProviderConfigured()) {
+            await this.handleDeliveryDispatch(order.guid);
+          }
+        }
 
         if (this.paymentService.isConfigured()) {
           this.resetForm();
@@ -616,6 +722,35 @@ export class CheckoutModal implements OnInit {
     }, 50);
   }
 
+  private async handleDeliveryDispatch(orderId: string): Promise<void> {
+    const quote = await this.deliveryService.requestQuote(orderId);
+    if (!quote) {
+      this._error.set('Delivery quote unavailable — driver not dispatched. You can retry from the KDS.');
+      return;
+    }
+    this._deliveryQuote.set(quote);
+
+    const autoDispatch = this.settingsService.deliverySettings().autoDispatch;
+    if (autoDispatch) {
+      await this.dispatchDelivery(orderId, quote.quoteId);
+    }
+  }
+
+  async dispatchDelivery(orderId?: string, quoteId?: string): Promise<void> {
+    const oId = orderId ?? this._orderId();
+    const qId = quoteId ?? this._deliveryQuote()?.quoteId;
+    if (!oId || !qId) return;
+
+    this._isDispatchingDelivery.set(true);
+    const result = await this.deliveryService.acceptQuote(oId, qId);
+    this._isDispatchingDelivery.set(false);
+
+    if (result) {
+      this._deliveryDispatched.set(true);
+      this._deliveryQuote.set(null);
+    }
+  }
+
   private resetForm(): void {
     this._tableNumber.set('');
     this._diningType.set('dine-in');
@@ -647,5 +782,13 @@ export class CheckoutModal implements OnInit {
     this._pointsToRedeem.set(0);
     this._loyaltyPhone.set('');
     this.cartService.clearLoyaltyRedemption();
+    this._deliveryQuote.set(null);
+    this._isDispatchingDelivery.set(false);
+    this._deliveryDispatched.set(false);
+    this.deliveryService.reset();
+    this._giftCardCode.set('');
+    this._giftCardBalance.set(null);
+    this._giftCardAmount.set(0);
+    this._giftCardApplied.set(false);
   }
 }
