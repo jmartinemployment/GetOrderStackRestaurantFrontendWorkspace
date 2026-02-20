@@ -209,18 +209,19 @@ if (is_page($orderstack_pages)) {
 }
 ```
 
-### WordPress Page Templates (18 pages)
+### WordPress Page Templates (29 pages)
 
-Each page has a PHP template (`page-{slug}.php`) in the Geek-At-Your-Spot theme. All include `<get-order-stack-login>` + `<get-order-stack-restaurant-select>` for auth (except online-ordering which is public-facing).
+Each page has a PHP template (`page-{slug}.php`) in the Geek-At-Your-Spot theme. All include `<get-order-stack-login>` + `<get-order-stack-restaurant-select>` for auth (except online-ordering, kiosk, and staff-portal which have their own auth).
 
 | Page Slug | PHP Template | Components |
 |---|---|---|
 | `taipa-demo` | `page-taipa-demo.php` | login, restaurant-select, sos-terminal |
+| `orderstack-server-ordering` | `page-orderstack-server-ordering.php` | login, restaurant-select, sos-terminal |
 | `orderstack-kds` | `page-orderstack-kds.php` | login, restaurant-select, kds-display |
 | `orderstack-menu-engineering` | `page-orderstack-menu-engineering.php` | login, restaurant-select, menu-engineering |
 | `orderstack-sales` | `page-orderstack-sales.php` | login, restaurant-select, sales-dashboard |
 | `orderstack-inventory` | `page-orderstack-inventory.php` | login, restaurant-select, inventory-dashboard |
-| `orderstack-menu-management` | `page-orderstack-menu-management.php` | login, restaurant-select, category-management, item-management |
+| `orderstack-menu-management` | `page-orderstack-menu-management.php` | login, restaurant-select, category-management, item-management, combo-management |
 | `orderstack-orders` | `page-orderstack-orders.php` | login, restaurant-select, pending-orders, order-history |
 | `orderstack-online-ordering` | `page-orderstack-online-ordering.php` | online-ordering (no auth — customer-facing) |
 | `orderstack-reservations` | `page-orderstack-reservations.php` | login, restaurant-select, reservations |
@@ -233,6 +234,17 @@ Each page has a PHP template (`page-{slug}.php`) in the Geek-At-Your-Spot theme.
 | `orderstack-pricing` | `page-orderstack-pricing.php` | login, restaurant-select, dynamic-pricing |
 | `orderstack-waste` | `page-orderstack-waste.php` | login, restaurant-select, waste-tracker |
 | `orderstack-sentiment` | `page-orderstack-sentiment.php` | login, restaurant-select, sentiment |
+| `orderstack-order-pad` | `page-orderstack-order-pad.php` | login, restaurant-select, order-pad |
+| `orderstack-staff-portal` | `page-orderstack-staff-portal.php` | staff-portal (PIN auth — no login/restaurant-select) |
+| `orderstack-food-cost` | `page-orderstack-food-cost.php` | login, restaurant-select, food-cost |
+| `orderstack-multi-location` | `page-orderstack-multi-location.php` | login, restaurant-select, multi-location |
+| `orderstack-pos` | `page-orderstack-pos.php` | login, restaurant-select, pos-terminal, cash-drawer |
+| `orderstack-close-of-day` | `page-orderstack-close-of-day.php` | login, restaurant-select, close-of-day |
+| `orderstack-kiosk` | `page-orderstack-kiosk.php` | kiosk (no auth — customer-facing, restaurant-slug attribute) |
+| `orderstack-settings` | `page-orderstack-settings.php` | login, restaurant-select, control-panel |
+| `orderstack-scheduling` | `page-orderstack-scheduling.php` | login, restaurant-select, scheduling |
+| `orderstack-marketing` | `page-orderstack-marketing.php` | login, restaurant-select, campaign-builder |
+| `orderstack-invoicing` | `page-orderstack-invoicing.php` | login, restaurant-select, invoice-manager |
 
 **Important:** Pages must be created in WordPress Admin (Pages > Add New) with matching slug and "Custom PHP Page Template" selected. Then flush permalinks (Settings > Permalinks > Save).
 
@@ -1385,6 +1397,19 @@ npm run seed:reset    # Nuclear: wipe DB, re-create schema, re-seed everything
 - **Backend fix:** `tipAmount` → `tip` (correct Prisma Order column name) in earnings calculation
 - **Backend deploy:** committed `40a2aba`, pushed to main, Render deployed, all 6 endpoints verified live
 - **Frontend deploy:** Rebuilt bundle with marketing URL fix, FTP uploaded main.js + styles.css to WordPress
+- **WordPress page templates:** Created 7 missing page templates + updated 1 existing:
+  - NEW: `page-orderstack-pos.php` (POS Terminal + Cash Drawer)
+  - NEW: `page-orderstack-close-of-day.php` (Close-of-Day Report)
+  - NEW: `page-orderstack-kiosk.php` (Self-Service Kiosk — no auth, restaurant-slug attribute)
+  - NEW: `page-orderstack-settings.php` (Control Panel — 10-tab settings hub)
+  - NEW: `page-orderstack-scheduling.php` (Staff Scheduling)
+  - NEW: `page-orderstack-marketing.php` (Campaign Builder)
+  - NEW: `page-orderstack-invoicing.php` (Invoice Manager)
+  - UPDATED: `page-orderstack-menu-management.php` — added `<get-order-stack-combo-management>`
+  - UPDATED: `functions.php` — added 7 new slugs to both `$orderstack_pages` arrays (29 total), fixed trailing slash on `orderstack-server-ordering`
+  - FTP uploaded all 9 files to WordPress
+- WordPress page templates: 29 total (was 22), all FTP uploaded
+- WordPress admin action needed: create 7 new pages (pos, close-of-day, kiosk, settings, scheduling, marketing, invoicing) with matching slugs, select "Custom PHP Page Template", flush permalinks
 - **Remaining work:** marketplace pilot rollout execution, credential encryption Phase B
 
 ---
