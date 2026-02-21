@@ -3,7 +3,7 @@ import { DeliveryProviderType } from './delivery.model';
 import { PaymentProcessorType } from './payment.model';
 import { TipPoolRule, TipOutRule } from './tip.model';
 
-export type ControlPanelTab = 'printers' | 'ai-settings' | 'online-pricing' | 'catering-calendar' | 'payments' | 'tip-management' | 'loyalty' | 'delivery' | 'stations' | 'gift-cards';
+export type ControlPanelTab = 'printers' | 'ai-settings' | 'online-pricing' | 'catering-calendar' | 'payments' | 'tip-management' | 'loyalty' | 'delivery' | 'stations' | 'gift-cards' | 'staff' | 'devices' | 'time-clock-config';
 
 /**
  * AI Settings — Control Panel > AI Settings tab
@@ -171,6 +171,42 @@ export function defaultTipManagementSettings(): TipManagementSettings {
     defaultHourlyRate: 5.63,
     poolRules: [],
     tipOutRules: [],
+  };
+}
+
+// --- Schedule Enforcement & Auto Clock-Out Settings ---
+
+export type AutoClockOutMode = 'after_shift_end' | 'business_day_cutoff' | 'never';
+
+export interface TimeclockSettings {
+  /** Block clock-in if no scheduled shift */
+  scheduleEnforcementEnabled: boolean;
+  /** Minutes before shift start that clock-in is allowed */
+  earlyClockInGraceMinutes: number;
+  /** Flag clock-ins that are this many minutes late */
+  lateClockInThresholdMinutes: number;
+  /** Allow manager override for schedule enforcement */
+  allowManagerOverride: boolean;
+  /** Auto clock-out mode */
+  autoClockOutMode: AutoClockOutMode;
+  /** Minutes after shift end to auto-clock-out (only for 'after_shift_end' mode) */
+  autoClockOutDelayMinutes: number;
+  /** Business day cutoff time in HH:mm (only for 'business_day_cutoff' mode) */
+  businessDayCutoffTime: string;
+  /** Alert managers of open timecards at end of day */
+  alertOpenTimecards: boolean;
+}
+
+export function defaultTimeclockSettings(): TimeclockSettings {
+  return {
+    scheduleEnforcementEnabled: false,
+    earlyClockInGraceMinutes: 15,
+    lateClockInThresholdMinutes: 10,
+    allowManagerOverride: true,
+    autoClockOutMode: 'never',
+    autoClockOutDelayMinutes: 30,
+    businessDayCutoffTime: '02:00',
+    alertOpenTimecards: true,
   };
 }
 

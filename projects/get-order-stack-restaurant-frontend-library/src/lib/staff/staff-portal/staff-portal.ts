@@ -7,6 +7,7 @@ import {
 } from '@angular/core';
 import { CurrencyPipe, DatePipe, DecimalPipe } from '@angular/common';
 import { LaborService } from '../../services/labor';
+import { RestaurantSettingsService } from '../../services/restaurant-settings';
 import {
   StaffMember,
   Shift,
@@ -15,6 +16,11 @@ import {
   SwapRequest,
   StaffEarnings,
   ShiftPosition,
+  Timecard,
+  TimecardBreak,
+  BreakType,
+  TimeclockTab,
+  TimecardEditType,
 } from '../../models';
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -29,6 +35,7 @@ const DAY_ABBR = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 })
 export class StaffPortal {
   private readonly laborService = inject(LaborService);
+  private readonly settingsService = inject(RestaurantSettingsService);
 
   // --- PIN login state ---
   private readonly _pinDigits = signal('');
@@ -147,6 +154,140 @@ export class StaffPortal {
     return this._myShifts().filter(s => new Date(s.date + 'T' + s.endTime) > now);
   });
 
+  // --- Time Clock state ---
+  private readonly _timeclockSubTab = signal<TimeclockTab>('clock');
+  private readonly _activeTimecard = signal<Timecard | null>(null);
+  private readonly _todayTimecards = signal<Timecard[]>([]);
+  private readonly _breakTypes = signal<BreakType[]>([]);
+  private readonly _isClockAction = signal(false);
+  private readonly _showClockOutConfirm = signal(false);
+  private readonly _declaredTips = signal<number | null>(null);
+  private readonly _selectedJobTitle = signal<string | null>(null);
+
+  readonly timeclockSubTab = this._timeclockSubTab.asReadonly();
+  readonly activeTimecard = this._activeTimecard.asReadonly();
+  readonly todayTimecards = this._todayTimecards.asReadonly();
+  readonly breakTypes = this._breakTypes.asReadonly();
+  readonly isClockAction = this._isClockAction.asReadonly();
+  readonly showClockOutConfirm = this._showClockOutConfirm.asReadonly();
+  readonly declaredTips = this._declaredTips.asReadonly();
+  readonly selectedJobTitle = this._selectedJobTitle.asReadonly();
+
+  readonly isClockedIn = computed(() => this._activeTimecard() !== null);
+
+  readonly activeBreak = computed(() => {
+    const tc = this._activeTimecard();
+    if (!tc) return null;
+    return tc.breaks.find(b => b.endAt === null) ?? null;
+  });
+
+  readonly isOnBreak = computed(() => this.activeBreak() !== null);
+
+  readonly clockedInDuration = computed(() => {
+    const tc = this._activeTimecard();
+    if (!tc) return '';
+    const start = new Date(tc.clockInAt);
+    const now = new Date();
+    const diffMs = now.getTime() - start.getTime();
+    const hours = Math.floor(diffMs / 3600000);
+    const mins = Math.floor((diffMs % 3600000) / 60000);
+    return `${hours}h ${mins}m`;
+  });
+
+  readonly breakElapsedMinutes = computed(() => {
+    const brk = this.activeBreak();
+    if (!brk) return 0;
+    const start = new Date(brk.startAt);
+    const now = new Date();
+    return Math.floor((now.getTime() - start.getTime()) / 60000);
+  });
+
+  readonly todayTotalHours = computed(() => {
+    return this._todayTimecards().reduce((sum, tc) => sum + tc.totalPaidHours, 0);
+  });
+
+  readonly todayTotalBreakMinutes = computed(() => {
+    return this._todayTimecards().reduce((sum, tc) => sum + tc.totalBreakMinutes, 0);
+  });
+
+  /** Shift summary computed for clock-out modal */
+  readonly shiftSummary = computed(() => {
+    const tc = this._activeTimecard();
+    if (!tc) return null;
+
+    const clockIn = new Date(tc.clockInAt);
+    const now = new Date();
+    const totalMs = now.getTime() - clockIn.getTime();
+    const totalMinutes = Math.floor(totalMs / 60000);
+    const totalHours = totalMinutes / 60;
+
+    const breakMinutes = tc.breaks.reduce((sum, b) => {
+      if (b.endAt) {
+        return sum + (b.actualMinutes ?? Math.floor((new Date(b.endAt).getTime() - new Date(b.startAt).getTime()) / 60000));
+      }
+      return sum;
+    }, 0);
+
+    const paidBreakMinutes = tc.breaks.filter(b => b.isPaid && b.endAt).reduce((sum, b) => {
+      return sum + (b.actualMinutes ?? Math.floor((new Date(b.endAt!).getTime() - new Date(b.startAt).getTime()) / 60000));
+    }, 0);
+
+    const unpaidBreakMinutes = breakMinutes - paidBreakMinutes;
+    const netPaidMinutes = totalMinutes - unpaidBreakMinutes;
+    const netPaidHours = netPaidMinutes / 60;
+
+    return {
+      clockInTime: this.formatTimecardTime(tc.clockInAt),
+      clockOutTime: this.formatTimecardTime(now.toISOString()),
+      totalHours,
+      breakMinutes,
+      paidBreakMinutes,
+      unpaidBreakMinutes,
+      netPaidHours,
+      breaks: tc.breaks.filter(b => b.endAt !== null),
+      jobTitle: tc.jobTitle,
+      hourlyRate: tc.hourlyRate,
+      isTipEligible: tc.isTipEligible,
+      estimatedPay: netPaidHours * (tc.hourlyRate / 100),
+    };
+  });
+
+  // --- Timecard Edit Request ---
+  private readonly _showEditForm = signal(false);
+  private readonly _editTimecardId = signal<string | null>(null);
+  private readonly _editType = signal<TimecardEditType>('clock_in');
+  private readonly _editOriginalValue = signal('');
+  private readonly _editNewValue = signal('');
+  private readonly _editReason = signal('');
+  private readonly _isSubmittingEdit = signal(false);
+
+  readonly showEditForm = this._showEditForm.asReadonly();
+  readonly editTimecardId = this._editTimecardId.asReadonly();
+  readonly editType = this._editType.asReadonly();
+  readonly editOriginalValue = this._editOriginalValue.asReadonly();
+  readonly editNewValue = this._editNewValue.asReadonly();
+  readonly editReason = this._editReason.asReadonly();
+  readonly isSubmittingEdit = this._isSubmittingEdit.asReadonly();
+
+  readonly editTypeOptions: { value: TimecardEditType; label: string }[] = [
+    { value: 'clock_in', label: 'Clock In Time' },
+    { value: 'clock_out', label: 'Clock Out Time' },
+    { value: 'break_start', label: 'Break Start' },
+    { value: 'break_end', label: 'Break End' },
+    { value: 'job_change', label: 'Job Title' },
+  ];
+
+  // --- Schedule enforcement ---
+  private readonly _scheduleBlockMessage = signal<string | null>(null);
+  private readonly _showManagerOverride = signal(false);
+  private readonly _managerOverridePin = signal('');
+  readonly scheduleBlockMessage = this._scheduleBlockMessage.asReadonly();
+  readonly showManagerOverride = this._showManagerOverride.asReadonly();
+  readonly managerOverridePin = this._managerOverridePin.asReadonly();
+
+  // --- Auto clock-out timer ---
+  private autoClockOutTimer: ReturnType<typeof setTimeout> | null = null;
+
   // --- Error ---
   private readonly _error = signal<string | null>(null);
   readonly error = this._error.asReadonly();
@@ -195,6 +336,7 @@ export class StaffPortal {
   }
 
   logout(): void {
+    this.clearAutoClockOutTimer();
     this._loggedInStaff.set(null);
     this._pinDigits.set('');
     this._activeTab.set('schedule');
@@ -213,6 +355,8 @@ export class StaffPortal {
       this.loadAvailability();
     } else if (tab === 'swaps') {
       this.loadSwapRequests();
+    } else if (tab === 'timeclock') {
+      this.loadTimeclockData();
     }
   }
 
@@ -452,7 +596,339 @@ export class StaffPortal {
     return 'status-pending';
   }
 
+  // === Time Clock ===
+
+  setTimeclockSubTab(tab: TimeclockTab): void {
+    this._timeclockSubTab.set(tab);
+  }
+
+  private async loadTimeclockData(): Promise<void> {
+    const staff = this._loggedInStaff();
+    if (!staff) return;
+
+    const today = this.formatDate(new Date());
+
+    await Promise.all([
+      this.laborService.loadTimecards({ teamMemberId: staff.id, startDate: today, endDate: today }),
+      this.laborService.loadBreakTypes(),
+    ]);
+
+    this._todayTimecards.set(this.laborService.timecards());
+    this._breakTypes.set(this.laborService.breakTypes());
+
+    const open = this._todayTimecards().find(tc => tc.status === 'OPEN');
+    this._activeTimecard.set(open ?? null);
+
+    if (open) {
+      this.startAutoClockOutTimer();
+    }
+  }
+
+  setSelectedJobTitle(title: string): void {
+    this._selectedJobTitle.set(title);
+  }
+
+  async doClockIn(): Promise<void> {
+    const staff = this._loggedInStaff();
+    if (!staff || this._isClockAction()) return;
+
+    // Schedule enforcement check
+    const tcSettings = this.settingsService.timeclockSettings();
+    if (tcSettings.scheduleEnforcementEnabled) {
+      const blockReason = this.checkScheduleEnforcement(staff.id, tcSettings.earlyClockInGraceMinutes);
+      if (blockReason) {
+        if (tcSettings.allowManagerOverride) {
+          this._scheduleBlockMessage.set(blockReason);
+          this._showManagerOverride.set(true);
+          return;
+        }
+        this._error.set(blockReason);
+        return;
+      }
+    }
+
+    await this.executeClockIn();
+  }
+
+  private async executeClockIn(): Promise<void> {
+    const staff = this._loggedInStaff();
+    if (!staff) return;
+
+    this._isClockAction.set(true);
+    this._error.set(null);
+
+    const jobTitle = this._selectedJobTitle() ?? undefined;
+    const timecard = await this.laborService.clockInWithJob(staff.id, jobTitle);
+
+    if (timecard) {
+      this._activeTimecard.set(timecard);
+      this._todayTimecards.update(tc => [...tc, timecard]);
+      this._selectedJobTitle.set(null);
+      this.startAutoClockOutTimer();
+    } else {
+      this._error.set('Failed to clock in');
+    }
+
+    this._isClockAction.set(false);
+  }
+
+  private checkScheduleEnforcement(staffId: string, graceMinutes: number): string | null {
+    const now = new Date();
+    const todayStr = this.formatDate(now);
+    const todayShifts = this._myShifts().filter(s => s.date === todayStr);
+
+    if (todayShifts.length === 0) {
+      return 'No scheduled shift found for today. Clock-in requires a scheduled shift.';
+    }
+
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    const hasUpcoming = todayShifts.some(s => {
+      const [h, m] = s.startTime.split(':').map(Number);
+      const shiftStart = h * 60 + m;
+      return nowMinutes >= (shiftStart - graceMinutes);
+    });
+
+    if (!hasUpcoming) {
+      return `Too early to clock in. Your shift doesn't start for more than ${graceMinutes} minutes.`;
+    }
+
+    return null;
+  }
+
+  // Manager override for schedule enforcement
+  setManagerOverridePin(pin: string): void {
+    this._managerOverridePin.set(pin);
+  }
+
+  async submitManagerOverride(): Promise<void> {
+    const pin = this._managerOverridePin();
+    if (pin.length < 4) return;
+
+    this._isClockAction.set(true);
+    const staff = await this.laborService.validateStaffPin(pin);
+
+    if (staff && (staff.role === 'manager' || staff.role === 'owner')) {
+      this._showManagerOverride.set(false);
+      this._scheduleBlockMessage.set(null);
+      this._managerOverridePin.set('');
+      await this.executeClockIn();
+    } else {
+      this._error.set('Invalid manager PIN');
+      this._managerOverridePin.set('');
+    }
+
+    this._isClockAction.set(false);
+  }
+
+  cancelManagerOverride(): void {
+    this._showManagerOverride.set(false);
+    this._scheduleBlockMessage.set(null);
+    this._managerOverridePin.set('');
+  }
+
+  // Auto clock-out timer
+  private startAutoClockOutTimer(): void {
+    this.clearAutoClockOutTimer();
+
+    const tcSettings = this.settingsService.timeclockSettings();
+    if (tcSettings.autoClockOutMode === 'never') return;
+
+    const tc = this._activeTimecard();
+    if (!tc) return;
+
+    let targetMs: number;
+
+    if (tcSettings.autoClockOutMode === 'after_shift_end') {
+      const todayStr = this.formatDate(new Date());
+      const todayShift = this._myShifts().find(s => s.date === todayStr);
+      if (!todayShift) return;
+
+      const [endH, endM] = todayShift.endTime.split(':').map(Number);
+      const shiftEnd = new Date();
+      shiftEnd.setHours(endH, endM, 0, 0);
+      targetMs = shiftEnd.getTime() + (tcSettings.autoClockOutDelayMinutes * 60000) - Date.now();
+    } else {
+      // business_day_cutoff
+      const [cutH, cutM] = tcSettings.businessDayCutoffTime.split(':').map(Number);
+      const cutoff = new Date();
+      cutoff.setHours(cutH, cutM, 0, 0);
+      if (cutoff.getTime() <= Date.now()) {
+        cutoff.setDate(cutoff.getDate() + 1);
+      }
+      targetMs = cutoff.getTime() - Date.now();
+    }
+
+    if (targetMs > 0) {
+      this.autoClockOutTimer = setTimeout(() => {
+        this.doClockOut();
+      }, targetMs);
+    }
+  }
+
+  private clearAutoClockOutTimer(): void {
+    if (this.autoClockOutTimer !== null) {
+      clearTimeout(this.autoClockOutTimer);
+      this.autoClockOutTimer = null;
+    }
+  }
+
+  openClockOutConfirm(): void {
+    this._declaredTips.set(null);
+    this._showClockOutConfirm.set(true);
+  }
+
+  cancelClockOut(): void {
+    this._showClockOutConfirm.set(false);
+  }
+
+  setDeclaredTips(amount: number | null): void {
+    this._declaredTips.set(amount);
+  }
+
+  async doClockOut(): Promise<void> {
+    const tc = this._activeTimecard();
+    if (!tc || this._isClockAction()) return;
+
+    this._isClockAction.set(true);
+    this._error.set(null);
+
+    const tips = this._declaredTips() ?? undefined;
+    const success = await this.laborService.clockOutWithTips(tc.id, tips);
+
+    if (success) {
+      this.clearAutoClockOutTimer();
+      this._activeTimecard.set(null);
+      this._showClockOutConfirm.set(false);
+      await this.loadTimeclockData();
+    } else {
+      this._error.set('Failed to clock out');
+    }
+
+    this._isClockAction.set(false);
+  }
+
+  async doStartBreak(breakTypeId: string): Promise<void> {
+    const tc = this._activeTimecard();
+    if (!tc || this._isClockAction()) return;
+
+    this._isClockAction.set(true);
+    this._error.set(null);
+
+    const result = await this.laborService.startBreak(tc.id, breakTypeId);
+
+    if (result) {
+      this._activeTimecard.update(t => {
+        if (!t) return t;
+        return { ...t, breaks: [...t.breaks, result] };
+      });
+    } else {
+      this._error.set('Failed to start break');
+    }
+
+    this._isClockAction.set(false);
+  }
+
+  async doEndBreak(): Promise<void> {
+    const tc = this._activeTimecard();
+    const brk = this.activeBreak();
+    if (!tc || !brk || this._isClockAction()) return;
+
+    this._isClockAction.set(true);
+    this._error.set(null);
+
+    const success = await this.laborService.endBreak(tc.id, brk.id);
+
+    if (success) {
+      this._activeTimecard.update(t => {
+        if (!t) return t;
+        return {
+          ...t,
+          breaks: t.breaks.map(b => b.id === brk.id ? { ...b, endAt: new Date().toISOString() } : b),
+        };
+      });
+    } else {
+      this._error.set('Failed to end break');
+    }
+
+    this._isClockAction.set(false);
+  }
+
+  formatTimecardTime(isoString: string): string {
+    const d = new Date(isoString);
+    const h = d.getHours();
+    const m = d.getMinutes();
+    const period = h >= 12 ? 'PM' : 'AM';
+    const hour = h % 12 || 12;
+    return `${hour}:${m.toString().padStart(2, '0')} ${period}`;
+  }
+
   dismissError(): void {
     this._error.set(null);
+  }
+
+  // === Timecard Edit Requests ===
+
+  openEditRequest(tc: Timecard): void {
+    this._editTimecardId.set(tc.id);
+    this._editType.set('clock_in');
+    this._editOriginalValue.set(tc.clockInAt);
+    this._editNewValue.set('');
+    this._editReason.set('');
+    this._showEditForm.set(true);
+  }
+
+  closeEditRequest(): void {
+    this._showEditForm.set(false);
+    this._editTimecardId.set(null);
+  }
+
+  setEditType(type: string): void {
+    const valid: TimecardEditType[] = ['clock_in', 'clock_out', 'break_start', 'break_end', 'job_change'];
+    if (valid.includes(type as TimecardEditType)) {
+      this._editType.set(type as TimecardEditType);
+      // Update original value based on type
+      const tc = this._todayTimecards().find(t => t.id === this._editTimecardId());
+      if (tc) {
+        if (type === 'clock_in') this._editOriginalValue.set(tc.clockInAt);
+        else if (type === 'clock_out') this._editOriginalValue.set(tc.clockOutAt ?? 'N/A');
+        else if (type === 'job_change') this._editOriginalValue.set(tc.jobTitle);
+        else this._editOriginalValue.set('');
+      }
+    }
+  }
+
+  setEditNewValue(value: string): void {
+    this._editNewValue.set(value);
+  }
+
+  setEditReason(reason: string): void {
+    this._editReason.set(reason);
+  }
+
+  async submitEditRequest(): Promise<void> {
+    const timecardId = this._editTimecardId();
+    const newValue = this._editNewValue().trim();
+    const reason = this._editReason().trim();
+    if (!timecardId || !newValue || !reason) return;
+
+    this._isSubmittingEdit.set(true);
+    this._error.set(null);
+
+    const result = await this.laborService.requestTimecardEdit({
+      timecardId,
+      editType: this._editType(),
+      originalValue: this._editOriginalValue(),
+      newValue,
+      reason,
+    });
+
+    if (result) {
+      this._showEditForm.set(false);
+      this._editTimecardId.set(null);
+    } else {
+      this._error.set('Failed to submit edit request');
+    }
+
+    this._isSubmittingEdit.set(false);
   }
 }

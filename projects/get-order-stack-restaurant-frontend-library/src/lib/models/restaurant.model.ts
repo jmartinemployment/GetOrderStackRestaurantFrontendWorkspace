@@ -1,3 +1,5 @@
+import type { MerchantProfile } from './platform.model';
+
 export interface Restaurant {
   id: string;
   name: string;
@@ -12,6 +14,7 @@ export interface Restaurant {
   taxRate: number;
   isActive: boolean;
   settings: RestaurantSettings;
+  merchantProfile?: MerchantProfile;
   createdAt: string;
   updatedAt: string;
 }

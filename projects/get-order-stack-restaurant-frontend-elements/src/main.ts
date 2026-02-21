@@ -35,9 +35,12 @@ import {
   CampaignBuilder,
   InvoiceManager,
   ComboManagement,
+  ModifierManagement,
   StaffPortal,
+  PosLogin,
   FoodCostDashboard,
   MultiLocationDashboard,
+  SetupWizard,
 } from 'get-order-stack-restaurant-frontend-library';
 
 (async () => {
@@ -81,9 +84,12 @@ import {
     [CampaignBuilder, 'get-order-stack-campaign-builder'],
     [InvoiceManager, 'get-order-stack-invoice-manager'],
     [ComboManagement, 'get-order-stack-combo-management'],
+    [ModifierManagement, 'get-order-stack-modifier-management'],
     [StaffPortal, 'get-order-stack-staff-portal'],
     [FoodCostDashboard, 'get-order-stack-food-cost'],
     [MultiLocationDashboard, 'get-order-stack-multi-location'],
+    [PosLogin, 'get-order-stack-pos-login'],
+    [SetupWizard, 'get-order-stack-setup-wizard'],
   ];
 
   for (const [component, tag] of elements) {

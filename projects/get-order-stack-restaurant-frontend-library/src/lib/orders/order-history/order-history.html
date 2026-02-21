@@ -1,6 +1,30 @@
 <div class="order-history">
   <div class="d-flex justify-content-between align-items-center mb-4">
     <h2 class="h4 mb-0">Order History</h2>
+    <button type="button" class="btn btn-sm btn-outline-light" (click)="exportOrders()">
+      <i class="bi bi-download me-1"></i> Export CSV
+    </button>
+  </div>
+
+  <!-- Search -->
+  <div class="search-bar mb-3">
+    <div class="input-group">
+      <span class="input-group-text">
+        <i class="bi bi-search"></i>
+      </span>
+      <input
+        type="text"
+        class="form-control"
+        placeholder="Search by order #, customer name, or item..."
+        [value]="searchQuery()"
+        (input)="setSearchQuery($any($event.target).value)"
+      />
+      @if (searchQuery()) {
+        <button class="btn btn-outline-light" type="button" (click)="setSearchQuery('')">
+          <i class="bi bi-x-lg"></i>
+        </button>
+      }
+    </div>
   </div>
 
   <!-- Status Filter -->
@@ -95,7 +119,9 @@
       } @empty {
         <div class="empty-state text-center p-5">
           <p class="text-muted mb-0">
-            @if (statusFilter() !== 'all') {
+            @if (searchQuery()) {
+              No orders matching "{{ searchQuery() }}"
+            } @else if (statusFilter() !== 'all') {
               No orders with this status
             } @else {
               No orders yet

@@ -33,6 +33,7 @@
     "@paypal/paypal-js": "^9.2.0",
     "@stripe/stripe-js": "^8.7.0",
     "bootstrap": "^5.3.8",
+    "bootstrap-icons": "^1.13.1",
     "rxjs": "~7.8.0",
     "socket.io-client": "^4.8.3",
     "tslib": "^2.3.0"
@@ -41,9 +42,9 @@
     "@angular/build": "^21.1.2",
     "@angular/cli": "^21.1.2",
     "@angular/compiler-cli": "^21.1.0",
+    "@playwright/mcp": "^0.0.68",
     "jsdom": "^27.1.0",
     "ng-packagr": "^21.1.0",
-    "@playwright/mcp": "^0.0.68",
     "typescript": "~5.9.2",
     "vitest": "^4.0.8"
   }

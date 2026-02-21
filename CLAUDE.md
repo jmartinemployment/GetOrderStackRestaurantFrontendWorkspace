@@ -1414,4 +1414,47 @@ npm run seed:reset    # Nuclear: wipe DB, re-create schema, re-seed everything
 
 ---
 
-*Last Updated: February 20, 2026 (Session 43)*
+**[February 21, 2026] (Session 44):**
+- Implemented: GOS-SPEC-01 Phase 3 — Authentication, Login & Time Clock Advanced Features (Steps 11-15)
+- **Step 11 — Timecard Edit Requests & Approvals:**
+  - **Staff-side (completed prior session):** Staff Portal "Request Edit" button on closed timecards, edit request modal with type/original/new/reason fields
+  - **Manager-side (this session):** Added `'edits'` to `StaffScheduleTab` union in `labor.model.ts`
+  - Added `TimecardEditType` import, `pendingEditsCount`/`filteredEdits` computeds, `editsFilter` signal, `approveEdit()`/`denyEdit()` methods, `getEditTypeLabel()`/`getEditStatusClass()` helpers to `staff-scheduling.ts`
+  - Added 5th "Edits" tab to `staff-scheduling.html` with badge count, filter buttons (Pending/Approved/Denied/All), edit request cards with approve/deny action buttons, empty state
+  - Added `.edit-request-card`, `.edit-values` styles to `staff-scheduling.scss`
+- **Step 12 — Schedule Enforcement:**
+  - Enhanced `doClockIn()` in `staff-portal.ts` with schedule enforcement check (via `checkScheduleEnforcement()` helper)
+  - Checks: no scheduled shift today → blocked; too early for shift (before grace period) → blocked
+  - Manager override flow: `submitManagerOverride()` validates PIN is manager/owner role, then proceeds with clock-in
+  - Added `RestaurantSettingsService` injection, `_scheduleBlockMessage`, `_showManagerOverride`, `_managerOverridePin` signals
+  - Added schedule block alert banner + manager override modal to `staff-portal.html`
+  - Added `.schedule-block-alert`, `.manager-override-modal`, `.override-pin-input`, `.btn-override` styles to `staff-portal.scss`
+- **Step 13 — Auto Clock-Out:**
+  - Added `startAutoClockOutTimer()` and `clearAutoClockOutTimer()` methods to `staff-portal.ts`
+  - Supports two modes: `after_shift_end` (delay after shift end) and `business_day_cutoff` (specific cutoff time)
+  - Timer starts on clock-in and when loading existing open timecard; clears on clock-out and logout
+  - Reads configuration from `RestaurantSettingsService.timeclockSettings()`
+- **Step 14 — Labor Cost Reporting:**
+  - Added 6-column KPI strip (Total Hours, Labor Cost, Revenue, Labor %, Overtime, Avg Daily L%)
+  - Added "Labor vs Revenue" dual-bar chart visualization showing daily revenue and labor cost side-by-side with labor % per day
+  - Added `.labor-vs-sales`, `.lvs-row`, `.lvs-bars`, `.lvs-revenue-bar`, `.lvs-cost-bar`, legend styles
+- **Step 15 — Overtime Calculation Per Workweek Config:**
+  - Added `loadWorkweekConfig()` to constructor effect
+  - Added `workweekConfig`, `overtimeThresholdLabel`, `weekStartDayLabel`, `totalOvertimeHours`, `totalOvertimeCost`, `avgDailyLaborPercent` computeds
+  - Added workweek config info badges above labor report (week start day, day start time, OT threshold)
+- **Files modified (8):**
+  - `models/labor.model.ts` — added `'edits'` to `StaffScheduleTab`
+  - `labor/staff-scheduling/staff-scheduling.ts` — added edits tab + labor report computeds + workweek config
+  - `labor/staff-scheduling/staff-scheduling.html` — added Edits tab, enhanced Labor Report tab
+  - `labor/staff-scheduling/staff-scheduling.scss` — added edit request + labor vs sales styles
+  - `staff/staff-portal/staff-portal.ts` — added schedule enforcement, manager override, auto-clock-out
+  - `staff/staff-portal/staff-portal.html` — added schedule block alert + manager override modal
+  - `staff/staff-portal/staff-portal.scss` — added enforcement + override styles
+- Build: Library + Elements compile with zero errors (pre-existing SCSS budget warnings only)
+- **GOS-SPEC-01 ALL 3 PHASES COMPLETE (Steps 1-15)**
+  - Phase 1 (MVP): Models, services, POS login, time clock tab, team member management
+  - Phase 2 (Core): Device registration settings, permission enforcement, break config, multi-job support, shift summary
+  - Phase 3 (Advanced): Timecard edits, schedule enforcement, auto-clock-out, labor cost reporting, overtime/workweek config
+- Next: deploy updated bundle, build backend endpoints for Phase 3 features
+
+*Last Updated: February 21, 2026 (Session 44)*

@@ -22,6 +22,7 @@ import {
   getMarketplaceSyncClass,
   MarketplaceSyncState,
 } from '../../models';
+import { exportToCsv } from '../../shared/utils/csv-export';
 
 interface PendingCourseGroup {
   course: Course | null;
@@ -53,6 +54,16 @@ export class PendingOrders implements OnInit, OnDestroy {
   readonly coursePacingEnabled = computed(() => this.coursePacingMode() !== 'disabled');
   private readonly _firingCourses = signal(new Set<string>());
 
+  // Search
+  private readonly _searchQuery = signal('');
+  readonly searchQuery = this._searchQuery.asReadonly();
+
+  // Confirmation modals
+  private readonly _cancelTarget = signal<Order | null>(null);
+  private readonly _rejectTarget = signal<Order | null>(null);
+  readonly cancelTarget = this._cancelTarget.asReadonly();
+  readonly rejectTarget = this._rejectTarget.asReadonly();
+
   // Approval timeout
   private _approvalTimerRef: ReturnType<typeof setInterval> | null = null;
   private readonly _tick = signal(0);
@@ -65,12 +76,14 @@ export class PendingOrders implements OnInit, OnDestroy {
     { value: 'native', label: 'Direct' },
   ];
 
-  readonly pendingOrders = computed(() =>
-    this.orders()
+  readonly pendingOrders = computed(() => {
+    const query = this._searchQuery().toLowerCase().trim();
+    return this.orders()
       .filter(order => ['RECEIVED', 'IN_PREPARATION', 'READY_FOR_PICKUP'].includes(order.guestOrderStatus))
       .filter(order => this.matchesMarketplaceFilter(order))
-      .sort((a, b) => a.timestamps.createdDate.getTime() - b.timestamps.createdDate.getTime())
-  );
+      .filter(order => this.matchesSearch(order, query))
+      .sort((a, b) => a.timestamps.createdDate.getTime() - b.timestamps.createdDate.getTime());
+  });
 
   readonly approvalTimeoutHours = computed(() => this.settingsService.aiSettings().approvalTimeoutHours);
 
@@ -107,6 +120,20 @@ export class PendingOrders implements OnInit, OnDestroy {
 
   setMarketplaceFilter(filter: 'all' | 'marketplace' | 'native'): void {
     this._marketplaceFilter.set(filter);
+  }
+
+  setSearchQuery(query: string): void {
+    this._searchQuery.set(query);
+  }
+
+  private matchesSearch(order: Order, query: string): boolean {
+    if (!query) return true;
+    const orderNum = getOrderIdentifier(order).toLowerCase();
+    if (orderNum.includes(query)) return true;
+    const customerName = getCustomerDisplayName(order).toLowerCase();
+    if (customerName.includes(query)) return true;
+    const items = order.checks.flatMap(c => c.selections).map(s => s.menuItemName.toLowerCase());
+    return items.some(name => name.includes(query));
   }
 
   private matchesMarketplaceFilter(order: Order): boolean {
@@ -163,9 +190,18 @@ export class PendingOrders implements OnInit, OnDestroy {
     this.orderService.completeOrder(order.guid);
   }
 
-  async cancelOrder(order: Order): Promise<void> {
-    if (!confirm(`Cancel order #${this.getOrderNumber(order)}?`)) return;
+  confirmCancel(order: Order): void {
+    this._cancelTarget.set(order);
+  }
 
+  dismissCancel(): void {
+    this._cancelTarget.set(null);
+  }
+
+  async executeCancel(): Promise<void> {
+    const order = this._cancelTarget();
+    if (!order) return;
+    this._cancelTarget.set(null);
     await this.orderService.cancelOrder(order.guid);
   }
 
@@ -375,8 +411,18 @@ export class PendingOrders implements OnInit, OnDestroy {
     await this.orderService.approveOrder(order.guid);
   }
 
-  async rejectOrder(order: Order): Promise<void> {
-    if (!confirm(`Reject catering order #${this.getOrderNumber(order)}?`)) return;
+  confirmReject(order: Order): void {
+    this._rejectTarget.set(order);
+  }
+
+  dismissReject(): void {
+    this._rejectTarget.set(null);
+  }
+
+  async executeReject(): Promise<void> {
+    const order = this._rejectTarget();
+    if (!order) return;
+    this._rejectTarget.set(null);
     await this.orderService.rejectOrder(order.guid);
   }
 

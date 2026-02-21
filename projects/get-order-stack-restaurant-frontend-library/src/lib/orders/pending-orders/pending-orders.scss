@@ -36,6 +36,31 @@
   }
 }
 
+.search-bar {
+  .input-group-text {
+    background-color: var(--hermes, #203B8C);
+    border-color: var(--deep-lake, #1D3273);
+    color: #aaa;
+  }
+
+  .form-control {
+    background-color: var(--midnight-black, #03020D);
+    border-color: var(--deep-lake, #1D3273);
+    color: #fff;
+
+    &::placeholder {
+      color: rgba(255, 255, 255, 0.5);
+    }
+
+    &:focus {
+      background-color: var(--midnight-black, #03020D);
+      border-color: var(--medium-slate-blue, #7E5EF2);
+      color: #fff;
+      box-shadow: 0 0 0 0.25rem rgba(126, 94, 242, 0.25);
+    }
+  }
+}
+
 .source-filter {
   background-color: var(--midnight-black, #03020D);
   padding: 0.75rem;
@@ -321,4 +346,35 @@
   opacity: 0.45;
   border-left: 2px dashed var(--deep-lake, #1D3273);
   padding-left: 0.5rem;
+}
+
+// Confirmation modals
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1050;
+  padding: 1rem;
+}
+
+.delete-confirm-modal {
+  background-color: var(--midnight-black, #03020D);
+  border: 1px solid var(--deep-lake, #1D3273);
+  color: #fff;
+  width: 100%;
+  max-width: 400px;
+  margin: auto;
+
+  .card-header {
+    background-color: var(--midnight-black, #03020D);
+    border-bottom: 1px solid var(--deep-lake, #1D3273);
+  }
+
+  .card-footer {
+    background-color: var(--midnight-black, #03020D);
+    border-top: 1px solid var(--deep-lake, #1D3273);
+  }
 }

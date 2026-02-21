@@ -53,10 +53,12 @@ export interface MenuItem {
 export interface ModifierGroup {
   id: string;
   name: string;
+  description?: string;
   required: boolean;
   multiSelect: boolean;
   minSelections: number;
   maxSelections: number;
+  displayOrder?: number;
   modifiers: Modifier[];
 }
 
@@ -66,6 +68,25 @@ export interface Modifier {
   priceAdjustment: number;
   isDefault: boolean;
   isActive: boolean;
+  available?: boolean;
+  displayOrder?: number;
+}
+
+export interface ModifierGroupFormData {
+  name: string;
+  description?: string;
+  required: boolean;
+  multiSelect: boolean;
+  minSelections: number;
+  maxSelections: number;
+  modifiers?: ModifierFormData[];
+}
+
+export interface ModifierFormData {
+  name: string;
+  priceAdjustment: number;
+  isDefault?: boolean;
+  available?: boolean;
 }
 
 export type DietaryInfo = 'vegetarian' | 'vegan' | 'gluten-free' | 'dairy-free' | 'nut-free' | 'spicy' | 'halal' | 'kosher';

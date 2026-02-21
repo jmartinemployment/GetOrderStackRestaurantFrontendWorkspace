@@ -17,6 +17,27 @@
     </div>
   </div>
 
+  <!-- Search -->
+  <div class="search-bar mb-3">
+    <div class="input-group">
+      <span class="input-group-text">
+        <i class="bi bi-search"></i>
+      </span>
+      <input
+        type="text"
+        class="form-control"
+        placeholder="Search by order #, customer name, or item..."
+        [value]="searchQuery()"
+        (input)="setSearchQuery($any($event.target).value)"
+      />
+      @if (searchQuery()) {
+        <button class="btn btn-outline-light" type="button" (click)="setSearchQuery('')">
+          <i class="bi bi-x-lg"></i>
+        </button>
+      }
+    </div>
+  </div>
+
   <div class="source-filter mb-3">
     <div class="d-flex flex-wrap gap-2">
       @for (option of marketplaceFilterOptions; track option.value) {
@@ -137,7 +158,7 @@
                     <span class="text-warning small">Auto-rejecting...</span>
                   } @else {
                     <button type="button" class="btn btn-success btn-sm" (click)="approveOrder(order)">Approve</button>
-                    <button type="button" class="btn btn-outline-danger btn-sm" (click)="rejectOrder(order)">Reject</button>
+                    <button type="button" class="btn btn-outline-danger btn-sm" (click)="confirmReject(order)">Reject</button>
                   }
                 </div>
               </div>
@@ -256,7 +277,7 @@
                     <button
                       type="button"
                       class="btn btn-outline-danger btn-sm"
-                      (click)="cancelOrder(order)"
+                      (click)="confirmCancel(order)"
                     >
                       Cancel
                     </button>
@@ -311,6 +332,44 @@
           <p class="text-muted small">Orders will appear here when placed</p>
         </div>
       }
+    </div>
+  }
+
+  <!-- Cancel Order Confirmation Modal -->
+  @if (cancelTarget(); as target) {
+    <div class="modal-overlay" (click)="dismissCancel()">
+      <div class="delete-confirm-modal card" (click)="$event.stopPropagation()">
+        <div class="card-header">
+          <h5 class="mb-0">Cancel Order</h5>
+        </div>
+        <div class="card-body">
+          <p>Are you sure you want to cancel order <strong>#{{ getOrderNumber(target) }}</strong>?</p>
+          <p class="text-muted small mb-0">This action cannot be undone.</p>
+        </div>
+        <div class="card-footer d-flex gap-2 justify-content-end">
+          <button class="btn btn-outline-light" (click)="dismissCancel()">Keep Order</button>
+          <button class="btn btn-danger" (click)="executeCancel()">Cancel Order</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Reject Catering Order Confirmation Modal -->
+  @if (rejectTarget(); as target) {
+    <div class="modal-overlay" (click)="dismissReject()">
+      <div class="delete-confirm-modal card" (click)="$event.stopPropagation()">
+        <div class="card-header">
+          <h5 class="mb-0">Reject Catering Order</h5>
+        </div>
+        <div class="card-body">
+          <p>Are you sure you want to reject catering order <strong>#{{ getOrderNumber(target) }}</strong>?</p>
+          <p class="text-muted small mb-0">The customer will be notified of the rejection.</p>
+        </div>
+        <div class="card-footer d-flex gap-2 justify-content-end">
+          <button class="btn btn-outline-light" (click)="dismissReject()">Keep Order</button>
+          <button class="btn btn-danger" (click)="executeReject()">Reject Order</button>
+        </div>
+      </div>
     </div>
   }
 </div>

@@ -64,7 +64,7 @@
                 type="button"
                 class="btn btn-sm btn-outline-danger"
                 [disabled]="!crudSupported()"
-                (click)="deleteCategory(category)"
+                (click)="confirmDelete(category)"
               >
                 Delete
               </button>
@@ -151,6 +151,25 @@
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  }
+
+  <!-- Delete Confirmation Modal -->
+  @if (deleteTarget(); as target) {
+    <div class="modal-overlay" (click)="cancelDelete()">
+      <div class="delete-confirm-modal card" (click)="$event.stopPropagation()">
+        <div class="card-header">
+          <h5 class="mb-0">Delete Category</h5>
+        </div>
+        <div class="card-body">
+          <p>Are you sure you want to delete <strong>"{{ target.name }}"</strong>?</p>
+          <p class="text-muted small mb-0">All items in this category will need to be reassigned.</p>
+        </div>
+        <div class="card-footer d-flex gap-2 justify-content-end">
+          <button class="btn btn-outline-light" (click)="cancelDelete()">Cancel</button>
+          <button class="btn btn-danger" (click)="executeDelete()">Delete</button>
+        </div>
       </div>
     </div>
   }

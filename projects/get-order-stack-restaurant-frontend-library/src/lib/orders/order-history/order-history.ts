@@ -12,6 +12,7 @@ import {
   GuestOrderStatus,
   ProfitInsight,
   getOrderIdentifier,
+  getCustomerDisplayName,
   isMarketplaceOrder,
   getMarketplaceProviderLabel,
   getMarketplaceSyncState,
@@ -19,6 +20,7 @@ import {
   getMarketplaceSyncClass,
   MarketplaceSyncState,
 } from '../../models';
+import { exportToCsv } from '../../shared/utils/csv-export';
 
 @Component({
   selector: 'get-order-stack-order-history',
@@ -35,6 +37,7 @@ export class OrderHistory implements OnInit {
 
   private readonly _statusFilter = signal<GuestOrderStatus | 'all'>('all');
   private readonly _marketplaceFilter = signal<'all' | 'marketplace' | 'native'>('all');
+  private readonly _searchQuery = signal('');
   private readonly _selectedOrder = signal<Order | null>(null);
   private readonly _isRetryingMarketplaceSync = signal(false);
   private readonly _marketplaceSyncNotice = signal<string | null>(null);
@@ -44,6 +47,7 @@ export class OrderHistory implements OnInit {
 
   readonly statusFilter = this._statusFilter.asReadonly();
   readonly marketplaceFilter = this._marketplaceFilter.asReadonly();
+  readonly searchQuery = this._searchQuery.asReadonly();
   readonly selectedOrder = this._selectedOrder.asReadonly();
   readonly isRetryingMarketplaceSync = this._isRetryingMarketplaceSync.asReadonly();
   readonly marketplaceSyncNotice = this._marketplaceSyncNotice.asReadonly();
@@ -59,12 +63,24 @@ export class OrderHistory implements OnInit {
   readonly filteredOrders = computed(() => {
     const statusFilter = this._statusFilter();
     const sourceFilter = this._marketplaceFilter();
+    const query = this._searchQuery().toLowerCase().trim();
     return this.orders().filter(order => {
       const matchesStatus = statusFilter === 'all' || order.guestOrderStatus === statusFilter;
       if (!matchesStatus) return false;
-      if (sourceFilter === 'all') return true;
-      const marketplace = isMarketplaceOrder(order);
-      return sourceFilter === 'marketplace' ? marketplace : !marketplace;
+      if (sourceFilter !== 'all') {
+        const marketplace = isMarketplaceOrder(order);
+        if (sourceFilter === 'marketplace' && !marketplace) return false;
+        if (sourceFilter === 'native' && marketplace) return false;
+      }
+      if (query) {
+        const orderNum = getOrderIdentifier(order).toLowerCase();
+        const customerName = getCustomerDisplayName(order).toLowerCase();
+        const items = order.checks.flatMap(c => c.selections).map(s => s.menuItemName.toLowerCase());
+        if (!orderNum.includes(query) && !customerName.includes(query) && !items.some(n => n.includes(query))) {
+          return false;
+        }
+      }
+      return true;
     });
   });
 
@@ -92,6 +108,33 @@ export class OrderHistory implements OnInit {
 
   setMarketplaceFilter(filter: 'all' | 'marketplace' | 'native'): void {
     this._marketplaceFilter.set(filter);
+  }
+
+  setSearchQuery(query: string): void {
+    this._searchQuery.set(query);
+  }
+
+  exportOrders(): void {
+    const orders = this.filteredOrders();
+    const headers = ['Order #', 'Date', 'Status', 'Type', 'Customer', 'Items', 'Subtotal', 'Tax', 'Tip', 'Total', 'Payment'];
+    const rows = orders.map(order => {
+      const items = order.checks.flatMap(c => c.selections).map(s => `${s.quantity}x ${s.menuItemName}`).join('; ');
+      const customer = getCustomerDisplayName(order);
+      return [
+        getOrderIdentifier(order),
+        order.timestamps.createdDate.toLocaleString(),
+        order.guestOrderStatus,
+        order.diningOption.name,
+        customer,
+        items,
+        order.subtotal.toFixed(2),
+        order.taxAmount.toFixed(2),
+        order.tipAmount.toFixed(2),
+        order.totalAmount.toFixed(2),
+        order.checks[0]?.paymentStatus ?? 'OPEN',
+      ];
+    });
+    exportToCsv('order-history.csv', headers, rows);
   }
 
   selectOrder(order: Order): void {

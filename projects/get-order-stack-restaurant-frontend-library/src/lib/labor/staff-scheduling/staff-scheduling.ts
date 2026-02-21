@@ -12,6 +12,9 @@ import {
   ShiftFormData,
   ShiftPosition,
   StaffMember,
+  TimecardEdit,
+  TimecardEditStatus,
+  TimecardEditType,
 } from '../../models';
 
 @Component({
@@ -56,6 +59,10 @@ export class StaffScheduling {
   private readonly _sortField = signal<'name' | 'hours' | 'cost'>('name');
   private readonly _sortAsc = signal(true);
 
+  // Pending edits state
+  private readonly _editsFilter = signal<TimecardEditStatus | 'all'>('pending');
+  private readonly _isResolvingEdit = signal(false);
+
   readonly activeTab = this._activeTab.asReadonly();
   readonly weekOffset = this._weekOffset.asReadonly();
   readonly showShiftModal = this._showShiftModal.asReadonly();
@@ -65,6 +72,20 @@ export class StaffScheduling {
   readonly clockOutBreak = this._clockOutBreak.asReadonly();
   readonly reportRange = this._reportRange.asReadonly();
   readonly isSaving = this._isSaving.asReadonly();
+  readonly editsFilter = this._editsFilter.asReadonly();
+  readonly isResolvingEdit = this._isResolvingEdit.asReadonly();
+  readonly timecardEdits = this.laborService.timecardEdits;
+
+  readonly pendingEditsCount = computed(() =>
+    this.laborService.timecardEdits().filter(e => e.status === 'pending').length
+  );
+
+  readonly filteredEdits = computed(() => {
+    const edits = this.laborService.timecardEdits();
+    const filter = this._editsFilter();
+    if (filter === 'all') return edits;
+    return edits.filter(e => e.status === filter);
+  });
 
   // Computed: week boundaries
   readonly weekStart = computed(() => {
@@ -164,12 +185,47 @@ export class StaffScheduling {
     return summaries;
   });
 
+  // Workweek config
+  readonly workweekConfig = this.laborService.workweekConfig;
+
+  readonly overtimeThresholdLabel = computed(() => {
+    const config = this.workweekConfig();
+    return config ? `${config.overtimeThresholdHours}h/week` : '40h/week';
+  });
+
+  readonly weekStartDayLabel = computed(() => {
+    const config = this.workweekConfig();
+    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    return config ? days[config.startDay] : 'Sunday';
+  });
+
+  // Labor vs sales computeds
+  readonly totalOvertimeHours = computed(() => {
+    const report = this.laborReport();
+    if (!report) return 0;
+    return report.staffSummaries.reduce((sum, s) => sum + s.overtimeHours, 0);
+  });
+
+  readonly totalOvertimeCost = computed(() => {
+    const report = this.laborReport();
+    if (!report) return 0;
+    return report.overtimeFlags.reduce((sum, f) => sum + (f.overtimeHours * 22.5), 0);
+  });
+
+  readonly avgDailyLaborPercent = computed(() => {
+    const report = this.laborReport();
+    if (!report || report.dailyBreakdown.length === 0) return 0;
+    const sum = report.dailyBreakdown.reduce((total, d) => total + d.laborPercent, 0);
+    return sum / report.dailyBreakdown.length;
+  });
+
   constructor() {
     effect(() => {
       if (this.authService.isAuthenticated() && this.authService.selectedRestaurantId()) {
         this.laborService.loadStaffMembers();
         this.loadCurrentWeek();
         this.laborService.loadActiveClocks();
+        this.laborService.loadWorkweekConfig();
       }
     });
   }
@@ -181,6 +237,8 @@ export class StaffScheduling {
       this.loadReport();
     } else if (tab === 'ai-insights') {
       this.laborService.loadRecommendations();
+    } else if (tab === 'edits') {
+      this.laborService.loadTimecardEdits();
     }
   }
 
@@ -353,6 +411,41 @@ export class StaffScheduling {
     a.download = `labor-report-${report.startDate}-to-${report.endDate}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  // Edits
+  setEditsFilter(filter: TimecardEditStatus | 'all'): void {
+    this._editsFilter.set(filter);
+  }
+
+  async approveEdit(editId: string): Promise<void> {
+    this._isResolvingEdit.set(true);
+    await this.laborService.resolveTimecardEdit(editId, 'approved');
+    this._isResolvingEdit.set(false);
+  }
+
+  async denyEdit(editId: string): Promise<void> {
+    this._isResolvingEdit.set(true);
+    await this.laborService.resolveTimecardEdit(editId, 'denied');
+    this._isResolvingEdit.set(false);
+  }
+
+  getEditTypeLabel(type: TimecardEditType): string {
+    const labels: Record<TimecardEditType, string> = {
+      clock_in: 'Clock In',
+      clock_out: 'Clock Out',
+      break_start: 'Break Start',
+      break_end: 'Break End',
+      job_change: 'Job Title',
+    };
+    return labels[type] ?? type;
+  }
+
+  getEditStatusClass(status: TimecardEditStatus): string {
+    if (status === 'approved') return 'badge bg-success';
+    if (status === 'denied') return 'badge bg-danger';
+    if (status === 'expired') return 'badge bg-secondary';
+    return 'badge bg-warning text-dark';
   }
 
   // Helpers

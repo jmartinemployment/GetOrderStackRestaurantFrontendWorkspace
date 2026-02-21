@@ -2,7 +2,7 @@
   @if (isAuthenticated()) {
     <h2 class="mb-3">Control Panel</h2>
     <ul class="nav nav-tabs mb-3">
-      @for (tab of tabs; track tab.key) {
+      @for (tab of visibleTabs(); track tab.key) {
         <li class="nav-item">
           <button
             class="nav-link"
@@ -42,6 +42,15 @@
     }
     @if (activeTab() === 'gift-cards') {
       <get-order-stack-gift-card-management />
+    }
+    @if (activeTab() === 'staff') {
+      <get-order-stack-staff-management />
+    }
+    @if (activeTab() === 'devices') {
+      <get-order-stack-device-management />
+    }
+    @if (activeTab() === 'time-clock-config') {
+      <get-order-stack-break-config />
     }
   } @else {
     <div class="text-center text-muted py-5">

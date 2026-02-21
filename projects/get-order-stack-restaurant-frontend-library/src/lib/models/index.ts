@@ -29,4 +29,6 @@ export * from './table.model';
 export * from './tip.model';
 export * from './voice.model';
 export * from './vendor.model';
+export * from './staff-management.model';
 export * from './waste.model';
+export * from './platform.model';

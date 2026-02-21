@@ -35,9 +35,14 @@ export { LoadingSpinner } from './lib/shared/loading-spinner/loading-spinner';
 export { ErrorDisplay } from './lib/shared/error-display/error-display';
 export { ConnectionStatus } from './lib/shared/connection-status/connection-status';
 
+// Shared utilities
+export { exportToCsv } from './lib/shared/utils/csv-export';
+
 // Auth components
 export { Login } from './lib/auth/login/login';
 export { RestaurantSelect } from './lib/auth/restaurant-select/restaurant-select';
+export { PosLogin } from './lib/auth/pos-login';
+export type { PosLoginEvent } from './lib/auth/pos-login';
 
 // SOS components
 export { MenuDisplay } from './lib/sos/menu-display/menu-display';
@@ -69,6 +74,8 @@ export { InventoryDashboard } from './lib/inventory/inventory-dashboard/inventor
 // Menu Management components
 export { CategoryManagement } from './lib/menu-mgmt/category-management/category-management';
 export { ItemManagement } from './lib/menu-mgmt/item-management/item-management';
+export { ModifierManagement } from './lib/menu-mgmt/modifier-management';
+export { ModifierService } from './lib/services/modifier';
 
 // Table Management components
 export { FloorPlan } from './lib/table-mgmt/floor-plan/floor-plan';
@@ -177,6 +184,27 @@ export { MultiLocationDashboard } from './lib/multi-location/multi-location-dash
 export { VendorService } from './lib/services/vendor';
 export { RecipeCostingService } from './lib/services/recipe-costing';
 export { FoodCostDashboard } from './lib/food-cost/food-cost-dashboard';
+
+// Staff Management
+export { StaffManagementService } from './lib/services/staff-management';
+export { StaffManagement } from './lib/settings/staff-management';
+
+// Device Management
+export { DeviceManagement } from './lib/settings/device-management';
+
+// Break / Time Clock Configuration
+export { BreakConfig } from './lib/settings/break-config';
+
+// Permission Guard
+export { createPermissionGuard, createManagerOverride } from './lib/shared/utils/permission-guard';
+export type { PermissionGuard, ManagerOverrideState } from './lib/shared/utils/permission-guard';
+
+// Onboarding
+export { SetupWizard } from './lib/onboarding/setup-wizard';
+
+// Platform service
+export { PlatformService } from './lib/services/platform';
+export type { OnboardingPayload, OnboardingResult } from './lib/services/platform';
 
 // Additional services
 export { ChatService } from './lib/services/chat';

@@ -1,0 +1,809 @@
+:host {
+  display: block;
+}
+
+$primary: #7c5dfa;
+$primary-light: rgba(124, 93, 250, 0.15);
+$bg-dark: #141625;
+$bg-card: #1e2139;
+$bg-input: #252945;
+$text-primary: #fff;
+$text-secondary: #888eb0;
+$border-color: #252945;
+$success: #33d69f;
+$danger: #ec5757;
+
+.setup-wizard {
+  max-width: 680px;
+  margin: 0 auto;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: $bg-dark;
+  color: $text-primary;
+  padding: 2rem 1.5rem;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+// --- Progress Bar ---
+
+.wizard-header {
+  margin-bottom: 2rem;
+}
+
+.progress-bar-container {
+  height: 4px;
+  background: $bg-input;
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: $primary;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.step-indicators {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.step-dot {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid $border-color;
+  background: transparent;
+  color: $text-secondary;
+  font-size: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &.active {
+    border-color: $primary;
+    background: $primary;
+    color: #fff;
+  }
+
+  &.completed {
+    border-color: $success;
+    background: rgba($success, 0.15);
+    color: $success;
+  }
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.5;
+  }
+}
+
+// --- Body ---
+
+.wizard-body {
+  flex: 1;
+}
+
+.step-content {
+  animation: fadeIn 0.3s ease;
+
+  h2 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+  }
+
+  .step-subtitle {
+    color: $text-secondary;
+    margin-bottom: 1.5rem;
+    font-size: 0.95rem;
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+// --- Form Controls ---
+
+.form-group {
+  margin-bottom: 1.25rem;
+
+  label {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: $text-secondary;
+    margin-bottom: 0.375rem;
+  }
+}
+
+.form-control {
+  width: 100%;
+  padding: 0.625rem 0.875rem;
+  background: $bg-input;
+  border: 1px solid $border-color;
+  border-radius: 8px;
+  color: $text-primary;
+  font-size: 0.95rem;
+  transition: border-color 0.2s;
+
+  &:focus {
+    outline: none;
+    border-color: $primary;
+  }
+
+  &::placeholder {
+    color: $text-secondary;
+    opacity: 0.5;
+  }
+
+  option {
+    background: $bg-input;
+    color: $text-primary;
+  }
+}
+
+.form-row {
+  display: flex;
+  gap: 1rem;
+
+  .flex-1 { flex: 1; }
+  .flex-2 { flex: 2; }
+}
+
+.form-check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+
+  .form-check-input {
+    accent-color: $primary;
+    width: 18px;
+    height: 18px;
+  }
+
+  .form-check-label {
+    color: $text-secondary;
+    font-size: 0.9rem;
+  }
+}
+
+// --- Vertical Pills (Step 2) ---
+
+.vertical-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+
+  @media (max-width: 500px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.vertical-pill {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 1rem;
+  background: $bg-card;
+  border: 2px solid $border-color;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+  color: $text-primary;
+
+  &:hover {
+    border-color: rgba($primary, 0.5);
+  }
+
+  &.selected {
+    border-color: $primary;
+    background: $primary-light;
+  }
+
+  .vertical-icon {
+    font-size: 1.5rem;
+    color: $primary;
+    margin-bottom: 0.5rem;
+  }
+
+  .vertical-label {
+    font-weight: 600;
+    font-size: 0.95rem;
+  }
+
+  .vertical-desc {
+    font-size: 0.8rem;
+    color: $text-secondary;
+    margin-top: 0.25rem;
+  }
+
+  .check-icon {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    color: $primary;
+    font-size: 1.1rem;
+  }
+}
+
+// --- Primary Vertical (Step 3) ---
+
+.primary-vertical-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.primary-option {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  background: $bg-card;
+  border: 2px solid $border-color;
+  border-radius: 12px;
+  cursor: pointer;
+  color: $text-primary;
+  font-size: 1rem;
+  font-weight: 500;
+  transition: all 0.2s;
+
+  &:hover { border-color: rgba($primary, 0.5); }
+  &.selected {
+    border-color: $primary;
+    background: $primary-light;
+  }
+
+  .option-icon { font-size: 1.25rem; color: $primary; }
+
+  .bi-check-circle-fill {
+    margin-left: auto;
+    color: $primary;
+  }
+}
+
+// --- Complexity Cards (Step 4) ---
+
+.complexity-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.complexity-card {
+  position: relative;
+  padding: 1.25rem;
+  background: $bg-card;
+  border: 2px solid $border-color;
+  border-radius: 12px;
+  cursor: pointer;
+  text-align: left;
+  color: $text-primary;
+  transition: all 0.2s;
+
+  &:hover { border-color: rgba($primary, 0.5); }
+  &.selected {
+    border-color: $primary;
+    background: $primary-light;
+  }
+
+  .card-icon {
+    font-size: 1.5rem;
+    color: $primary;
+    margin-bottom: 0.5rem;
+  }
+
+  h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+  }
+
+  p {
+    font-size: 0.85rem;
+    color: $text-secondary;
+    margin: 0;
+  }
+
+  .tag {
+    display: inline-block;
+    margin-top: 0.5rem;
+    padding: 0.125rem 0.5rem;
+    background: rgba($success, 0.15);
+    color: $success;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+}
+
+// --- Tax Auto-Detect (Step 5) ---
+
+.tax-row {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.tax-input {
+  max-width: 120px;
+}
+
+.auto-detect-btn {
+  white-space: nowrap;
+}
+
+// --- Business Hours (Step 6) ---
+
+.presets {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+  flex-wrap: wrap;
+}
+
+.hours-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.hours-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+
+  &.closed {
+    opacity: 0.5;
+  }
+
+  .day-label {
+    width: 90px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    flex-shrink: 0;
+  }
+
+  .time-select {
+    width: 110px;
+    padding: 0.375rem 0.5rem;
+    font-size: 0.85rem;
+  }
+
+  .time-sep {
+    color: $text-secondary;
+    font-size: 0.85rem;
+  }
+}
+
+.btn-icon {
+  background: transparent;
+  border: none;
+  color: $text-secondary;
+  padding: 0.25rem 0.5rem;
+  cursor: pointer;
+  font-size: 1.1rem;
+
+  &:hover { color: $primary; }
+  &.active { color: $danger; }
+}
+
+// --- Mode Grid (Step 7) ---
+
+.mode-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+
+  @media (max-width: 500px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.mode-card {
+  position: relative;
+  padding: 1.25rem;
+  background: $bg-card;
+  border: 2px solid $border-color;
+  border-radius: 12px;
+  cursor: pointer;
+  text-align: left;
+  color: $text-primary;
+  transition: all 0.2s;
+
+  &:hover { border-color: rgba($primary, 0.5); }
+  &.selected {
+    border-color: $primary;
+    background: $primary-light;
+  }
+
+  .mode-icon {
+    font-size: 1.5rem;
+    color: $primary;
+    margin-bottom: 0.5rem;
+    display: block;
+  }
+
+  h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+  }
+
+  p {
+    font-size: 0.8rem;
+    color: $text-secondary;
+    margin: 0;
+  }
+
+  .check-icon {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    color: $primary;
+    font-size: 1.1rem;
+  }
+}
+
+// --- Payment Options (Step 8) ---
+
+.payment-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.payment-card {
+  position: relative;
+  padding: 1.25rem;
+  background: $bg-card;
+  border: 2px solid $border-color;
+  border-radius: 12px;
+  cursor: pointer;
+  text-align: left;
+  color: $text-primary;
+  transition: all 0.2s;
+
+  &:hover { border-color: rgba($primary, 0.5); }
+  &.selected {
+    border-color: $primary;
+    background: $primary-light;
+  }
+
+  .card-icon {
+    font-size: 1.5rem;
+    color: $primary;
+    margin-bottom: 0.5rem;
+  }
+
+  h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+  }
+
+  p {
+    font-size: 0.85rem;
+    color: $text-secondary;
+    margin: 0;
+  }
+
+  .tag {
+    display: inline-block;
+    margin-top: 0.5rem;
+    padding: 0.125rem 0.5rem;
+    background: rgba($success, 0.15);
+    color: $success;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+}
+
+// --- Template Grid (Step 9) ---
+
+.template-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+
+  @media (max-width: 500px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.template-card {
+  padding: 1.25rem;
+  background: $bg-card;
+  border: 2px solid $border-color;
+  border-radius: 12px;
+  cursor: pointer;
+  text-align: left;
+  color: $text-primary;
+  transition: all 0.2s;
+
+  &:hover { border-color: rgba($primary, 0.5); }
+  &.selected {
+    border-color: $primary;
+    background: $primary-light;
+  }
+
+  .template-icon {
+    font-size: 1.5rem;
+    color: $primary;
+    margin-bottom: 0.5rem;
+    display: block;
+  }
+
+  h4 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+  }
+
+  p {
+    font-size: 0.8rem;
+    color: $text-secondary;
+    margin: 0;
+  }
+}
+
+// --- PIN Section (Step 10) ---
+
+.pin-section {
+  margin-top: 1.5rem;
+
+  .pin-hint {
+    font-size: 0.85rem;
+    color: $text-secondary;
+    margin-bottom: 1rem;
+  }
+}
+
+.pin-display {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.pin-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: $bg-input;
+  border: 2px solid $border-color;
+  transition: all 0.2s;
+
+  &.filled {
+    background: $primary;
+    border-color: $primary;
+  }
+}
+
+.pin-keypad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+  max-width: 280px;
+  margin: 0 auto;
+}
+
+.keypad-btn {
+  height: 52px;
+  border-radius: 12px;
+  border: 1px solid $border-color;
+  background: $bg-card;
+  color: $text-primary;
+  font-size: 1.25rem;
+  cursor: pointer;
+  transition: all 0.15s;
+
+  &:hover { background: $bg-input; }
+  &:active { transform: scale(0.96); }
+}
+
+.keypad-spacer {
+  display: block;
+}
+
+.pin-match {
+  text-align: center;
+  margin-top: 0.75rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+
+  &.success { color: $success; }
+  &.error { color: $danger; }
+
+  i { margin-right: 0.25rem; }
+}
+
+.mt-3 { margin-top: 1rem; }
+
+// --- Review Sections (Step 11) ---
+
+.review-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.review-section {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.875rem 1rem;
+  background: $bg-card;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.2s;
+  position: relative;
+
+  &:hover {
+    background: $bg-input;
+
+    .edit-icon { opacity: 1; }
+  }
+
+  .review-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: $text-secondary;
+    width: 100%;
+  }
+
+  .review-value {
+    font-weight: 600;
+    font-size: 1rem;
+  }
+
+  .review-detail {
+    font-size: 0.85rem;
+    color: $text-secondary;
+    width: 100%;
+  }
+
+  .edit-icon {
+    position: absolute;
+    right: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: $text-secondary;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+}
+
+// --- Alert ---
+
+.alert-danger {
+  background: rgba($danger, 0.15);
+  color: $danger;
+  border: 1px solid rgba($danger, 0.3);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  font-size: 0.9rem;
+  margin-top: 1rem;
+}
+
+// --- Footer ---
+
+.wizard-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 1.5rem;
+  margin-top: 1.5rem;
+  border-top: 1px solid $border-color;
+}
+
+// --- Buttons ---
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.25rem;
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 0.95rem;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+}
+
+.btn-primary {
+  background: $primary;
+  color: #fff;
+
+  &:hover:not(:disabled) { background: darken($primary, 8%); }
+}
+
+.btn-lg {
+  padding: 0.75rem 1.75rem;
+  font-size: 1.05rem;
+}
+
+.btn-outline {
+  background: transparent;
+  border: 1px solid $border-color;
+  color: $text-primary;
+
+  &:hover:not(:disabled) {
+    border-color: $primary;
+    color: $primary;
+  }
+}
+
+.btn-sm {
+  padding: 0.375rem 0.75rem;
+  font-size: 0.85rem;
+}
+
+// --- Success Screen ---
+
+.success-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  text-align: center;
+  animation: fadeIn 0.5s ease;
+
+  .success-icon {
+    font-size: 4rem;
+    color: $success;
+    margin-bottom: 1.5rem;
+    animation: scaleIn 0.4s ease;
+  }
+
+  h2 {
+    font-size: 1.75rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+  }
+
+  p {
+    color: $text-secondary;
+    font-size: 1rem;
+  }
+}
+
+@keyframes scaleIn {
+  from { transform: scale(0.5); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+// --- Spin animation ---
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

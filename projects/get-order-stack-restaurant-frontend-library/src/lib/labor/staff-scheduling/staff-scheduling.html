@@ -33,6 +33,15 @@
           <i class="bi bi-stars"></i> AI Insights
         </button>
       </li>
+      <li class="nav-item">
+        <button class="nav-link" [class.active]="activeTab() === 'edits'"
+          (click)="setTab('edits')">
+          <i class="bi bi-pencil-square"></i> Edits
+          @if (pendingEditsCount() > 0) {
+            <span class="badge bg-warning text-dark ms-1">{{ pendingEditsCount() }}</span>
+          }
+        </button>
+      </li>
     </ul>
 
     <!-- Loading / Error -->
@@ -193,28 +202,37 @@
           [class.btn-outline-light]="reportRange() !== 'month'" (click)="setReportRange('month')">Month</button>
       </div>
 
+      <!-- Workweek Config Info -->
+      @if (workweekConfig(); as ww) {
+        <div class="workweek-info mb-3 d-flex gap-3 align-items-center">
+          <span class="badge bg-secondary"><i class="bi bi-calendar-week"></i> Week starts: {{ weekStartDayLabel() }}</span>
+          <span class="badge bg-secondary"><i class="bi bi-clock"></i> Day starts: {{ ww.startTime }}</span>
+          <span class="badge bg-secondary"><i class="bi bi-hourglass-split"></i> OT after: {{ overtimeThresholdLabel() }}</span>
+        </div>
+      }
+
       @if (laborReport(); as report) {
         <!-- KPI Cards -->
         <div class="row g-2 mb-3">
-          <div class="col-3">
+          <div class="col-md-2 col-4">
             <div class="kpi-card text-center">
               <div class="kpi-value">{{ report.totalHours | number:'1.1-1' }}h</div>
               <div class="kpi-label">Total Hours</div>
             </div>
           </div>
-          <div class="col-3">
+          <div class="col-md-2 col-4">
             <div class="kpi-card text-center">
               <div class="kpi-value">{{ report.totalLaborCost | currency }}</div>
               <div class="kpi-label">Labor Cost</div>
             </div>
           </div>
-          <div class="col-3">
+          <div class="col-md-2 col-4">
             <div class="kpi-card text-center">
               <div class="kpi-value">{{ report.totalRevenue | currency }}</div>
               <div class="kpi-label">Revenue</div>
             </div>
           </div>
-          <div class="col-3">
+          <div class="col-md-2 col-4">
             <div class="kpi-card text-center">
               <div class="kpi-value" [class]="getLaborPercentClass(report.laborPercent)">
                 {{ report.laborPercent | number:'1.1-1' }}%
@@ -222,7 +240,49 @@
               <div class="kpi-label">Labor %</div>
             </div>
           </div>
+          <div class="col-md-2 col-4">
+            <div class="kpi-card text-center">
+              <div class="kpi-value" [class]="totalOvertimeHours() > 0 ? 'text-danger' : ''">
+                {{ totalOvertimeHours() | number:'1.1-1' }}h
+              </div>
+              <div class="kpi-label">Overtime</div>
+            </div>
+          </div>
+          <div class="col-md-2 col-4">
+            <div class="kpi-card text-center">
+              <div class="kpi-value" [class]="getLaborPercentClass(avgDailyLaborPercent())">
+                {{ avgDailyLaborPercent() | number:'1.1-1' }}%
+              </div>
+              <div class="kpi-label">Avg Daily L%</div>
+            </div>
+          </div>
         </div>
+
+        <!-- Labor vs Sales Comparison -->
+        @if (report.dailyBreakdown.length > 0) {
+          <h6 class="text-white mb-2"><i class="bi bi-bar-chart-line"></i> Labor vs Revenue</h6>
+          <div class="labor-vs-sales mb-3">
+            @for (day of report.dailyBreakdown; track day.date) {
+              <div class="lvs-row">
+                <div class="lvs-label">{{ formatDayLabel(day.date) }}</div>
+                <div class="lvs-bars">
+                  <div class="lvs-revenue-bar" [style.width.%]="(day.revenue / (report.totalRevenue / report.dailyBreakdown.length * 2)) * 100"></div>
+                  <div class="lvs-cost-bar" [style.width.%]="(day.cost / (report.totalRevenue / report.dailyBreakdown.length * 2)) * 100"></div>
+                </div>
+                <div class="lvs-values">
+                  <span class="lvs-revenue">{{ day.revenue | currency:'USD':'symbol':'1.0-0' }}</span>
+                  <span class="lvs-separator">/</span>
+                  <span class="lvs-cost">{{ day.cost | currency:'USD':'symbol':'1.0-0' }}</span>
+                  <span class="lvs-pct" [class]="getLaborPercentClass(day.laborPercent)">{{ day.laborPercent | number:'1.0-0' }}%</span>
+                </div>
+              </div>
+            }
+            <div class="lvs-legend d-flex gap-3 mt-1">
+              <small class="text-muted"><span class="lvs-legend-dot lvs-legend-revenue"></span> Revenue</small>
+              <small class="text-muted"><span class="lvs-legend-dot lvs-legend-cost"></span> Labor Cost</small>
+            </div>
+          </div>
+        }
 
         <!-- Staff summary table -->
         <div class="table-responsive mb-3">
@@ -329,6 +389,97 @@
               </div>
               <p class="text-muted mb-0 small">{{ rec.message }}</p>
             </div>
+          </div>
+        </div>
+      }
+    }
+
+    <!-- ==================== EDITS TAB ==================== -->
+    @if (activeTab() === 'edits') {
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h6 class="text-white mb-0"><i class="bi bi-pencil-square"></i> Timecard Edit Requests</h6>
+        <div class="btn-group btn-group-sm">
+          <button class="btn" [class.btn-light]="editsFilter() === 'pending'"
+            [class.btn-outline-light]="editsFilter() !== 'pending'" (click)="setEditsFilter('pending')">
+            Pending
+          </button>
+          <button class="btn" [class.btn-light]="editsFilter() === 'approved'"
+            [class.btn-outline-light]="editsFilter() !== 'approved'" (click)="setEditsFilter('approved')">
+            Approved
+          </button>
+          <button class="btn" [class.btn-light]="editsFilter() === 'denied'"
+            [class.btn-outline-light]="editsFilter() !== 'denied'" (click)="setEditsFilter('denied')">
+            Denied
+          </button>
+          <button class="btn" [class.btn-light]="editsFilter() === 'all'"
+            [class.btn-outline-light]="editsFilter() !== 'all'" (click)="setEditsFilter('all')">
+            All
+          </button>
+        </div>
+      </div>
+
+      @if (filteredEdits().length === 0 && !isLoading()) {
+        <div class="text-center py-4">
+          <i class="bi bi-check-circle text-muted" style="font-size: 2rem;"></i>
+          <p class="text-muted mt-2 mb-0">
+            @if (editsFilter() === 'pending') {
+              No pending edit requests.
+            } @else {
+              No edit requests matching this filter.
+            }
+          </p>
+        </div>
+      }
+
+      @for (edit of filteredEdits(); track edit.id) {
+        <div class="edit-request-card mb-2">
+          <div class="d-flex justify-content-between align-items-start">
+            <div class="flex-grow-1">
+              <div class="d-flex align-items-center gap-2 mb-1">
+                <strong class="text-white">{{ edit.requestedByName }}</strong>
+                <span class="badge bg-info">{{ getEditTypeLabel(edit.editType) }}</span>
+                <span [class]="getEditStatusClass(edit.status)">{{ edit.status }}</span>
+              </div>
+              <div class="text-muted small mb-1">
+                <i class="bi bi-calendar3"></i> Requested: {{ edit.createdAt | date:'short' }}
+                @if (edit.expiresAt) {
+                  &middot; Expires: {{ edit.expiresAt | date:'short' }}
+                }
+              </div>
+              <div class="edit-values d-flex gap-3 mb-1">
+                <div>
+                  <span class="text-muted small">Original:</span>
+                  <span class="text-white small ms-1">{{ edit.originalValue }}</span>
+                </div>
+                <div>
+                  <span class="text-muted small">Requested:</span>
+                  <span class="text-white small ms-1 fw-bold">{{ edit.newValue }}</span>
+                </div>
+              </div>
+              <div class="text-muted small">
+                <i class="bi bi-chat-left-text"></i> {{ edit.reason }}
+              </div>
+              @if (edit.approvedByName) {
+                <div class="text-muted small mt-1">
+                  <i class="bi bi-person-check"></i> {{ edit.status === 'approved' ? 'Approved' : 'Denied' }} by {{ edit.approvedByName }}
+                  @if (edit.resolvedAt) {
+                    on {{ edit.resolvedAt | date:'short' }}
+                  }
+                </div>
+              }
+            </div>
+            @if (edit.status === 'pending') {
+              <div class="d-flex gap-2 ms-3">
+                <button class="btn btn-sm btn-success" (click)="approveEdit(edit.id)"
+                  [disabled]="isResolvingEdit()" title="Approve">
+                  <i class="bi bi-check-lg"></i>
+                </button>
+                <button class="btn btn-sm btn-danger" (click)="denyEdit(edit.id)"
+                  [disabled]="isResolvingEdit()" title="Deny">
+                  <i class="bi bi-x-lg"></i>
+                </button>
+              </div>
+            }
           </div>
         </div>
       }

@@ -81,6 +81,7 @@ export class MenuService {
         )
       );
       this._categories.set(this.normalizeMenuData(response || []));
+      this._crudSupported.set(true);
     } catch (err: any) {
       const message = err?.error?.message ?? 'Failed to load menu';
       this._error.set(message);

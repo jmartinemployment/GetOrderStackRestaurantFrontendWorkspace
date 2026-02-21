@@ -25,11 +25,13 @@ export class CategoryManagement {
   private readonly _isSaving = signal(false);
   private readonly _localError = signal<string | null>(null);
   private readonly _menuLoaded = signal(false);
+  private readonly _deleteTarget = signal<MenuCategory | null>(null);
 
   readonly editingCategory = this._editingCategory.asReadonly();
   readonly showForm = this._showForm.asReadonly();
   readonly isSaving = this._isSaving.asReadonly();
   readonly localError = this._localError.asReadonly();
+  readonly deleteTarget = this._deleteTarget.asReadonly();
 
   readonly categories = this.menuService.categories;
   readonly isLoading = this.menuService.isLoading;
@@ -112,17 +114,27 @@ export class CategoryManagement {
     }
   }
 
-  async deleteCategory(category: MenuCategory): Promise<void> {
-    if (!confirm(`Are you sure you want to delete "${category.name}"?`)) return;
+  confirmDelete(category: MenuCategory): void {
+    this._deleteTarget.set(category);
+  }
+
+  cancelDelete(): void {
+    this._deleteTarget.set(null);
+  }
+
+  async executeDelete(): Promise<void> {
+    const category = this._deleteTarget();
+    if (!category) return;
 
     this._localError.set(null);
+    this._deleteTarget.set(null);
     try {
       const success = await this.menuService.deleteCategory(category.id);
       if (!success) {
         this._localError.set(this.menuService.error() ?? 'Failed to delete category');
       }
-    } catch (err: any) {
-      this._localError.set(err?.message ?? 'An unexpected error occurred');
+    } catch (err: unknown) {
+      this._localError.set(err instanceof Error ? err.message : 'An unexpected error occurred');
     }
   }
 

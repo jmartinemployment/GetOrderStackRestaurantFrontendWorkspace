@@ -8,6 +8,31 @@
   }
 }
 
+.search-bar {
+  .input-group-text {
+    background-color: var(--hermes, #203B8C);
+    border-color: var(--deep-lake, #1D3273);
+    color: #aaa;
+  }
+
+  .form-control {
+    background-color: var(--midnight-black, #03020D);
+    border-color: var(--deep-lake, #1D3273);
+    color: #fff;
+
+    &::placeholder {
+      color: rgba(255, 255, 255, 0.5);
+    }
+
+    &:focus {
+      background-color: var(--midnight-black, #03020D);
+      border-color: var(--medium-slate-blue, #7E5EF2);
+      color: #fff;
+      box-shadow: 0 0 0 0.25rem rgba(126, 94, 242, 0.25);
+    }
+  }
+}
+
 .status-filter {
   background-color: var(--midnight-black, #03020D);
   padding: 1rem;

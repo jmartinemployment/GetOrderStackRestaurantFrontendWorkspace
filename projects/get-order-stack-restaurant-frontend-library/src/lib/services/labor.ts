@@ -12,6 +12,13 @@ import {
   SwapRequest,
   AvailabilityPreference,
   StaffEarnings,
+  Timecard,
+  TimecardBreak,
+  BreakType,
+  TimecardEdit,
+  TimecardEditStatus,
+  WorkweekConfig,
+  PosSession,
 } from '../models';
 import { AuthService } from './auth';
 import { environment } from '../environments/environment';
@@ -41,6 +48,19 @@ export class LaborService {
   readonly laborTargets = this._laborTargets.asReadonly();
   readonly isLoading = this._isLoading.asReadonly();
   readonly error = this._error.asReadonly();
+
+  // --- Timecard signals ---
+  private readonly _timecards = signal<Timecard[]>([]);
+  private readonly _breakTypes = signal<BreakType[]>([]);
+  private readonly _workweekConfig = signal<WorkweekConfig | null>(null);
+  private readonly _posSession = signal<PosSession | null>(null);
+  private readonly _timecardEdits = signal<TimecardEdit[]>([]);
+
+  readonly timecards = this._timecards.asReadonly();
+  readonly breakTypes = this._breakTypes.asReadonly();
+  readonly workweekConfig = this._workweekConfig.asReadonly();
+  readonly posSession = this._posSession.asReadonly();
+  readonly timecardEdits = this._timecardEdits.asReadonly();
 
   private get restaurantId(): string | null {
     return this.authService.selectedRestaurantId();
@@ -435,5 +455,344 @@ export class LaborService {
       this._error.set(message);
       return false;
     }
+  }
+
+  // ============ Timecard Methods ============
+
+  async loadTimecards(filters?: { status?: string; startDate?: string; endDate?: string; teamMemberId?: string }): Promise<void> {
+    if (!this.restaurantId) return;
+
+    this._isLoading.set(true);
+    this._error.set(null);
+
+    try {
+      const params: Record<string, string> = {};
+      if (filters?.status) params['status'] = filters.status;
+      if (filters?.startDate) params['startDate'] = filters.startDate;
+      if (filters?.endDate) params['endDate'] = filters.endDate;
+      if (filters?.teamMemberId) params['teamMemberId'] = filters.teamMemberId;
+
+      const data = await firstValueFrom(
+        this.http.get<Timecard[]>(
+          `${this.apiUrl}/restaurant/${this.restaurantId}/timecards`,
+          { params }
+        )
+      );
+      this._timecards.set(data);
+    } catch (err: unknown) {
+      this._error.set(err instanceof Error ? err.message : 'Failed to load timecards');
+    } finally {
+      this._isLoading.set(false);
+    }
+  }
+
+  async getTimecard(id: string): Promise<Timecard | null> {
+    if (!this.restaurantId) return null;
+
+    try {
+      return await firstValueFrom(
+        this.http.get<Timecard>(
+          `${this.apiUrl}/restaurant/${this.restaurantId}/timecards/${id}`
+        )
+      );
+    } catch {
+      return null;
+    }
+  }
+
+  async clockInWithJob(teamMemberId: string, jobTitle?: string): Promise<Timecard | null> {
+    if (!this.restaurantId) return null;
+
+    this._error.set(null);
+
+    try {
+      const body: Record<string, string> = { teamMemberId };
+      if (jobTitle) body['jobTitle'] = jobTitle;
+
+      const result = await firstValueFrom(
+        this.http.post<Timecard>(
+          `${this.apiUrl}/restaurant/${this.restaurantId}/timecards`,
+          body
+        )
+      );
+      this._timecards.update(tc => [...tc, result]);
+      return result;
+    } catch (err: unknown) {
+      this._error.set(err instanceof Error ? err.message : 'Failed to clock in');
+      return null;
+    }
+  }
+
+  async clockOutWithTips(timecardId: string, declaredCashTips?: number): Promise<boolean> {
+    if (!this.restaurantId) return false;
+
+    this._error.set(null);
+
+    try {
+      const body: Record<string, unknown> = { status: 'CLOSED' };
+      if (declaredCashTips !== undefined) body['declaredCashTips'] = declaredCashTips;
+
+      const result = await firstValueFrom(
+        this.http.patch<Timecard>(
+          `${this.apiUrl}/restaurant/${this.restaurantId}/timecards/${timecardId}`,
+          body
+        )
+      );
+      this._timecards.update(tc => tc.map(t => t.id === timecardId ? result : t));
+      return true;
+    } catch (err: unknown) {
+      this._error.set(err instanceof Error ? err.message : 'Failed to clock out');
+      return false;
+    }
+  }
+
+  async startBreak(timecardId: string, breakTypeId: string): Promise<TimecardBreak | null> {
+    if (!this.restaurantId) return null;
+
+    this._error.set(null);
+
+    try {
+      const result = await firstValueFrom(
+        this.http.post<TimecardBreak>(
+          `${this.apiUrl}/restaurant/${this.restaurantId}/timecards/${timecardId}/breaks`,
+          { breakTypeId }
+        )
+      );
+      this._timecards.update(tc => tc.map(t => {
+        if (t.id === timecardId) {
+          return { ...t, breaks: [...t.breaks, result] };
+        }
+        return t;
+      }));
+      return result;
+    } catch (err: unknown) {
+      this._error.set(err instanceof Error ? err.message : 'Failed to start break');
+      return null;
+    }
+  }
+
+  async endBreak(timecardId: string, breakId: string): Promise<boolean> {
+    if (!this.restaurantId) return false;
+
+    this._error.set(null);
+
+    try {
+      const result = await firstValueFrom(
+        this.http.patch<TimecardBreak>(
+          `${this.apiUrl}/restaurant/${this.restaurantId}/timecards/${timecardId}/breaks/${breakId}`,
+          {}
+        )
+      );
+      this._timecards.update(tc => tc.map(t => {
+        if (t.id === timecardId) {
+          return { ...t, breaks: t.breaks.map(b => b.id === breakId ? result : b) };
+        }
+        return t;
+      }));
+      return true;
+    } catch (err: unknown) {
+      this._error.set(err instanceof Error ? err.message : 'Failed to end break');
+      return false;
+    }
+  }
+
+  // ============ Break Types ============
+
+  async loadBreakTypes(): Promise<void> {
+    if (!this.restaurantId) return;
+
+    try {
+      const data = await firstValueFrom(
+        this.http.get<BreakType[]>(
+          `${this.apiUrl}/restaurant/${this.restaurantId}/break-types`
+        )
+      );
+      this._breakTypes.set(data);
+    } catch (err: unknown) {
+      this._error.set(err instanceof Error ? err.message : 'Failed to load break types');
+    }
+  }
+
+  async createBreakType(data: Omit<BreakType, 'id' | 'restaurantId'>): Promise<BreakType | null> {
+    if (!this.restaurantId) return null;
+
+    this._error.set(null);
+
+    try {
+      const result = await firstValueFrom(
+        this.http.post<BreakType>(
+          `${this.apiUrl}/restaurant/${this.restaurantId}/break-types`,
+          data
+        )
+      );
+      this._breakTypes.update(bt => [...bt, result]);
+      return result;
+    } catch (err: unknown) {
+      this._error.set(err instanceof Error ? err.message : 'Failed to create break type');
+      return null;
+    }
+  }
+
+  async updateBreakType(id: string, data: Partial<BreakType>): Promise<boolean> {
+    if (!this.restaurantId) return false;
+
+    this._error.set(null);
+
+    try {
+      const result = await firstValueFrom(
+        this.http.patch<BreakType>(
+          `${this.apiUrl}/restaurant/${this.restaurantId}/break-types/${id}`,
+          data
+        )
+      );
+      this._breakTypes.update(bt => bt.map(b => b.id === id ? result : b));
+      return true;
+    } catch (err: unknown) {
+      this._error.set(err instanceof Error ? err.message : 'Failed to update break type');
+      return false;
+    }
+  }
+
+  // ============ Timecard Edits ============
+
+  async loadTimecardEdits(filters?: { status?: string; teamMemberId?: string }): Promise<void> {
+    if (!this.restaurantId) return;
+
+    try {
+      const params: Record<string, string> = {};
+      if (filters?.status) params['status'] = filters.status;
+      if (filters?.teamMemberId) params['teamMemberId'] = filters.teamMemberId;
+
+      const data = await firstValueFrom(
+        this.http.get<TimecardEdit[]>(
+          `${this.apiUrl}/restaurant/${this.restaurantId}/timecard-edits`,
+          { params }
+        )
+      );
+      this._timecardEdits.set(data);
+    } catch (err: unknown) {
+      this._error.set(err instanceof Error ? err.message : 'Failed to load timecard edits');
+    }
+  }
+
+  async requestTimecardEdit(data: { timecardId: string; editType: string; originalValue: string; newValue: string; reason: string }): Promise<TimecardEdit | null> {
+    if (!this.restaurantId) return null;
+
+    this._error.set(null);
+
+    try {
+      const result = await firstValueFrom(
+        this.http.post<TimecardEdit>(
+          `${this.apiUrl}/restaurant/${this.restaurantId}/timecard-edits`,
+          data
+        )
+      );
+      this._timecardEdits.update(edits => [...edits, result]);
+      return result;
+    } catch (err: unknown) {
+      this._error.set(err instanceof Error ? err.message : 'Failed to request timecard edit');
+      return null;
+    }
+  }
+
+  async resolveTimecardEdit(id: string, status: TimecardEditStatus): Promise<boolean> {
+    if (!this.restaurantId) return false;
+
+    this._error.set(null);
+
+    try {
+      const result = await firstValueFrom(
+        this.http.patch<TimecardEdit>(
+          `${this.apiUrl}/restaurant/${this.restaurantId}/timecard-edits/${id}`,
+          { status }
+        )
+      );
+      this._timecardEdits.update(edits => edits.map(e => e.id === id ? result : e));
+      return true;
+    } catch (err: unknown) {
+      this._error.set(err instanceof Error ? err.message : 'Failed to resolve timecard edit');
+      return false;
+    }
+  }
+
+  // ============ Workweek Config ============
+
+  async loadWorkweekConfig(): Promise<void> {
+    if (!this.restaurantId) return;
+
+    try {
+      const data = await firstValueFrom(
+        this.http.get<WorkweekConfig>(
+          `${this.apiUrl}/restaurant/${this.restaurantId}/workweek-config`
+        )
+      );
+      this._workweekConfig.set(data);
+    } catch {
+      // Default if not configured
+      this._workweekConfig.set(null);
+    }
+  }
+
+  async updateWorkweekConfig(data: Partial<WorkweekConfig>): Promise<boolean> {
+    if (!this.restaurantId) return false;
+
+    this._error.set(null);
+
+    try {
+      const result = await firstValueFrom(
+        this.http.put<WorkweekConfig>(
+          `${this.apiUrl}/restaurant/${this.restaurantId}/workweek-config`,
+          data
+        )
+      );
+      this._workweekConfig.set(result);
+      return true;
+    } catch (err: unknown) {
+      this._error.set(err instanceof Error ? err.message : 'Failed to update workweek config');
+      return false;
+    }
+  }
+
+  // ============ POS Login ============
+
+  async posLogin(passcode: string): Promise<PosSession | null> {
+    if (!this.restaurantId) return null;
+
+    this._error.set(null);
+
+    try {
+      const result = await firstValueFrom(
+        this.http.post<PosSession>(
+          `${this.apiUrl}/restaurant/${this.restaurantId}/pos/login`,
+          { passcode }
+        )
+      );
+      this._posSession.set(result);
+      return result;
+    } catch (err: unknown) {
+      this._error.set(err instanceof Error ? err.message : 'Invalid passcode');
+      return null;
+    }
+  }
+
+  async posLogout(): Promise<void> {
+    if (!this.restaurantId) return;
+
+    try {
+      await firstValueFrom(
+        this.http.post(
+          `${this.apiUrl}/restaurant/${this.restaurantId}/pos/logout`,
+          {}
+        )
+      );
+    } catch {
+      // Silent logout failure — clear session anyway
+    }
+
+    this._posSession.set(null);
+  }
+
+  clearPosSession(): void {
+    this._posSession.set(null);
   }
 }

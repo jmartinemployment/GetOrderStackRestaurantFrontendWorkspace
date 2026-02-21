@@ -204,6 +204,112 @@
   }
 }
 
+// Workweek info
+.workweek-info {
+  .badge {
+    font-size: 0.75rem;
+    font-weight: 500;
+    padding: 0.375rem 0.5rem;
+  }
+}
+
+// Labor vs Sales
+.labor-vs-sales {
+  background-color: var(--midnight-black, #03020D);
+  border: 1px solid var(--deep-lake, #1D3273);
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+}
+
+.lvs-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.375rem;
+}
+
+.lvs-label {
+  width: 70px;
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.6);
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.lvs-bars {
+  flex-grow: 1;
+  height: 18px;
+  position: relative;
+  background-color: rgba(255, 255, 255, 0.04);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.lvs-revenue-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 9px;
+  background: linear-gradient(90deg, var(--cerulean-periwinkle, #5CB9F2), #3a8fd4);
+  border-radius: 3px 3px 0 0;
+}
+
+.lvs-cost-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 9px;
+  background: linear-gradient(90deg, #e67e22, #d95a2a);
+  border-radius: 0 0 3px 3px;
+}
+
+.lvs-values {
+  width: 140px;
+  font-size: 0.7rem;
+  text-align: right;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  justify-content: flex-end;
+}
+
+.lvs-revenue { color: var(--cerulean-periwinkle, #5CB9F2); }
+.lvs-separator { color: rgba(255, 255, 255, 0.3); }
+.lvs-cost { color: #e67e22; }
+.lvs-pct { font-weight: 600; min-width: 30px; text-align: right; }
+
+.lvs-legend-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
+.lvs-legend-revenue { background: var(--cerulean-periwinkle, #5CB9F2); }
+.lvs-legend-cost { background: #e67e22; }
+
+// Edit requests
+.edit-request-card {
+  background-color: var(--midnight-black, #03020D);
+  border: 1px solid var(--deep-lake, #1D3273);
+  border-radius: 0.375rem;
+  padding: 0.75rem 1rem;
+  transition: border-color 0.15s;
+
+  &:hover {
+    border-color: var(--medium-slate-blue, #7E5EF2);
+  }
+}
+
+.edit-values {
+  background-color: rgba(255, 255, 255, 0.04);
+  border-radius: 0.25rem;
+  padding: 0.375rem 0.5rem;
+}
+
 // Modal
 .modal-backdrop {
   position: fixed;
